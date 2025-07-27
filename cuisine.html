@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cuisine - Planning</title>
+    <link rel="stylesheet" href="style.css" />
+    <!-- Includi PDF.js tramite CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.12.313/pdf.min.js"></script>
+</head>
+<body>
+    <header>
+        <h1>Planning Cuisine</h1>
+        <nav>
+            <ul>
+                <li><a href="index.html">Home</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <section>
+    <h2>Planning hebdomadaire</h2>
+    <ul>
+        <li>
+            <a href="https://drive.google.com/file/d/15CCzN8h8y8T7NF6o-q-OLeVUCf6bii45/view?usp=sharing" target="_blank">Planning semaine en cours</a>
+        </li>
+        <li>
+            <a href="https://drive.google.com/file/d/15-amFdWdXVqi2i4AFvjs2RpEFOgw-uqS/view?usp=sharing" target="_blank">Planning prochaine semaine</a>
+        </li>
+    </ul>
+</section>
+        <section>
+    <h2>Planning Mensuel</h2>
+    <ul>
+        <li>
+            <a href="https://drive.google.com/file/d/1LEvn05KuJ0h0I3-BQgKpanP0Gv_3367C/view?usp=sharing" target="_blank">Planning du mois en cours</a>
+        </li>
+        <li>
+            <a href="" target="_blank">Planning du mois prochain</a>
+        </li>
+    </ul>
+</section>
+
+        <!-- Canvas per visualizzare il PDF -->
+        <section>
+            <h2></h2>
+            <canvas id="pdf-canvas"></canvas>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 Pizzeria Molino Molard </p>
+    </footer>
+
+    <!-- Codice JavaScript per caricare il PDF -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const url = 'https://drive.google.com/uc?export=download&id=1f081LFeqYq2cp6jEtdT8tPYAl94vVa0X'; // Link diretto al PDF su Google Drive
+
+            const loadingTask = pdfjsLib.getDocument({ url });
+            loadingTask.promise.then(pdf => {
+                pdf.getPage(1).then(page => {
+                    const scale = 1.5;
+                    const viewport = page.getViewport({ scale });
+
+                    const canvas = document.getElementById('pdf-canvas');
+                    const context = canvas.getContext('2d');
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+
+                    const renderContext = {
+                        canvasContext: context,
+                        viewport: viewport
+                    };
+                    page.render(renderContext);
+                });
+            }).catch(error => {
+                console.error('Errore nel caricamento del PDF:', error);
+            });
+        });
+    </script>
+</body>
+</html>
