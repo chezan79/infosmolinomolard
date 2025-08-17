@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Règlements de la maison</title>
+    <link rel="stylesheet" href="style.css" />
+    <!-- Includi PDF.js tramite CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.12.313/pdf.min.js"></script>
+</head>
+<body>
+    <header>
+        <h1>Règlements Molino Molard</h1>
+        <nav>
+            <ul>
+                <li><a href="index.html">Home</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <section>
+            <h2>Decouvrez les avantages Ospena Group</h2>
+            <ul>
+                <li>
+                    <a href="https://drive.google.com/file/d/1h4UKBgN-XGk5wGyUr4RMDgEa31785QfA/view" target="_blank">Les Avantages</a>
+                </li>
+            </ul>
+        </section>
+        
+        <section>
+            <h2>Code de conduite</h2>
+            <ul>
+                <li>
+                    <a href="https://drive.google.com/file/d/1OUFdL7BGDBhd7Ox9TNN-U-7FFnJr2vcO/view?usp=drivesdk" target="_blank">Code de Conduite</a>
+                </li>
+            </ul>
+        </section>
+        
+        <section>
+            <h2>Règlement du personnel</h2>
+            <ul>
+                <li>
+                    <a href="https://drive.google.com/file/d/1NPS50QiZllvdnVAEO_Z9Im0p2KkI04PX/view?usp=drivesdk" target="_blank">Règlement du personnel</a>
+                </li>
+            </ul>
+        </section>
+        
+        <section>
+            <h2>Règlement repas gratuit Molino Molard</h2>
+            <ul>
+                <li>
+                    <a href="https://drive.google.com/file/d/1p8BrVMyLBAC-Ta7DKhLXfWSvbOdT715o/view?usp=drivesdk" target="_blank">Règlement repas gratuit Molino Molard</a>
+                </li>
+            </ul>
+        </section>
+        
+        <section>
+            <h2>Règlement des uniformes</h2>
+            <ul>
+                <li>
+                    <a href="https://drive.google.com/file/d/1EpEbfgLgf8MvYo-mNVFVUyPTtUVlioCT/view?usp=drivesdk" target="_blank">Réglement des uniformes</a>
+                </li>
+            </ul>
+        </section>
+        
+        <section>
+            <h2>Règlement de la maison Molino Molard</h2>
+            <ul>
+                <li>
+                    <a href="https://drive.google.com/file/d/1OUfIvAPhb8zZBn2q8G0NOcI1cs1OX2y8/view?usp=drivesdk" target="_blank">Règlement de la maison Molino Molard</a>
+                </li>
+            </ul>
+        </section>
+   
+        <!-- Canvas per visualizzare il PDF -->
+        <canvas id="pdf-canvas"></canvas>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 Pizzeria Molino Molard</p>
+    </footer>
+
+    <!-- Codice JavaScript per caricare il PDF -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const url = 'https://drive.google.com/uc?export=download&id=1f081LFeqYq2cp6jEtdT8tPYAl94vVa0X'; // Link diretto al PDF su Google Drive
+
+            const loadingTask = pdfjsLib.getDocument({ url });
+            loadingTask.promise.then(pdf => {
+                pdf.getPage(1).then(page => {
+                    const scale = 1.5;
+                    const viewport = page.getViewport({ scale });
+
+                    const canvas = document.getElementById('pdf-canvas');
+                    const context = canvas.getContext('2d');
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+
+                    const renderContext = {
+                        canvasContext: context,
+                        viewport: viewport
+                    };
+                    page.render(renderContext);
+                });
+            }).catch(error => {
+                console.error('Errore nel caricamento del PDF:', error);
+            });
+        });
+    </script>
+</body>
+</html>
