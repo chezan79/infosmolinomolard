@@ -42,6 +42,23 @@
     </ul>
 </section>
 
+        <div id="sheetsLoadingMessage" style="display:none; color: #4285f4; margin: 10px 0; text-align: center;">
+            Caricamento planning...
+        </div>
+
+        <section id="employeeSelector" style="display:none; margin-top: 30px;">
+            <h2>Seleziona il tuo nome</h2>
+            <select id="employeeSelect" style="width: 100%; padding: 15px; font-size: 16px; margin-bottom: 20px;">
+                <option value="">-- Seleziona il tuo nome --</option>
+            </select>
+        </section>
+
+        <section id="employeeSchedule" style="display:none; margin-top: 30px;">
+            <h2>I tuoi orari della settimana</h2>
+            <div id="scheduleDisplay" style="background-color: #f8f9fa; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+            </div>
+        </section>
+
         <!-- Canvas per visualizzare il PDF -->
         <section>
             <h2></h2>
@@ -53,9 +70,243 @@
         <p>&copy; 2025 Pizzeria Molino Molard</p>
     </footer>
 
-    <!-- Codice JavaScript per caricare il PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
+        let planningData = [];
+
+        // Carica automaticamente i dati al caricamento della pagina
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 PAGINA OFFICE CARICATA - Avvio caricamento dati...');
+            loadFromGoogleSheets();
+            loadPDF();
+
+            const employeeSelect = document.getElementById('employeeSelect');
+            if (employeeSelect) {
+                employeeSelect.addEventListener('change', showEmployeeSchedule);
+            }
+        });
+
+        async function loadFromGoogleSheets() {
+            // Link hardcoded per office
+            const sheetsLink = "https://docs.google.com/spreadsheets/d/1QL0gE63O0ljvB8WylRSgQCtZ6YQSi4t-/edit?usp=sharing&ouid=108324642946843384206&rtpof=true&sd=true";
+
+            const loadingMessage = document.getElementById('sheetsLoadingMessage');
+            const employeeSelector = document.getElementById('employeeSelector');
+
+            console.log('📡 Inizio caricamento da Google Sheets per OFFICE...');
+            loadingMessage.style.display = 'block';
+            employeeSelector.style.display = 'none';
+
+            try {
+                const response = await fetch('/api/download-google-sheets', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        sheetUrl: sheetsLink,
+                        sheetName: 'office'
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Errore nel caricare i dati da Google Sheets');
+                }
+
+                const result = await response.json();
+
+                if (result.success) {
+                    planningData = result.data;
+                    console.log('✅ DATI OFFICE CARICATI CORRETTAMENTE');
+                    populateEmployeeSelect();
+
+                    // MOSTRA SEMPRE LA SEZIONE
+                    employeeSelector.style.display = 'block';
+                    loadingMessage.style.display = 'none';
+
+                    console.log(`✅ SEZIONE OFFICE MOSTRATA! Trovati ${planningData.length} collaboratori.`);
+                } else {
+                    throw new Error(result.error || 'Errore sconosciuto');
+                }
+
+            } catch (error) {
+                console.error('❌ Errore caricamento OFFICE:', error);
+                loadingMessage.style.display = 'none';
+                // MOSTRA LA SEZIONE ANCHE IN CASO DI ERRORE
+                employeeSelector.style.display = 'block';
+
+                const select = document.getElementById('employeeSelect');
+                select.innerHTML = '<option value="">❌ Errore nel caricamento</option>';
+            }
+        }
+
+        function populateEmployeeSelect() {
+            const select = document.getElementById('employeeSelect');
+            select.innerHTML = '<option value="">-- Seleziona il tuo nome --</option>';
+
+            const employeeNames = [];
+
+            console.log('📊 Dati totali ricevuti da Google Sheets OFFICE:', planningData.length);
+            console.log('📋 Primi 3 elementi per debug:', planningData.slice(0, 3));
+
+            // I dati dal server non contengono più le intestazioni, quindi processa tutte le righe
+            for (let i = 0; i < planningData.length; i++) {
+                const row = planningData[i];
+                console.log(`🔍 Analizzando riga ${i + 1}:`, row);
+
+                if (row && typeof row === 'object') {
+                    const keys = Object.keys(row);
+                    if (keys.length > 0) {
+                        const name = row[keys[0]]; // Prima colonna = Nome collaboratore
+                        console.log(`📝 Nome trovato in riga ${i + 1}: "${name}"`);
+
+                        if (name && name.trim()) {
+                            const isValid = isValidEmployeeName(name);
+                            console.log(`🔎 Validazione per "${name.trim()}": ${isValid ? '✅ VALIDO' : '❌ NON VALIDO'}`);
+
+                            if (isValid) {
+                                employeeNames.push(name.trim());
+                                console.log(`✓ Collaboratore aggiunto alla lista: ${name.trim()}`);
+                            }
+                        } else {
+                            console.log(`⚠️ Nome vuoto o nullo in riga ${i + 1}`);
+                        }
+                    }
+                }
+            }
+
+            // Rimuovi duplicati e ordina
+            const uniqueNames = [...new Set(employeeNames)].sort();
+
+            console.log(`📋 Collaboratori finali trovati (${uniqueNames.length}):`, uniqueNames);
+
+            if (uniqueNames.length === 0) {
+                console.error('❌ ERRORE: Nessun collaboratore trovato nei dati di Google Sheets OFFICE!');
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = '❌ Nessun collaboratore trovato';
+                select.appendChild(option);
+                return;
+            }
+
+            uniqueNames.forEach(name => {
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                select.appendChild(option);
+                console.log(`➕ Aggiunto al dropdown: ${name}`);
+            });
+
+            console.log('✅ DROPDOWN OFFICE POPOLATO CON SUCCESSO!');
+        }
+
+        function isValidEmployeeName(name) {
+            if (!name || !name.trim()) return false;
+
+            const trimmedName = name.trim();
+
+            // Escludi intestazioni comuni
+            if (trimmedName === "Nom" || trimmedName === "nom" || trimmedName === "Nome") return false;
+
+            // Escludi solo orari puri (pattern molto specifici)
+            if (/^[RDS]$/.test(trimmedName)) return false; // solo "R", "D", "S"
+            if (/^\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}$/.test(trimmedName)) return false; // orari tipo "09:00-17:00"
+
+            // ACCETTA TUTTI I NOMI CHE CONTENGONO ALMENO UNA LETTERA
+            if (trimmedName.length < 2) return false;
+
+            // Deve contenere almeno una lettera (molto permissivo per i nomi)
+            if (!/[a-zA-ZàáâäçèéêëìíîïñòóôöùúûüÀÁÂÄÇÈÉÊËÌÍÎÏÑÒÓÔÖÙÚÛÜ']/.test(trimmedName)) return false;
+
+            console.log(`✓ Nome validato: "${trimmedName}"`);
+            return true;
+        }
+
+        function showEmployeeSchedule() {
+            const selectedName = document.getElementById('employeeSelect').value;
+            const scheduleDisplay = document.getElementById('scheduleDisplay');
+            const scheduleSection = document.getElementById('employeeSchedule');
+
+            if (!selectedName) {
+                scheduleSection.style.display = 'none';
+                return;
+            }
+
+            console.log(`🔍 Cercando dati per: "${selectedName}"`);
+
+            // Trova la riga corrispondente al nome selezionato
+            const employeeData = planningData.find(row => {
+                if (row && typeof row === 'object') {
+                    const keys = Object.keys(row);
+                    const name = row[keys[0]];
+                    return name && name.trim() === selectedName;
+                }
+                return false;
+            });
+
+            if (!employeeData) {
+                console.error(`❌ Dati non trovati per "${selectedName}"`);
+                alert(`Dati non trovati per ${selectedName}. Controlla la console per i dettagli.`);
+                return;
+            }
+
+            console.log(`✅ Dati trovati per "${selectedName}":`, employeeData);
+
+            // Usa la struttura delle chiavi dalla prima riga di dati per mappare le colonne
+            const firstRowKeys = Object.keys(employeeData);
+            const headerKeys = firstRowKeys;
+
+            console.log('📋 Intestazioni colonne dal foglio Google:', headerKeys);
+
+            // Nomi fissi dei giorni in francese
+            const fixedDayNames = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
+
+            // Crea la visualizzazione degli orari
+            let scheduleHTML = `<h3 style="color: #333; margin-bottom: 20px;">👤 ${selectedName}</h3>`;
+            scheduleHTML += '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">';
+
+            // Visualizza gli orari per tutti i giorni (saltando la prima colonna che è il nome)
+            for (let i = 1; i < headerKeys.length && i <= 7; i++) {
+                const headerKey = headerKeys[i];
+                const dayName = fixedDayNames[i - 1] || `Giorno ${i}`;
+
+                // Prendi l'orario dal collaboratore
+                let schedule = 'Non specificato';
+                if (employeeData[headerKey] !== undefined && employeeData[headerKey] !== null && employeeData[headerKey] !== '') {
+                    schedule = employeeData[headerKey];
+                }
+
+                console.log(`📅 ${dayName} (colonna: ${headerKey}):`, schedule);
+
+                // Determina il colore del bordo in base al tipo di orario
+                let borderColor = '#4285f4'; // Default blu
+                if (schedule === 'R') borderColor = '#ff4444'; // Rosso per riposo
+                else if (schedule.includes('D ')) borderColor = '#00aa44'; // Verde per giorno
+                else if (schedule.includes('S ')) borderColor = '#ff8800'; // Arancione per sera
+                else if (schedule.includes('9S')) borderColor = '#8800ff'; // Viola per 9S
+
+                scheduleHTML += `
+                    <div style="background: white; padding: 15px; border-radius: 8px; border-left: 4px solid ${borderColor}; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <div style="font-weight: bold; color: ${borderColor}; margin-bottom: 5px; text-transform: capitalize;">${dayName}</div>
+                        <div style="font-size: 16px; color: #333; font-weight: ${schedule === 'R' ? 'bold' : 'normal'};">${schedule}</div>
+                    </div>
+                `;
+            }
+
+            scheduleHTML += '</div>';
+
+            // Aggiungi info di debug in fondo
+            scheduleHTML += `<div style="margin-top: 20px; padding: 10px; background: #f0f0f0; border-radius: 5px; font-size: 12px; color: #666;">
+                <strong>Debug Info OFFICE:</strong> Dati estratti da Google Sheets • Ultima sincronizzazione: ${new Date().toLocaleString()}
+            </div>`;
+
+            scheduleDisplay.innerHTML = scheduleHTML;
+            scheduleSection.style.display = 'block';
+        }
+
+        // Funzione per caricare il PDF (codice originale)
+        function loadPDF() {
             const url = 'https://drive.google.com/uc?export=download&id=1f081LFeqYq2cp6jEtdT8tPYAl94vVa0X'; // Link diretto al PDF su Google Drive
 
             const loadingTask = pdfjsLib.getDocument({ url });
@@ -78,7 +329,5 @@
             }).catch(error => {
                 console.error('Errore nel caricamento del PDF:', error);
             });
-        });
+        }
     </script>
-</body>
-</html>
