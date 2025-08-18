@@ -183,11 +183,11 @@ app.post('/api/download-google-sheets', async (req, res) => {
 function getSheetGidByName(sheetName) {
   const sheetMapping = {
     'bar': 0,           // Primo foglio per bar
-    'service': 1,       // Secondo foglio per service  
+    'service': 1763904694,  // Vero GID del foglio service  
     'BAR': 0,
-    'SERVICE': 1,
+    'SERVICE': 1763904694,
     'Bar': 0,
-    'Service': 1
+    'Service': 1763904694
   };
   
   return sheetMapping[sheetName] || 0; // Default al primo foglio
