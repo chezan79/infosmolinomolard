@@ -203,23 +203,20 @@
 
       const keys = Object.keys(employeeData);
       
-      // Mostra gli orari delle colonne B, C, D, E, F, G, H in ordine
-      // (keys[1] = colonna B, keys[2] = colonna C, ecc.)
-      for (let i = 1; i <= 7 && i < keys.length; i++) {
+      // Definisci tutti i giorni della settimana in ordine
+      const daysOfWeek = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
+      
+      // Mostra gli orari per tutte le colonne disponibili (saltando la prima che è il nome)
+      for (let i = 1; i < keys.length; i++) {
         const columnKey = keys[i];
         const schedule = employeeData[columnKey] || 'Non specificato';
 
         // Determina il nome del giorno basato sulla posizione della colonna
         let dayName;
-        switch(i) {
-          case 1: dayName = 'Lunedì'; break;
-          case 2: dayName = 'Martedì'; break;
-          case 3: dayName = 'Mercoledì'; break;
-          case 4: dayName = 'Giovedì'; break;
-          case 5: dayName = 'Venerdì'; break;
-          case 6: dayName = 'Sabato'; break;
-          case 7: dayName = 'Domenica'; break;
-          default: dayName = `Colonna ${String.fromCharCode(65 + i)}`; // A, B, C, etc.
+        if (i <= 7) {
+          dayName = daysOfWeek[i - 1]; // Sottrai 1 perché l'array inizia da 0
+        } else {
+          dayName = `Colonna ${String.fromCharCode(65 + i)}`; // Per colonne extra oltre la settimana
         }
 
         scheduleHTML += `
