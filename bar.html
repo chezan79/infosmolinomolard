@@ -44,83 +44,96 @@
     </ul>
   </section>
 
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Estrattore Planning</title>
+  <section>
+    <h2>Planning Personalizzato</h2>
+    <p>Per caricare un file Excel con i planning personalizzati:</p>
+    <ol>
+      <li>Carica il tuo file Excel direttamente su questo progetto</li>
+      <li>Il file deve avere colonne: Nome, Lu, Ma, Me, Je, Ve, Sa, Di</li>
+    </ol>
+    
+    <input type="file" id="excelFile" accept=".xlsx,.xls" />
+    <button onclick="loadExcelFile()">Carica Planning</button>
+    
+    <div id="planningSelector" style="display:none;">
+      <label for="personSelect">Seleziona Persona:</label>
+      <select id="personSelect">
+        <option value="">-- Seleziona --</option>
+      </select>
+    </div>
+
+    <div id="result"></div>
+  </section>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-</head>
-<body>
-  <h1>Estrattore Planning</h1>
-  
-  <label for="personSelect">Seleziona Persona:</label>
-  <select id="personSelect">
-    <option value="">-- Seleziona --</option>
-  </select>
-
-  <div id="result"></div>
-
   <script>
-    // Costanti
-    const EXCEL_FILE_ID = "INSERISCI_L_ID_DEL_FILE"; // Sostituisci con l'ID del file Excel
-    const DAYS = ["Lu", "Ma", "Me", "Je", "Ve", "Sa", "Di"]; // Intestazioni dei giorni in formato abbreviato
+    let planningData = [];
+    const DAYS = ["Lu", "Ma", "Me", "Je", "Ve", "Sa", "Di"];
 
-    // Funzione per ottenere il link diretto di download di un file Excel su Google Drive
-    function getDriveDownloadUrl(fileId) {
-      return `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=YOUR_API_KEY`; // Sostituisci YOUR_API_KEY con la tua chiave API
-    }
-
-    // Funzione per leggere un file Excel e restituire i dati
-    async function readExcelFromDrive(fileId) {
-      try {
-        const url = getDriveDownloadUrl(fileId);
-        console.log("Scaricamento file da:", url); // Debug
-        const response = await fetch(url);
-        if (!response.ok) {
-          throw new Error(`Errore HTTP: ${response.status}`);
-        }
-        const data = await response.arrayBuffer(); // Ottieni i dati binari del file
-        const workbook = XLSX.read(data, { type: "array" }); // Leggi il file Excel
-        const sheetName = workbook.SheetNames[0]; // Usa il primo foglio
-        const sheet = workbook.Sheets[sheetName];
-        return XLSX.utils.sheet_to_json(sheet); // Converte il foglio in un array di oggetti
-      } catch (error) {
-        console.error("Errore durante la lettura del file Excel:", error);
-        throw error;
+    function loadExcelFile() {
+      const fileInput = document.getElementById('excelFile');
+      const file = fileInput.files[0];
+      
+      if (!file) {
+        alert('Seleziona un file Excel');
+        return;
       }
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        planningData = XLSX.utils.sheet_to_json(sheet);
+        
+        populatePersonSelect();
+        document.getElementById('planningSelector').style.display = 'block';
+      };
+      reader.readAsArrayBuffer(file);
     }
 
-    // Funzione per popolare il menu a discesa con i nomi delle persone
-    function populatePersonSelect(data) {
+    function populatePersonSelect() {
       const personSelect = document.getElementById("personSelect");
-      data.forEach(row => {
-        if (row["Nome"]) { // Assicurati che la colonna "Nome" esista
+      personSelect.innerHTML = '<option value="">-- Seleziona --</option>';
+      
+      planningData.forEach(row => {
+        if (row["Nome"]) {
           const option = document.createElement("option");
           option.value = row["Nome"];
           option.textContent = row["Nome"];
           personSelect.appendChild(option);
         }
       });
+
+      personSelect.addEventListener("change", function() {
+        const selectedPerson = this.value;
+        if (selectedPerson) {
+          showPersonPlanning(selectedPerson);
+        }
+      });
     }
 
-    // Funzione per mostrare il planning di una persona selezionata
-    function showPersonPlanning(data, person) {
+    function showPersonPlanning(person) {
       const resultDiv = document.getElementById("result");
-      resultDiv.innerHTML = ""; // Svuota il contenuto precedente
+      resultDiv.innerHTML = "";
 
-      const personData = data.find(row => row["Nome"] === person);
+      const personData = planningData.find(row => row["Nome"] === person);
       if (!personData) {
-        resultDiv.textContent = "Nessun dato trovato per la persona selezionata.";
+        resultDiv.innerHTML = "<p>Nessun dato trovato per la persona selezionata.</p>";
         return;
       }
 
-      // Crea una tabella per mostrare il planning
       const table = document.createElement("table");
-      table.border = "1";
+      table.style.width = "100%";
+      table.style.borderCollapse = "collapse";
+      table.style.marginTop = "20px";
+      
       const thead = document.createElement("thead");
       thead.innerHTML = `
-        <tr>
-          <th>Giorno</th>
-          <th>Orario</th>
+        <tr style="background-color: #76d7c4; color: white;">
+          <th style="padding: 10px; border: 1px solid #ddd;">Giorno</th>
+          <th style="padding: 10px; border: 1px solid #ddd;">Orario</th>
         </tr>
       `;
       table.appendChild(thead);
@@ -128,45 +141,16 @@
       const tbody = document.createElement("tbody");
       DAYS.forEach(day => {
         const row = document.createElement("tr");
-        const dayCell = document.createElement("td");
-        dayCell.textContent = day;
-        const timeCell = document.createElement("td");
-        timeCell.textContent = personData[day] || "Nessun orario"; // Mostra l'orario o un messaggio vuoto
-        row.appendChild(dayCell);
-        row.appendChild(timeCell);
+        row.innerHTML = `
+          <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">${day}</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">${personData[day] || "Riposo"}</td>
+        `;
         tbody.appendChild(row);
       });
       table.appendChild(tbody);
 
       resultDiv.appendChild(table);
     }
-
-    // Inizializzazione
-    async function init() {
-      try {
-        // Leggi i dati dal file Excel
-        const data = await readExcelFromDrive(EXCEL_FILE_ID);
-        console.log("Dati letti dal file Excel:", data); // Debug
-
-        // Popola il menu a discesa con i nomi delle persone
-        populatePersonSelect(data);
-
-        // Aggiungi un listener per il cambio di selezione
-        const personSelect = document.getElementById("personSelect");
-        personSelect.addEventListener("change", () => {
-          const selectedPerson = personSelect.value;
-          if (selectedPerson) {
-            showPersonPlanning(data, selectedPerson);
-          }
-        });
-      } catch (error) {
-        console.error("Errore durante l'inizializzazione:", error);
-        document.getElementById("result").textContent = "Errore durante il caricamento del file.";
-      }
-    }
-
-    // Avvia l'applicazione
-    init();
   </script>
 </body>
 </html>
