@@ -179,19 +179,20 @@
 
             const trimmedName = name.trim();
 
-            // Escludi solo valori chiaramente non-nomi
-            if (/^\d+h?\d*\s*-\s*\d+h?\d*$/.test(trimmedName)) return false; // orari tipo "9-17" 
-            if (/^\d+:\d+\s*-\s*\d+:\d+$/.test(trimmedName)) return false; // orari tipo "09:00-17:00"
-            if (/^[RDS]\s*\d+:\d+\s*-\s*\d+:\d+$/.test(trimmedName)) return false; // tipo "D 09:00-18:15"
+            // Escludi intestazioni comuni
+            if (trimmedName === "Nom" || trimmedName === "nom" || trimmedName === "Nome") return false;
+            
+            // Escludi solo orari puri
             if (/^[RDS]$/.test(trimmedName)) return false; // solo "R", "D", "S"
-            if (/^[\d\s\-h:]+$/.test(trimmedName)) return false; // solo numeri e simboli orari
-            if (trimmedName === "Nom" || trimmedName === "nom") return false; // intestazione
-
-            // ACCETTA TUTTI I NOMI CON ALMENO 3 CARATTERI CHE CONTENGONO LETTERE
-            if (trimmedName.length < 3) return false;
-
-            // Deve contenere almeno una lettera
-            if (!/[a-zA-ZàáâäçèéêëìíîïñòóôöùúûüÀÁÂÄÇÈÉÊËÌÍÎÏÑÒÓÔÖÙÚÛÜ']/.test(trimmedName)) return false;
+            if (/^\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}$/.test(trimmedName)) return false; // orari tipo "09:00-17:00"
+            if (/^[RDS]\s+\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}$/.test(trimmedName)) return false; // tipo "D 09:00-18:15"
+            if (/^9S\s+\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}$/.test(trimmedName)) return false; // tipo "9S 17:30-23:45"
+            
+            // ACCETTA TUTTI I NOMI CHE CONTENGONO ALMENO 2 LETTERE CONSECUTIVE
+            if (trimmedName.length < 2) return false;
+            
+            // Deve contenere almeno due lettere consecutive (per evitare codici)
+            if (!/[a-zA-ZàáâäçèéêëìíîïñòóôöùúûüÀÁÂÄÇÈÉÊËÌÍÎÏÑÒÓÔÖÙÚÛÜ']{2}/.test(trimmedName)) return false;
 
             return true;
         }
