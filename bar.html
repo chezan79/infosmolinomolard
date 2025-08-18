@@ -45,15 +45,12 @@
   </section>
 
   <section>
-    <h2>Planning Personalizzato</h2>
-    <p>Per caricare un file Excel con i planning personalizzati:</p>
-    <ol>
-      <li>Carica il tuo file Excel direttamente su questo progetto</li>
-      <li>Il file deve avere colonne: Nome, Lu, Ma, Me, Je, Ve, Sa, Di</li>
-    </ol>
-    
-    <input type="file" id="excelFile" accept=".xlsx,.xls" />
-    <button onclick="loadExcelFile()">Carica Planning</button>
+    <h2>Planning da Google Sheets</h2>
+    <p>Carica i planning direttamente da Google Sheets:</p>
+    <button onclick="loadGoogleSheets()">Carica Planning da Google Sheets</button>
+    <div id="loadingMessage" style="display:none; color: #76d7c4; margin: 10px 0;">
+      Caricamento dati in corso...
+    </div>
     
     <div id="planningSelector" style="display:none;">
       <label for="personSelect">Seleziona Persona:</label>
@@ -65,10 +62,75 @@
     <div id="result"></div>
   </section>
 
+  <section>
+    <h2>Planning Locale (Excel)</h2>
+    <p>Oppure carica un file Excel locale:</p>
+    <input type="file" id="excelFile" accept=".xlsx,.xls" />
+    <button onclick="loadExcelFile()">Carica Planning Excel</button>
+  </section>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script>
     let planningData = [];
     const DAYS = ["Lu", "Ma", "Me", "Je", "Ve", "Sa", "Di"];
+    
+    // ID del Google Sheets estratto dal link
+    const SHEET_ID = "1QL0gE63O0ljvB8WylRSgQCtZ6YQSi4t";
+    
+    async function loadGoogleSheets() {
+      const loadingMessage = document.getElementById('loadingMessage');
+      loadingMessage.style.display = 'block';
+      
+      try {
+        // URL per accesso pubblico al CSV del Google Sheets
+        const csvUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0`;
+        
+        const response = await fetch(csvUrl);
+        if (!response.ok) {
+          throw new Error('Errore nel caricamento del foglio Google');
+        }
+        
+        const csvText = await response.text();
+        planningData = parseCSV(csvText);
+        
+        if (planningData.length === 0) {
+          throw new Error('Nessun dato trovato nel foglio');
+        }
+        
+        populatePersonSelect();
+        document.getElementById('planningSelector').style.display = 'block';
+        loadingMessage.style.display = 'none';
+        
+        alert('Dati caricati con successo da Google Sheets!');
+      } catch (error) {
+        console.error('Errore:', error);
+        loadingMessage.style.display = 'none';
+        alert('Errore nel caricamento: ' + error.message + '\n\nAssicurati che il foglio Google sia pubblico o condiviso.');
+      }
+    }
+    
+    function parseCSV(csvText) {
+      const lines = csvText.split('\n');
+      const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+      const data = [];
+      
+      for (let i = 1; i < lines.length; i++) {
+        if (lines[i].trim()) {
+          const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
+          const row = {};
+          
+          headers.forEach((header, index) => {
+            row[header] = values[index] || '';
+          });
+          
+          if (row[headers[0]]) { // Se la prima colonna (Nome) non è vuota
+            data.push(row);
+          }
+        }
+      }
+      
+      return data;
+    }
 
     function loadExcelFile() {
       const fileInput = document.getElementById('excelFile');
