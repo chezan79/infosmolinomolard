@@ -131,9 +131,19 @@ app.post('/api/download-google-sheets', async (req, res) => {
     const { sheetUrl, sheetName } = req.body;
     
     console.log(`📊 RICHIESTA GOOGLE SHEETS: URL=${sheetUrl}, Foglio=${sheetName}`);
+    console.log(`🔍 URL completo ricevuto: ${sheetUrl}`);
     
     if (!sheetUrl) {
       return res.status(400).json({ error: 'URL Google Sheets richiesto' });
+    }
+
+    // Verifica se l'URL contiene 'spreadsheets'
+    if (!sheetUrl.includes('spreadsheets')) {
+      console.error('❌ ERRORE: URL non sembra essere un Google Sheets');
+      return res.status(400).json({ 
+        error: 'URL deve essere di un Google Sheets (contenere "spreadsheets")',
+        receivedUrl: sheetUrl
+      });
     }
 
     // Estrai l'ID del foglio dall'URL con controlli migliorati
@@ -213,14 +223,16 @@ app.post('/api/download-google-sheets', async (req, res) => {
 
 // Funzione per mappare nomi dei fogli ai loro GID
 function getSheetGidByName(sheetName) {
+  // ⚠️ IMPORTANTE: Aggiorna questi GID con quelli reali dei tuoi fogli Google Sheets
+  // Per trovare il GID: apri il foglio → guarda l'URL → cerca "#gid=NUMERO"
   const sheetMapping = {
-    'bar': 1264033041,      // Vero GID del foglio bar
-    'service': 1763904694,  // Vero GID del foglio service
-    'cuisine': 819005714,   // Vero GID del foglio cuisine
-    'pizzeria': 1785252251, // Vero GID del foglio pizzeria
-    'office': 2063781370,   // Vero GID del foglio office
-    'commis': 1542997572,   // Vero GID del foglio commis
-    'respo': 487125612,     // Vero GID del foglio respo
+    'bar': 1264033041,      // ⚠️ Aggiorna con GID reale del foglio bar
+    'service': 1763904694,  // ⚠️ Aggiorna con GID reale del foglio service  
+    'cuisine': 819005714,   // ⚠️ Aggiorna con GID reale del foglio cuisine
+    'pizzeria': 1785252251, // ⚠️ Aggiorna con GID reale del foglio pizzeria
+    'office': 2063781370,   // ⚠️ Aggiorna con GID reale del foglio office
+    'commis': 1542997572,   // ⚠️ Aggiorna con GID reale del foglio commis
+    'respo': 487125612,     // ⚠️ Aggiorna con GID reale del foglio respo
     'BAR': 1264033041,
     'SERVICE': 1763904694,
     'CUISINE': 819005714,
