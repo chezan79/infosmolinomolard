@@ -151,14 +151,23 @@
     function isValidEmployeeName(name) {
       if (!name || !name.trim()) return false;
       
+      const trimmedName = name.trim();
+      
       // Escludi valori che sembrano orari (contengono h, -, numeri)
-      if (/^\d+h?\d*\s*-\s*\d+h?\d*$/.test(name.trim())) return false;
-      if (/^\d+:\d+\s*-\s*\d+:\d+$/.test(name.trim())) return false;
-      if (/^[\d\s\-h:]+$/.test(name.trim())) return false;
+      if (/^\d+h?\d*\s*-\s*\d+h?\d*$/.test(trimmedName)) return false;
+      if (/^\d+:\d+\s*-\s*\d+:\d+$/.test(trimmedName)) return false;
+      if (/^[\d\s\-h:]+$/.test(trimmedName)) return false;
       
-      // Deve contenere almeno una lettera
-      if (!/[a-zA-ZàáâäèéêëìíîïòóôöùúûüÀÁÂÄÈÉÊËÌÍÎÏÒÓÔÖÙÚÛÜ]/.test(name)) return false;
+      // Escludi singole lettere o codici molto corti
+      if (trimmedName.length < 2) return false;
       
+      // Escludi valori che sono solo "R", "D", "S" (codici orari)
+      if (/^[RDS]$/.test(trimmedName)) return false;
+      
+      // Deve contenere almeno una lettera (inclusi caratteri accentati, apostrofi, spazi)
+      if (!/[a-zA-ZàáâäçèéêëìíîïñòóôöùúûüÀÁÂÄÇÈÉÊËÌÍÎÏÑÒÓÔÖÙÚÛÜ']/.test(trimmedName)) return false;
+      
+      // Accetta nomi che contengono lettere, spazi, apostrofi e caratteri accentati
       return true;
     }
 
