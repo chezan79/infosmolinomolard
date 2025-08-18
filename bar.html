@@ -44,7 +44,16 @@
     </ul>
   </section>
 
- <h1>Estrattore Planning</h1>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Estrattore Planning</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+  <h1>Estrattore Planning</h1>
   
   <label for="personSelect">Seleziona Persona:</label>
   <select id="personSelect">
@@ -52,35 +61,47 @@
   </select>
 
   <div id="result"></div>
-<script>
+
+  <script>
     // Costanti
-    const EXCEL_FILE_ID = "1sLzplaAa0npps1Km8zCwnp7y0CCJVP_F"; // ID della cartella o file (modifica con l'ID del file Excel)
-    const DAYS = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato", "Domenica"];
+    const EXCEL_FILE_ID = "INSERISCI_L_ID_DEL_FILE"; // Sostituisci con l'ID del file Excel
+    const DAYS = ["Lu", "Ma", "Me", "Je", "Ve", "Sa", "Di"]; // Intestazioni dei giorni in formato abbreviato
 
     // Funzione per ottenere il link diretto di download di un file Excel su Google Drive
     function getDriveDownloadUrl(fileId) {
-      return `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=YOUR_API_KEY`;
+      return `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=YOUR_API_KEY`; // Sostituisci YOUR_API_KEY con la tua chiave API
     }
 
     // Funzione per leggere un file Excel e restituire i dati
     async function readExcelFromDrive(fileId) {
-      const url = getDriveDownloadUrl(fileId);
-      const response = await fetch(url);
-      const data = await response.arrayBuffer(); // Ottieni i dati binari del file
-      const workbook = XLSX.read(data, { type: "array" }); // Leggi il file Excel
-      const sheetName = workbook.SheetNames[0]; // Usa il primo foglio
-      const sheet = workbook.Sheets[sheetName];
-      return XLSX.utils.sheet_to_json(sheet); // Converte il foglio in un array di oggetti
+      try {
+        const url = getDriveDownloadUrl(fileId);
+        console.log("Scaricamento file da:", url); // Debug
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`Errore HTTP: ${response.status}`);
+        }
+        const data = await response.arrayBuffer(); // Ottieni i dati binari del file
+        const workbook = XLSX.read(data, { type: "array" }); // Leggi il file Excel
+        const sheetName = workbook.SheetNames[0]; // Usa il primo foglio
+        const sheet = workbook.Sheets[sheetName];
+        return XLSX.utils.sheet_to_json(sheet); // Converte il foglio in un array di oggetti
+      } catch (error) {
+        console.error("Errore durante la lettura del file Excel:", error);
+        throw error;
+      }
     }
 
     // Funzione per popolare il menu a discesa con i nomi delle persone
     function populatePersonSelect(data) {
       const personSelect = document.getElementById("personSelect");
       data.forEach(row => {
-        const option = document.createElement("option");
-        option.value = row["Nome"]; // Supponendo che la colonna A abbia l'intestazione "Nome"
-        option.textContent = row["Nome"];
-        personSelect.appendChild(option);
+        if (row["Nome"]) { // Assicurati che la colonna "Nome" esista
+          const option = document.createElement("option");
+          option.value = row["Nome"];
+          option.textContent = row["Nome"];
+          personSelect.appendChild(option);
+        }
       });
     }
 
@@ -128,6 +149,7 @@
       try {
         // Leggi i dati dal file Excel
         const data = await readExcelFromDrive(EXCEL_FILE_ID);
+        console.log("Dati letti dal file Excel:", data); // Debug
 
         // Popola il menu a discesa con i nomi delle persone
         populatePersonSelect(data);
@@ -141,7 +163,7 @@
           }
         });
       } catch (error) {
-        console.error("Errore durante il caricamento del file Excel:", error);
+        console.error("Errore durante l'inizializzazione:", error);
         document.getElementById("result").textContent = "Errore durante il caricamento del file.";
       }
     }
