@@ -78,10 +78,15 @@
   </section>
 
   <section>
-    <h2>Planning Locale (Excel)</h2>
-    <p>Oppure carica un file Excel locale:</p>
-    <input type="file" id="excelFile" accept=".xlsx,.xls" />
-    <button onclick="loadExcelFile()">Carica Planning Excel</button>
+    <h2>Planning da Google Drive</h2>
+    <p>Inserisci il link del file Excel da Google Drive:</p>
+    <input type="text" id="googleDriveLink" placeholder="https://drive.google.com/file/d/ID_FILE/view..." style="width: 70%; padding: 10px; margin-right: 10px;">
+    <button onclick="loadFromGoogleDrive()" style="background-color: #4285f4; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">
+      📁 Carica da Google Drive
+    </button>
+    <div id="driveLoadingMessage" style="display:none; color: #4285f4; margin: 10px 0;">
+      Scaricamento file da Google Drive...
+    </div>
   </section>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -145,6 +150,75 @@
       }
       
       return data;
+    }
+
+    async function loadFromGoogleDrive() {
+      const linkInput = document.getElementById('googleDriveLink');
+      const driveLink = linkInput.value.trim();
+      
+      if (!driveLink) {
+        alert('Inserisci il link del file Google Drive');
+        return;
+      }
+
+      // Estrai l'ID del file dal link Google Drive
+      const fileId = extractFileIdFromDriveLink(driveLink);
+      if (!fileId) {
+        alert('Link Google Drive non valido. Assicurati che sia nel formato corretto.');
+        return;
+      }
+
+      const loadingMessage = document.getElementById('driveLoadingMessage');
+      loadingMessage.style.display = 'block';
+
+      try {
+        // Usa l'API server per scaricare il file da Google Drive
+        const response = await fetch('/api/download-google-drive', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ fileId: fileId })
+        });
+
+        if (!response.ok) {
+          throw new Error('Errore nel scaricare il file da Google Drive');
+        }
+
+        const result = await response.json();
+        
+        if (result.success) {
+          planningData = result.data;
+          populatePersonSelect();
+          document.getElementById('planningSelector').style.display = 'block';
+          loadingMessage.style.display = 'none';
+          alert(`File caricato con successo! Trovati ${planningData.length} collaboratori.`);
+        } else {
+          throw new Error(result.error || 'Errore sconosciuto');
+        }
+
+      } catch (error) {
+        console.error('Errore:', error);
+        loadingMessage.style.display = 'none';
+        alert('Errore nel caricare il file: ' + error.message);
+      }
+    }
+
+    function extractFileIdFromDriveLink(link) {
+      // Estrae l'ID del file da diversi formati di link Google Drive
+      const patterns = [
+        /\/file\/d\/([a-zA-Z0-9-_]+)/,  // Standard sharing link
+        /id=([a-zA-Z0-9-_]+)/,          // Alternative format
+        /\/d\/([a-zA-Z0-9-_]+)\//       // Another format
+      ];
+
+      for (const pattern of patterns) {
+        const match = link.match(pattern);
+        if (match) {
+          return match[1];
+        }
+      }
+      return null;
     }
 
     function loadExcelFile() {
