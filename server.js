@@ -128,7 +128,7 @@ app.post('/api/process-planning', (req, res) => {
 // API per scaricare dati da Google Sheets
 app.post('/api/download-google-sheets', async (req, res) => {
   try {
-    const { sheetUrl } = req.body;
+    const { sheetUrl, sheetName } = req.body;
     
     if (!sheetUrl) {
       return res.status(400).json({ error: 'URL Google Sheets richiesto' });
@@ -141,7 +141,16 @@ app.post('/api/download-google-sheets', async (req, res) => {
     }
 
     // URL per accedere ai dati del foglio in formato CSV
-    const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
+    // Se sheetName è specificato, aggiungi il parametro gid
+    let csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
+    
+    // Se è specificato un nome del foglio, aggiungi il parametro per quel foglio
+    if (sheetName) {
+      // Per ora usiamo il primo foglio (gid=0) o secondo (gid=1) in base al nome
+      const gid = getSheetGidByName(sheetName);
+      csvUrl += `&gid=${gid}`;
+      console.log(`Accedendo al foglio "${sheetName}" con GID ${gid}`);
+    }
     
     const response = await fetch(csvUrl);
     
@@ -152,12 +161,13 @@ app.post('/api/download-google-sheets', async (req, res) => {
     const csvText = await response.text();
     const jsonData = parseCSVToJSON(csvText);
     
-    console.log(`Google Sheets processato: ${jsonData.length} righe trovate`);
+    console.log(`Google Sheets processato (foglio: ${sheetName || 'default'}): ${jsonData.length} righe trovate`);
     
     res.json({
       success: true,
       data: jsonData,
-      totalRows: jsonData.length
+      totalRows: jsonData.length,
+      sheetName: sheetName || 'default'
     });
     
   } catch (error) {
@@ -168,6 +178,20 @@ app.post('/api/download-google-sheets', async (req, res) => {
     });
   }
 });
+
+// Funzione per mappare nomi dei fogli ai loro GID
+function getSheetGidByName(sheetName) {
+  const sheetMapping = {
+    'bar': 0,           // Primo foglio per bar
+    'service': 1,       // Secondo foglio per service  
+    'BAR': 0,
+    'SERVICE': 1,
+    'Bar': 0,
+    'Service': 1
+  };
+  
+  return sheetMapping[sheetName] || 0; // Default al primo foglio
+}
 
 // Funzione per estrarre l'ID del foglio dall'URL
 function extractSheetIdFromUrl(url) {
