@@ -144,6 +144,18 @@
           }
         }
       }
+
+      // Rimuovi duplicati e ordina
+      const uniqueNames = [...new Set(employeeNames)].sort();
+      
+      console.log('Nomi collaboratori filtrati (a coppie A4-A5, A6-A7, etc.):', uniqueNames);
+
+      uniqueNames.forEach(name => {
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        select.appendChild(option);
+      });
     }
 
     function isValidEmployeeName(name) {
@@ -158,18 +170,6 @@
       if (!/[a-zA-ZàáâäèéêëìíîïòóôöùúûüÀÁÂÄÈÉÊËÌÍÎÏÒÓÔÖÙÚÛÜ]/.test(name)) return false;
       
       return true;
-
-      // Rimuovi duplicati e ordina
-      const uniqueNames = [...new Set(employeeNames)].sort();
-      
-      console.log('Nomi collaboratori filtrati (a coppie A4-A5, A6-A7, etc.):', uniqueNames);
-
-      uniqueNames.forEach(name => {
-        const option = document.createElement('option');
-        option.value = name;
-        option.textContent = name;
-        select.appendChild(option);
-      });
     }
 
     function showEmployeeSchedule() {
