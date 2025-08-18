@@ -19,70 +19,304 @@
             </ul>
         </nav>
     </header>
-
-    <main>
-        <section>
+<main>
+  <section>
     <h2>Planning hebdomadaire</h2>
     <ul>
-        <li>
-            <a href="https://drive.google.com/file/d/1SLNgQCB3ZXopTxLk1CWP--PNxvTEzLS-/view?usp=drivesdk" target="_blank">Planning semaine en cours</a>
-        </li>
-        <li>
-            <a href="https://drive.google.com/file/d/1VcXwl2xULtHb1ISHiSGytSczMW2tpHDV/view?usp=sharing" target="_blank">Planning prochaine semaine</a>
-        </li>
+      <li>
+        <a href="https://drive.google.com/file/d/1SLNgQCB3ZXopTxLk1CWP--PNxvTEzLS-/view?usp=drivesdk" target="_blank">Planning semaine en cours</a>
+      </li>
+      <li>
+        <a href="https://drive.google.com/file/d/1VcXwl2xULtHb1ISHiSGytSczMW2tpHDV/view?usp=sharing" target="_blank">Planning prochaine semaine</a>
+      </li>
     </ul>
-</section>
+  </section>
 
-   <section>
+  <section>
     <h2>Planning Mensuel</h2>
     <ul>
-        <li>
-            <a href="https://drive.google.com/file/d/1CsEbQtyK26sO1XkKOVWgJ0FEFPM7zal8/view?usp=sharing" target="_blank">Planning du mois en cours</a>
-        </li>
-        <li>
-            <a href="https://drive.google.com/file/d/1pIfNK2fbHp2OIewRLHaibCLC9bURh59p/view?usp=sharing" target="_blank">Planning du mois prochain</a>
-        </li>
+      <li>
+        <a href="https://drive.google.com/file/d/1CsEbQtyK26sO1XkKOVWgJ0FEFPM7zal8/view?usp=sharing" target="_blank">Planning du mois en cours</a>
+      </li>
+      <li>
+        <a href="https://drive.google.com/file/d/1pIfNK2fbHp2OIewRLHaibCLC9bURh59p/view?usp=sharing" target="_blank">Planning du mois prochain</a>
+      </li>
     </ul>
-</section>
+  </section>
 
+  <!-- 🔎 Estrazione planning per persona -->
+  <section>
+    <h2>Estrai planning per persona</h2>
 
-        <!-- Canvas per visualizzare il PDF -->
-        <section>
-            <h2></h2>
-            <canvas id="pdf-canvas"></canvas>
-        </section>
-        </main>
+    <form id="extract-form" style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+      <label>
+        <span>Nome/Cognome</span><br />
+        <input id="person-name" type="text" placeholder="Es. Rossi Maria" required />
+      </label>
 
-    <footer>
-        <p>&copy; 2025 Pizzeria Molino Molard</p>
-    </footer>
+      <label>
+        <span>Settimana</span><br />
+        <select id="week-select">
+          <option value="current">Semaine en cours</option>
+          <option value="next">Prochaine semaine</option>
+        </select>
+      </label>
 
-    <!-- Codice JavaScript per caricare il PDF -->
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const url = 'https://drive.google.com/uc?export=download&id=1f081LFeqYq2cp6jEtdT8tPYAl94vVa0X'; // Link diretto al PDF su Google Drive
+      <button type="submit">Estrai</button>
+    </form>
 
-            const loadingTask = pdfjsLib.getDocument({ url });
-            loadingTask.promise.then(pdf => {
-                pdf.getPage(1).then(page => {
-                    const scale = 1.5;
-                    const viewport = page.getViewport({ scale });
+    <div id="status" aria-live="polite" style="margin-top:10px;"></div>
+    <div id="result" style="margin-top:16px;"></div>
+  </section>
 
-                    const canvas = document.getElementById('pdf-canvas');
-                    const context = canvas.getContext('2d');
-                    canvas.height = viewport.height;
-                    canvas.width = viewport.width;
+  <!-- Canvas di anteprima PDF (opzionale) -->
+  <section>
+    <h2>Anteprima</h2>
+    <canvas id="pdf-canvas"></canvas>
+  </section>
+</main>
 
-                    const renderContext = {
-                        canvasContext: context,
-                        viewport: viewport
-                    };
-                    page.render(renderContext);
-                });
-            }).catch(error => {
-                console.error('Errore nel caricamento del PDF:', error);
-            });
-        });
-    </script>
+<script>
+/* ========= CONFIG ========= */
+const DRIVE_WEEK_CURRENT = "1SLNgQCB3ZXopTxLk1CWP--PNxvTEzLS-";
+const DRIVE_WEEK_NEXT    = "1VcXwl2xULtHb1ISHiSGytSczMW2tpHDV";
+
+/* Giorni riconosciuti (French + fallback) in ordine colonna */
+const DAY_LABELS = [
+  {keys:["Lun","Lundi","Mon","Lun."],   id:"Lun"},
+  {keys:["Mar","Mardi","Tue","Mar."],   id:"Mar"},
+  {keys:["Mer","Mercredi","Wed","Mer."],id:"Mer"},
+  {keys:["Jeu","Jeudi","Thu","Jeu."],   id:"Jeu"},
+  {keys:["Ven","Vendredi","Fri","Ven."],id:"Ven"},
+  {keys:["Sam","Samedi","Sat","Sam."],  id:"Sam"},
+  {keys:["Dim","Dimanche","Sun","Dim."],id:"Dim"},
+];
+
+/* ========= UTILS ========= */
+function driveDirectUrl(idOrUrl){
+  const m = (idOrUrl||"").match(/\/d\/([-\w]+)/);
+  const id = m ? m[1] : idOrUrl;
+  return `https://drive.google.com/uc?export=download&id=${id}`;
+}
+
+function normalize(str){
+  return (str||"").normalize("NFD").replace(/\p{Diacritic}/gu,"").toLowerCase().trim();
+}
+
+/* ========= PDF PARSING ========= */
+async function loadPdf(url){
+  const loadingTask = pdfjsLib.getDocument({url});
+  return await loadingTask.promise;
+}
+
+async function getAllTextItems(pdf){
+  const pages = [];
+  for(let p=1; p<=pdf.numPages; p++){
+    const page = await pdf.getPage(p);
+    const content = await page.getTextContent();
+    const items = content.items.map(it => ({
+      str: it.str,
+      x: it.transform[4],
+      y: it.transform[5]
+    }));
+    pages.push({pageNum:p, items});
+  }
+  return pages;
+}
+
+/* Raggruppa per riga usando la Y (tolleranza) */
+function groupRows(items, yTol=3){
+  const rows = [];
+  items.sort((a,b)=> b.y - a.y || a.x - b.x); // dall'alto verso il basso
+  for(const it of items){
+    let row = rows.find(r => Math.abs(r.y - it.y) <= yTol);
+    if(!row){ row = { y: it.y, items: [] }; rows.push(row); }
+    row.items.push(it);
+  }
+  // ordina i frammenti da sinistra a destra
+  for(const r of rows){ r.items.sort((a,b)=> a.x - b.x); r.text = r.items.map(i=>i.str).join(" ").replace(/\s{2,}/g," ").trim(); }
+  return rows;
+}
+
+/* Trova la riga dell'intestazione giorni e salva le X di ciascun giorno */
+function detectHeaderAndColumns(rows){
+  const dayKeysFlat = DAY_LABELS.flatMap(d=>d.keys);
+  let header = null;
+
+  for(const r of rows){
+    const hits = dayKeysFlat.filter(k => new RegExp(`\\b${k}\\b`, "i").test(r.text)).length;
+    if(hits >= 4){ header = r; break; } // abbastanza da essere una header
+  }
+  if(!header) return null;
+
+  // posizione X per ciascun giorno (prende la X del frammento che matcha)
+  const colXs = [];
+  for(const d of DAY_LABELS){
+    let best = null;
+    for(const it of header.items){
+      if(d.keys.some(k => it.str.toLowerCase().startsWith(k.toLowerCase()))){
+        best = it.x; break;
+      }
+    }
+    colXs.push(best); // può essere null se non trovato
+  }
+
+  // Se mancano X, prova a stimarle distribuendo tra min e max
+  const xsKnown = colXs.filter(x=>typeof x==="number");
+  if(xsKnown.length >= 2){
+    const minX = Math.min(...xsKnown), maxX = Math.max(...xsKnown);
+    for(let i=0;i<colXs.length;i++){
+      if(typeof colXs[i] !== "number"){
+        colXs[i] = minX + (i/(colXs.length-1))*(maxX - minX);
+      }
+    }
+  }
+
+  return {header, colXs};
+}
+
+/* Trova la riga della persona per nome (case-insensitive, accent-insensitive) */
+function findPersonRow(rows, name){
+  const target = normalize(name);
+  return rows.find(r => normalize(r.text).includes(target)) || null;
+}
+
+/* Assegna i frammenti della riga della persona alla colonna più vicina (usando le X note) */
+function rowToDayMap(personRow, colXs){
+  const out = {};
+  for(const d of DAY_LABELS){ out[d.id] = ""; }
+
+  if(!colXs || colXs.every(x=>typeof x!=="number")){
+    // fallback: senza colonne, prova uno split rozzo per parole chiave giorni
+    const line = personRow.text;
+    let idxs = [];
+    for(const d of DAY_LABELS){
+      for(const k of d.keys){
+        const re = new RegExp(`\\b${k}\\b`,"i");
+        const m = line.match(re);
+        if(m) idxs.push({id:d.id, i:m.index});
+      }
+    }
+    idxs = idxs.sort((a,b)=>a.i-b.i);
+    for(let j=0;j<idxs.length;j++){
+      const start = idxs[j].i;
+      const end = (j<idxs.length-1)? idxs[j+1].i : line.length;
+      out[idxs[j].id] = line.slice(start, end).replace(/^\S+\s*/,"").trim();
+    }
+    return out;
+  }
+
+  // assegnazione per distanza minima
+  for(const it of personRow.items){
+    const x = it.x;
+    let bestIdx = 0, bestDist = Infinity;
+    for(let i=0;i<colXs.length;i++){
+      if(typeof colXs[i] !== "number") continue;
+      const d = Math.abs(x - colXs[i]);
+      if(d < bestDist){ bestDist = d; bestIdx = i; }
+    }
+    const key = DAY_LABELS[bestIdx]?.id;
+    if(key){
+      out[key] = (out[key] ? out[key] + " " : "") + it.str;
+    }
+  }
+
+  // pulizia
+  for(const k of Object.keys(out)){
+    out[k] = out[k].replace(/\s{2,}/g," ").trim();
+    // rimuovi l'eventuale etichetta giorno rimischiata
+    for(const d of DAY_LABELS){
+      if(d.id===k){
+        for(const alias of d.keys){
+          out[k] = out[k].replace(new RegExp(`^${alias}\\b\\s*`,"i"),"").trim();
+        }
+      }
+    }
+  }
+  return out;
+}
+
+/* Render tabella risultato */
+function renderResult(container, personName, weekLabel, dayMap){
+  const daysOrder = DAY_LABELS.map(d=>d.id);
+  const pretty = {Lun:"Lun", Mar:"Mar", Mer:"Mer", Jeu:"Jeu", Ven:"Ven", Sam:"Sam", Dim:"Dim"};
+  let html = `
+    <h3>Planning: ${personName} — ${weekLabel}</h3>
+    <div class="table-wrap" style="overflow:auto">
+    <table style="border-collapse:collapse; min-width:520px;">
+      <thead>
+        <tr>${daysOrder.map(d=>`<th style="border-bottom:1px solid #ccc; padding:8px; text-align:left;">${pretty[d]||d}</th>`).join("")}</tr>
+      </thead>
+      <tbody>
+        <tr>
+          ${daysOrder.map(d=>`<td style="border-bottom:1px solid #eee; padding:8px; vertical-align:top;">${dayMap[d]||""}</td>`).join("")}
+        </tr>
+      </tbody>
+    </table>
+    </div>
+  `;
+  container.innerHTML = html;
+}
+
+/* ========= WIRES ========= */
+const form = document.getElementById("extract-form");
+const statusEl = document.getElementById("status");
+const resultEl = document.getElementById("result");
+
+form.addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  resultEl.innerHTML = "";
+  const person = (document.getElementById("person-name").value || "").trim();
+  const weekSel = document.getElementById("week-select").value;
+
+  if(!person){ statusEl.textContent = "Inserisci un nome."; return; }
+
+  const fileId = (weekSel === "current") ? DRIVE_WEEK_CURRENT : DRIVE_WEEK_NEXT;
+  const url = driveDirectUrl(fileId);
+
+  statusEl.textContent = "Carico il PDF e analizzo il testo…";
+
+  try{
+    const pdf = await loadPdf(url);
+    // opzionale: mostra la prima pagina nel canvas di anteprima
+    try {
+      const page1 = await pdf.getPage(1);
+      const scale = 1.2;
+      const viewport = page1.getViewport({scale});
+      const canvas = document.getElementById('pdf-canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      await page1.render({canvasContext:ctx, viewport}).promise;
+    } catch(_) {}
+
+    const pages = await getAllTextItems(pdf);
+
+    // combina items di tutte le pagine
+    const allItems = pages.flatMap(p => p.items);
+    const rows = groupRows(allItems);
+
+    const headerInfo = detectHeaderAndColumns(rows);
+    if(!headerInfo){
+      statusEl.textContent = "Non trovo l'intestazione con i giorni (Lun/Mar/…): controlla il layout del PDF.";
+      return;
+    }
+
+    const personRow = findPersonRow(rows, person);
+    if(!personRow){
+      statusEl.textContent = `Non ho trovato “${person}” nel PDF selezionato. Controlla l'ortografia o prova l'altra settimana.`;
+      return;
+    }
+
+    const dayMap = rowToDayMap(personRow, headerInfo.colXs);
+    renderResult(resultEl, person, (weekSel==="current"?"Semaine en cours":"Prochaine semaine"), dayMap);
+    statusEl.textContent = "Fatto.";
+  }catch(err){
+    console.error(err);
+    statusEl.textContent = "Errore nel caricamento o nell'analisi del PDF.";
+  }
+});
+</script>
+
 </body>
 </html>
