@@ -44,43 +44,14 @@
     </ul>
   </section>
 
-  <!-- 🔎 Estrazione planning per persona -->
-  <section>
-    <h2>Estrai planning per persona</h2>
+ <h1>Estrattore Planning</h1>
+  
+  <label for="personSelect">Seleziona Persona:</label>
+  <select id="personSelect">
+    <option value="">-- Seleziona --</option>
+  </select>
 
-   <form id="extract-form" style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
-  <label>
-    <span>Persona</span><br />
-    <select id="person-select" required>
-      <option value="">-- Seleziona --</option>
-    </select>
-  </label>
-
-  <label>
-    <span>Settimana</span><br />
-    <select id="week-select">
-      <option value="current">Semaine en cours</option>
-      <option value="next">Prochaine semaine</option>
-    </select>
-  </label>
-
-  <button type="submit">Estrai</button>
-</form>
-
-<div id="status"></div>
-<div id="result"></div>
-
-
-    <div id="status" aria-live="polite" style="margin-top:10px;"></div>
-    <div id="result" style="margin-top:16px;"></div>
-  </section>
-
-  <!-- Canvas di anteprima PDF (opzionale) -->
-  <section>
-    <h2>Anteprima</h2>
-    <canvas id="pdf-canvas"></canvas>
-  </section>
-</main>
+  <div id="result"></div>
 <script>
     // Costanti
     const EXCEL_FILE_ID = "1sLzplaAa0npps1Km8zCwnp7y0CCJVP_F"; // ID della cartella o file (modifica con l'ID del file Excel)
