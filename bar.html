@@ -59,11 +59,17 @@
       </select>
       
       <div style="margin-top: 15px;">
-        <button onclick="exportToExcel()" style="background-color: #28a745; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">
-          📊 Esporta Planning in Excel
+        <button onclick="saveToFirebase()" style="background-color: #ff6b35; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">
+          🔥 Salva su Firebase
+        </button>
+        <button onclick="loadFromFirebase()" style="background-color: #ffc107; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px;">
+          📥 Carica da Firebase
+        </button>
+        <button onclick="exportToExcel()" style="background-color: #28a745; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px;">
+          📊 Esporta Excel
         </button>
         <button onclick="exportPersonToExcel()" style="background-color: #17a2b8; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px;">
-          👤 Esporta Persona Selezionata
+          👤 Esporta Persona
         </button>
       </div>
     </div>
@@ -318,6 +324,81 @@
       } catch (error) {
         console.error('Errore nell\'esportazione:', error);
         alert('Errore nell\'esportazione del file Excel');
+      }
+    }
+
+    // Funzione per salvare su Firebase
+    async function saveToFirebase() {
+      if (planningData.length === 0) {
+        alert('Nessun dato da salvare. Carica prima i planning.');
+        return;
+      }
+
+      const week = prompt('Inserisci la settimana (formato YYYY-MM-DD):') || new Date().toISOString().split('T')[0];
+      const department = prompt('Inserisci il dipartimento:') || 'Bar';
+
+      try {
+        const response = await fetch('/api/save-planning', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            planningData: planningData,
+            week: week,
+            department: department
+          })
+        });
+
+        const result = await response.json();
+        
+        if (result.success) {
+          alert(`Planning salvato con successo su Firebase! (${result.totalPersons} persone)`);
+        } else {
+          throw new Error(result.error || 'Errore sconosciuto');
+        }
+      } catch (error) {
+        console.error('Errore nel salvare su Firebase:', error);
+        alert('Errore nel salvare su Firebase: ' + error.message);
+      }
+    }
+
+    // Funzione per caricare da Firebase
+    async function loadFromFirebase() {
+      const department = prompt('Inserisci il dipartimento da caricare (opzionale):') || '';
+      const week = prompt('Inserisci la settimana da caricare (formato YYYY-MM-DD, opzionale):') || '';
+
+      try {
+        const params = new URLSearchParams();
+        if (department) params.append('department', department);
+        if (week) params.append('week', week);
+
+        const response = await fetch(`/api/get-planning?${params.toString()}`);
+        const result = await response.json();
+        
+        if (result.success && result.data.length > 0) {
+          // Converti i dati Firebase nel formato usato dall'app
+          planningData = result.data.map(item => ({
+            Nome: item.nome,
+            Lu: item.lunedi,
+            Ma: item.martedi,
+            Me: item.mercoledi,
+            Je: item.giovedi,
+            Ve: item.venerdi,
+            Sa: item.sabato,
+            Di: item.domenica
+          }));
+
+          populatePersonSelect();
+          document.getElementById('planningSelector').style.display = 'block';
+          
+          alert(`Planning caricato da Firebase! (${result.totalPersons} persone)`);
+        } else {
+          alert('Nessun planning trovato con i criteri specificati.');
+        }
+      } catch (error) {
+        console.error('Errore nel caricare da Firebase:', error);
+        alert('Errore nel caricare da Firebase: ' + error.message);
       }
     }
   </script>
