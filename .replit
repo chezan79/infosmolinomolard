@@ -6,3 +6,15 @@ channel = "stable-25_05"
 
 [deployment]
 run = ["sh", "-c", "node index.js"]
+
+[workflows]
+runButton = "Web Server"
+
+[[workflows.workflow]]
+name = "Web Server"
+author = 43042775
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python3 -m http.server 5000"
