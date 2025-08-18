@@ -121,16 +121,23 @@
 
       const employeeNames = [];
       
+      console.log('Dati totali ricevuti da Google Sheets:', planningData.length);
+      console.log('Primi 3 elementi per debug:', planningData.slice(0, 3));
+      
       // Salta la prima riga (intestazioni) e processa dal secondo elemento in poi
       for (let i = 1; i < planningData.length; i++) {
         const row = planningData[i];
         
-        if (row) {
+        if (row && typeof row === 'object') {
           const keys = Object.keys(row);
-          const name = row[keys[0]]; // Prima colonna = Nome collaboratore
-          if (name && name.trim() && isValidEmployeeName(name)) {
-            employeeNames.push(name.trim());
-            console.log(`Trovato collaboratore in riga ${i + 1}: ${name.trim()}`);
+          if (keys.length > 0) {
+            const name = row[keys[0]]; // Prima colonna = Nome collaboratore
+            if (name && name.trim() && isValidEmployeeName(name)) {
+              employeeNames.push(name.trim());
+              console.log(`✓ Collaboratore valido trovato in riga ${i + 1}: ${name.trim()}`);
+            } else if (name) {
+              console.log(`✗ Nome scartato in riga ${i + 1}: "${name}" (non valido)`);
+            }
           }
         }
       }
@@ -138,7 +145,16 @@
       // Rimuovi duplicati e ordina
       const uniqueNames = [...new Set(employeeNames)].sort();
       
-      console.log('Nomi collaboratori (saltando riga 1 - intestazioni):', uniqueNames);
+      console.log(`📋 Collaboratori finali trovati (${uniqueNames.length}):`, uniqueNames);
+
+      if (uniqueNames.length === 0) {
+        console.error('❌ ERRORE: Nessun collaboratore trovato nei dati di Google Sheets!');
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = '❌ Nessun collaboratore trovato';
+        select.appendChild(option);
+        return;
+      }
 
       uniqueNames.forEach(name => {
         const option = document.createElement('option');
@@ -180,60 +196,81 @@
         return;
       }
 
-      // Trova la riga corrispondente al nome selezionato (saltando la riga intestazioni)
+      console.log(`🔍 Cercando dati per: "${selectedName}"`);
+
+      // Trova la riga corrispondente al nome selezionato
       const employeeData = planningData.find(row => {
-        const keys = Object.keys(row);
-        return row[keys[0]] === selectedName;
+        if (row && typeof row === 'object') {
+          const keys = Object.keys(row);
+          const name = row[keys[0]];
+          return name && name.trim() === selectedName;
+        }
+        return false;
       });
 
       if (!employeeData) {
-        alert('Dati non trovati per ' + selectedName);
+        console.error(`❌ Dati non trovati per "${selectedName}"`);
+        console.log('📊 Tutti i collaboratori disponibili:', 
+          planningData.slice(1).map(row => {
+            const keys = Object.keys(row || {});
+            return keys.length > 0 ? row[keys[0]] : 'N/A';
+          }).filter(name => name && name.trim())
+        );
+        alert(`Dati non trovati per ${selectedName}. Controlla la console per i dettagli.`);
         return;
       }
 
-      // Prendi le intestazioni dalla prima riga
-      const headerRow = planningData[0];
-      const headerKeys = Object.keys(headerRow);
+      console.log(`✅ Dati trovati per "${selectedName}":`, employeeData);
 
+      // Prendi le intestazioni dalla prima riga per mappare le colonne
+      const headerRow = planningData[0];
+      const headerKeys = Object.keys(headerRow || {});
+
+      console.log('📋 Intestazioni colonne dal foglio Google:', headerKeys);
+      console.log('📋 Valori intestazioni:', headerRow);
+
+      // Nomi fissi dei giorni in francese
+      const fixedDayNames = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
+      
       // Crea la visualizzazione degli orari
       let scheduleHTML = `<h3 style="color: #333; margin-bottom: 20px;">👤 ${selectedName}</h3>`;
       scheduleHTML += '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">';
 
-      const employeeKeys = Object.keys(employeeData);
-      
-      // Debug: mostra tutte le colonne disponibili
-      console.log('Keys disponibili per', selectedName, ':', employeeKeys);
-      console.log('Intestazioni dalla riga 1:', headerKeys);
-      console.log('Dati employee:', employeeData);
-      
-      // Nomi fissi dei giorni in francese
-      const fixedDayNames = ['lundi', 'mardi', 'Mercredi', 'jeudi', 'vendredi', 'Samedi', 'Dimanche'];
-      
       // Visualizza gli orari per tutti i giorni (saltando la prima colonna che è il nome)
-      for (let i = 1; i < headerKeys.length; i++) {
+      for (let i = 1; i < headerKeys.length && i <= 7; i++) {
         const headerKey = headerKeys[i];
-        
-        // Usa i nomi fissi dei giorni invece delle intestazioni del foglio
         const dayName = fixedDayNames[i - 1] || `Giorno ${i}`;
         
-        // Prendi l'orario dal collaboratore usando la stessa chiave dell'intestazione
+        // Prendi l'orario dal collaboratore
         let schedule = 'Non specificato';
-        if (employeeData[headerKey]) {
+        if (employeeData[headerKey] !== undefined && employeeData[headerKey] !== null && employeeData[headerKey] !== '') {
           schedule = employeeData[headerKey];
         }
         
-        // Debug per ogni giorno
-        console.log(`${dayName}:`, schedule);
+        console.log(`📅 ${dayName} (colonna: ${headerKey}):`, schedule);
+
+        // Determina il colore del bordo in base al tipo di orario
+        let borderColor = '#4285f4'; // Default blu
+        if (schedule === 'R') borderColor = '#ff4444'; // Rosso per riposo
+        else if (schedule.includes('D ')) borderColor = '#00aa44'; // Verde per giorno
+        else if (schedule.includes('S ')) borderColor = '#ff8800'; // Arancione per sera
+        else if (schedule.includes('9S')) borderColor = '#8800ff'; // Viola per 9S
 
         scheduleHTML += `
-          <div style="background: white; padding: 15px; border-radius: 8px; border-left: 4px solid #4285f4; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <div style="font-weight: bold; color: #4285f4; margin-bottom: 5px;">${dayName}</div>
-            <div style="font-size: 16px; color: #333;">${schedule}</div>
+          <div style="background: white; padding: 15px; border-radius: 8px; border-left: 4px solid ${borderColor}; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <div style="font-weight: bold; color: ${borderColor}; margin-bottom: 5px; text-transform: capitalize;">${dayName}</div>
+            <div style="font-size: 16px; color: #333; font-weight: ${schedule === 'R' ? 'bold' : 'normal'};">${schedule}</div>
           </div>
         `;
       }
 
       scheduleHTML += '</div>';
+      
+      // Aggiungi info di debug in fondo
+      scheduleHTML += `<div style="margin-top: 20px; padding: 10px; background: #f0f0f0; border-radius: 5px; font-size: 12px; color: #666;">
+        <strong>Debug Info:</strong> Dati estratti da Google Sheets • Ultima sincronizzazione: ${new Date().toLocaleString()}
+      </div>`;
+      
       scheduleDisplay.innerHTML = scheduleHTML;
       scheduleSection.style.display = 'block';
     }
