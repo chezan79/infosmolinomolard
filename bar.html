@@ -206,17 +206,30 @@
       // Definisci tutti i giorni della settimana in ordine
       const daysOfWeek = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
       
+      // Debug: mostra tutte le colonne disponibili
+      console.log('Keys disponibili per', selectedName, ':', keys);
+      console.log('Dati employee:', employeeData);
+      
       // Forza la visualizzazione di tutti i 7 giorni della settimana
+      // Le colonne dovrebbero essere: A=nome, B=lunedì, C=martedì, D=mercoledì, E=giovedì, F=venerdì, G=sabato, H=domenica
       for (let i = 0; i < 7; i++) {
         const columnIndex = i + 1; // +1 perché saltiamo la prima colonna (nome)
         const columnKey = keys[columnIndex];
-        const schedule = (columnKey && employeeData[columnKey]) ? employeeData[columnKey] : 'Non specificato';
         const dayName = daysOfWeek[i];
+        
+        let schedule = 'Non specificato';
+        if (columnKey && employeeData[columnKey]) {
+          schedule = employeeData[columnKey];
+        }
+        
+        // Debug per ogni giorno
+        console.log(`${dayName} (colonna ${columnIndex}, key: ${columnKey}):`, schedule);
 
         scheduleHTML += `
           <div style="background: white; padding: 15px; border-radius: 8px; border-left: 4px solid #4285f4; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
             <div style="font-weight: bold; color: #4285f4; margin-bottom: 5px;">${dayName}</div>
             <div style="font-size: 16px; color: #333;">${schedule}</div>
+            <div style="font-size: 12px; color: #999; margin-top: 5px;">Debug: Colonna ${columnKey || 'N/A'}</div>
           </div>
         `;
       }
