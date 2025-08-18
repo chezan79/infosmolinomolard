@@ -137,16 +137,24 @@
             // I dati dal server non contengono più le intestazioni, quindi processa tutte le righe
             for (let i = 0; i < planningData.length; i++) {
                 const row = planningData[i];
+                console.log(`🔍 Analizzando riga ${i + 1}:`, row);
 
                 if (row && typeof row === 'object') {
                     const keys = Object.keys(row);
                     if (keys.length > 0) {
                         const name = row[keys[0]]; // Prima colonna = Nome collaboratore
-                        if (name && name.trim() && isValidEmployeeName(name)) {
-                            employeeNames.push(name.trim());
-                            console.log(`✓ Collaboratore valido trovato in riga ${i + 1}: ${name.trim()}`);
-                        } else if (name) {
-                            console.log(`✗ Nome scartato in riga ${i + 1}: "${name}" (non valido)`);
+                        console.log(`📝 Nome trovato in riga ${i + 1}: "${name}"`);
+                        
+                        if (name && name.trim()) {
+                            const isValid = isValidEmployeeName(name);
+                            console.log(`🔎 Validazione per "${name.trim()}": ${isValid ? '✅ VALIDO' : '❌ NON VALIDO'}`);
+                            
+                            if (isValid) {
+                                employeeNames.push(name.trim());
+                                console.log(`✓ Collaboratore aggiunto alla lista: ${name.trim()}`);
+                            }
+                        } else {
+                            console.log(`⚠️ Nome vuoto o nullo in riga ${i + 1}`);
                         }
                     }
                 }
@@ -182,18 +190,17 @@
             // Escludi intestazioni comuni
             if (trimmedName === "Nom" || trimmedName === "nom" || trimmedName === "Nome") return false;
             
-            // Escludi solo orari puri
+            // Escludi solo orari puri (pattern molto specifici)
             if (/^[RDS]$/.test(trimmedName)) return false; // solo "R", "D", "S"
             if (/^\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}$/.test(trimmedName)) return false; // orari tipo "09:00-17:00"
-            if (/^[RDS]\s+\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}$/.test(trimmedName)) return false; // tipo "D 09:00-18:15"
-            if (/^9S\s+\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}$/.test(trimmedName)) return false; // tipo "9S 17:30-23:45"
             
-            // ACCETTA TUTTI I NOMI CHE CONTENGONO ALMENO 2 LETTERE CONSECUTIVE
+            // ACCETTA TUTTI I NOMI CHE CONTENGONO ALMENO UNA LETTERA
             if (trimmedName.length < 2) return false;
             
-            // Deve contenere almeno due lettere consecutive (per evitare codici)
-            if (!/[a-zA-ZàáâäçèéêëìíîïñòóôöùúûüÀÁÂÄÇÈÉÊËÌÍÎÏÑÒÓÔÖÙÚÛÜ']{2}/.test(trimmedName)) return false;
+            // Deve contenere almeno una lettera (molto permissivo per i nomi)
+            if (!/[a-zA-ZàáâäçèéêëìíîïñòóôöùúûüÀÁÂÄÇÈÉÊËÌÍÎÏÑÒÓÔÖÙÚÛÜ']/.test(trimmedName)) return false;
 
+            console.log(`✓ Nome validato: "${trimmedName}"`);
             return true;
         }
 
