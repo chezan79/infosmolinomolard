@@ -119,9 +119,10 @@
       const select = document.getElementById('employeeSelect');
       select.innerHTML = '<option value="">-- Seleziona il tuo nome --</option>';
 
-      // Filtra solo le righe pari (indici 1, 3, 5, 7, ecc. che corrispondono alle righe 2, 4, 6, 8 del foglio)
+      // Salta le prime 3 righe e prendi solo le righe pari dalla riga 4 in poi
       const evenRowNames = planningData
-        .filter((row, index) => index % 2 === 1) // Prende solo gli indici dispari (che sono le righe pari del foglio)
+        .slice(3) // Salta le prime 3 righe (indici 0, 1, 2)
+        .filter((row, index) => index % 2 === 1) // Dalle righe rimanenti, prendi solo quelle pari (5°, 7°, 9°, ecc.)
         .map(row => {
           const keys = Object.keys(row);
           return row[keys[0]]; // Prima colonna
@@ -149,8 +150,8 @@
         return;
       }
 
-      // Trova la riga corrispondente al nome selezionato
-      const employeeData = planningData.find(row => {
+      // Trova la riga corrispondente al nome selezionato (saltando le prime 3 righe)
+      const employeeData = planningData.slice(3).find(row => {
         const keys = Object.keys(row);
         return row[keys[0]] === selectedName;
       });
