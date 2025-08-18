@@ -48,22 +48,28 @@
   <section>
     <h2>Estrai planning per persona</h2>
 
-    <form id="extract-form" style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
-      <label>
-        <span>Nome/Cognome</span><br />
-        <input id="person-name" type="text" placeholder="Es. Rossi Maria" required />
-      </label>
+   <form id="extract-form" style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+  <label>
+    <span>Persona</span><br />
+    <select id="person-select" required>
+      <option value="">-- Seleziona --</option>
+    </select>
+  </label>
 
-      <label>
-        <span>Settimana</span><br />
-        <select id="week-select">
-          <option value="current">Semaine en cours</option>
-          <option value="next">Prochaine semaine</option>
-        </select>
-      </label>
+  <label>
+    <span>Settimana</span><br />
+    <select id="week-select">
+      <option value="current">Semaine en cours</option>
+      <option value="next">Prochaine semaine</option>
+    </select>
+  </label>
 
-      <button type="submit">Estrai</button>
-    </form>
+  <button type="submit">Estrai</button>
+</form>
+
+<div id="status"></div>
+<div id="result"></div>
+
 
     <div id="status" aria-live="polite" style="margin-top:10px;"></div>
     <div id="result" style="margin-top:16px;"></div>
