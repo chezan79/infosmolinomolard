@@ -125,50 +125,88 @@ app.post('/api/process-planning', (req, res) => {
   }
 });
 
-// API per scaricare file da Google Drive
-app.post('/api/download-google-drive', async (req, res) => {
+// API per scaricare dati da Google Sheets
+app.post('/api/download-google-sheets', async (req, res) => {
   try {
-    const { fileId } = req.body;
+    const { sheetUrl } = req.body;
     
-    if (!fileId) {
-      return res.status(400).json({ error: 'File ID richiesto' });
+    if (!sheetUrl) {
+      return res.status(400).json({ error: 'URL Google Sheets richiesto' });
     }
 
-    // URL per scaricare il file direttamente da Google Drive
-    const downloadUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+    // Estrai l'ID del foglio dall'URL
+    const sheetId = extractSheetIdFromUrl(sheetUrl);
+    if (!sheetId) {
+      return res.status(400).json({ error: 'URL Google Sheets non valido' });
+    }
+
+    // URL per accedere ai dati del foglio in formato CSV
+    const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
     
-    const response = await fetch(downloadUrl);
+    const response = await fetch(csvUrl);
     
     if (!response.ok) {
-      throw new Error('Impossibile scaricare il file da Google Drive. Assicurati che il file sia pubblico.');
+      throw new Error('Impossibile accedere al foglio Google. Assicurati che sia pubblico.');
     }
 
-    const arrayBuffer = await response.arrayBuffer();
-    const data = new Uint8Array(arrayBuffer);
+    const csvText = await response.text();
+    const jsonData = parseCSVToJSON(csvText);
     
-    // Processa il file Excel
-    const workbook = XLSX.read(data, { type: 'array' });
-    const sheetName = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[sheetName];
-    const jsonData = XLSX.utils.sheet_to_json(sheet);
-    
-    console.log(`File Google Drive processato: ${jsonData.length} righe trovate`);
+    console.log(`Google Sheets processato: ${jsonData.length} righe trovate`);
     
     res.json({
       success: true,
       data: jsonData,
-      totalRows: jsonData.length,
-      sheetName: sheetName
+      totalRows: jsonData.length
     });
     
   } catch (error) {
-    console.error('Errore nel download da Google Drive:', error);
+    console.error('Errore nel download da Google Sheets:', error);
     res.status(500).json({ 
-      error: 'Errore nel scaricare il file: ' + error.message + 
-             '. Assicurati che il file sia pubblico o condiviso con accesso di visualizzazione.'
+      error: 'Errore nel scaricare i dati: ' + error.message + 
+             '. Assicurati che il foglio sia pubblico.'
     });
   }
 });
+
+// Funzione per estrarre l'ID del foglio dall'URL
+function extractSheetIdFromUrl(url) {
+  const patterns = [
+    /\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/,
+    /\/d\/([a-zA-Z0-9-_]+)/
+  ];
+
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match) {
+      return match[1];
+    }
+  }
+  return null;
+}
+
+// Funzione per convertire CSV in JSON
+function parseCSVToJSON(csvText) {
+  const lines = csvText.split('\n').filter(line => line.trim());
+  if (lines.length === 0) return [];
+  
+  // Prima riga contiene le intestazioni
+  const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+  const result = [];
+  
+  for (let i = 1; i < lines.length; i++) {
+    const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
+    const obj = {};
+    
+    headers.forEach((header, index) => {
+      obj[header] = values[index] || '';
+    });
+    
+    result.push(obj);
+  }
+  
+  return result;
+}
 
 // API per sincronizzare Google Sheets con Firebase
 app.post('/api/sync-sheets-to-firebase', async (req, res) => {
