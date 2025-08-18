@@ -182,13 +182,13 @@ app.post('/api/download-google-sheets', async (req, res) => {
 // Funzione per mappare nomi dei fogli ai loro GID
 function getSheetGidByName(sheetName) {
   const sheetMapping = {
-    'bar': 0,           // Primo foglio per bar
+    'bar': 1264033041,      // Vero GID del foglio bar
     'service': 1763904694,  // Vero GID del foglio service
     'cuisine': 819005714,   // Vero GID del foglio cuisine
-    'BAR': 0,
+    'BAR': 1264033041,
     'SERVICE': 1763904694,
     'CUISINE': 819005714,
-    'Bar': 0,
+    'Bar': 1264033041,
     'Service': 1763904694,
     'Cuisine': 819005714
   };
