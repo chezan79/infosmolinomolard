@@ -159,7 +159,7 @@
       if (/^[RDS]\s*\d+:\d+\s*-\s*\d+:\d+$/.test(trimmedName)) return false; // tipo "D 09:00-18:15"
       if (/^[RDS]$/.test(trimmedName)) return false; // solo "R", "D", "S"
       if (/^[\d\s\-h:]+$/.test(trimmedName)) return false; // solo numeri e simboli orari
-      if (trimmedName === "Nom") return false; // intestazione
+      if (trimmedName === "Nom" || trimmedName === "nom") return false; // intestazione
       
       // ACCETTA TUTTI I NOMI CON ALMENO 3 CARATTERI CHE CONTENGONO LETTERE
       if (trimmedName.length < 3) return false;
@@ -209,18 +209,18 @@
       // Visualizza gli orari per tutti i giorni (saltando la prima colonna che è il nome)
       for (let i = 1; i < headerKeys.length; i++) {
         const headerKey = headerKeys[i];
-        const employeeKey = employeeKeys[i];
         
-        // Usa il valore corretto della cella dell'intestazione, non il valore dell'employee
+        // Prendi il nome del giorno direttamente dalle intestazioni del foglio Excel
         const dayName = headerRow[headerKey] || `Giorno ${i}`;
         
+        // Prendi l'orario dal collaboratore usando la stessa chiave dell'intestazione
         let schedule = 'Non specificato';
-        if (employeeKey && employeeData[employeeKey]) {
-          schedule = employeeData[employeeKey];
+        if (employeeData[headerKey]) {
+          schedule = employeeData[headerKey];
         }
         
         // Debug per ogni giorno
-        console.log(`${dayName} (header: ${headerKey}, employee key: ${employeeKey}):`, schedule);
+        console.log(`${dayName}:`, schedule);
 
         scheduleHTML += `
           <div style="background: white; padding: 15px; border-radius: 8px; border-left: 4px solid #4285f4; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
