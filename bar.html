@@ -127,8 +127,8 @@
       console.log('Dati totali ricevuti da Google Sheets:', planningData.length);
       console.log('Primi 3 elementi per debug:', planningData.slice(0, 3));
       
-      // Salta la prima riga (intestazioni) e processa dal secondo elemento in poi
-      for (let i = 1; i < planningData.length; i++) {
+      // I dati dal server non contengono più le intestazioni, quindi processa tutte le righe
+      for (let i = 0; i < planningData.length; i++) {
         const row = planningData[i];
         
         if (row && typeof row === 'object') {
