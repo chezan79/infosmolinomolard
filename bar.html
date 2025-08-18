@@ -44,17 +44,9 @@
     </ul>
   </section>
 
-  <section>
-    <h2>Planning Personalizzato</h2>
-    <p>Inserisci il link del foglio Google Sheets:</p>
-    <input type="text" id="googleSheetsLink" value="https://docs.google.com/spreadsheets/d/1QL0gE63O0ljvB8WylRSgQCtZ6YQSi4t-/edit?usp=sharing&ouid=108324642946843384206&rtpof=true&sd=true" style="width: 70%; padding: 10px; margin-right: 10px;">
-    <button onclick="loadFromGoogleSheets()" style="background-color: #4285f4; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">
-      📊 Carica Planning
-    </button>
-    <div id="sheetsLoadingMessage" style="display:none; color: #4285f4; margin: 10px 0;">
-      Caricamento dati da Google Sheets...
-    </div>
-  </section>
+  <div id="sheetsLoadingMessage" style="display:none; color: #4285f4; margin: 10px 0; text-align: center;">
+    Caricamento planning...
+  </div>
 
   <section id="employeeSelector" style="display:none; margin-top: 30px;">
     <h2>Seleziona il tuo nome</h2>
@@ -74,14 +66,19 @@
   <script>
     let planningData = [];
 
-    async function loadFromGoogleSheets() {
-      const linkInput = document.getElementById('googleSheetsLink');
-      const sheetsLink = linkInput.value.trim();
-
-      if (!sheetsLink) {
-        alert('Inserisci il link del foglio Google Sheets');
-        return;
+    // Carica automaticamente i dati al caricamento della pagina
+    document.addEventListener('DOMContentLoaded', function() {
+      loadFromGoogleSheets();
+      
+      const employeeSelect = document.getElementById('employeeSelect');
+      if (employeeSelect) {
+        employeeSelect.addEventListener('change', showEmployeeSchedule);
       }
+    });
+
+    async function loadFromGoogleSheets() {
+      // Link hardcoded
+      const sheetsLink = "https://docs.google.com/spreadsheets/d/1QL0gE63O0ljvB8WylRSgQCtZ6YQSi4t-/edit?usp=sharing&ouid=108324642946843384206&rtpof=true&sd=true";
 
       const loadingMessage = document.getElementById('sheetsLoadingMessage');
       loadingMessage.style.display = 'block';
@@ -122,14 +119,17 @@
       const select = document.getElementById('employeeSelect');
       select.innerHTML = '<option value="">-- Seleziona il tuo nome --</option>';
 
-      // Ottieni tutti i nomi dalla prima colonna (assumendo che la prima colonna contenga i nomi)
-      const names = planningData.map(row => {
-        const keys = Object.keys(row);
-        return row[keys[0]]; // Prima colonna
-      }).filter(name => name && name.trim());
+      // Filtra solo le righe pari (indici 1, 3, 5, 7, ecc. che corrispondono alle righe 2, 4, 6, 8 del foglio)
+      const evenRowNames = planningData
+        .filter((row, index) => index % 2 === 1) // Prende solo gli indici dispari (che sono le righe pari del foglio)
+        .map(row => {
+          const keys = Object.keys(row);
+          return row[keys[0]]; // Prima colonna
+        })
+        .filter(name => name && name.trim());
 
       // Rimuovi duplicati e ordina
-      const uniqueNames = [...new Set(names)].sort();
+      const uniqueNames = [...new Set(evenRowNames)].sort();
 
       uniqueNames.forEach(name => {
         const option = document.createElement('option');
@@ -183,13 +183,7 @@
       scheduleSection.style.display = 'block';
     }
 
-    // Event listener per la selezione del nome
-    document.addEventListener('DOMContentLoaded', function() {
-      const employeeSelect = document.getElementById('employeeSelect');
-      if (employeeSelect) {
-        employeeSelect.addEventListener('change', showEmployeeSchedule);
-      }
-    });
+    
   </script>
 </body>
 </html>
