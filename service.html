@@ -131,8 +131,8 @@
             console.log('Dati totali ricevuti da Google Sheets:', planningData.length);
             console.log('Primi 3 elementi per debug:', planningData.slice(0, 3));
 
-            // Salta la prima riga (intestazioni) e processa dal secondo elemento in poi
-            for (let i = 1; i < planningData.length; i++) {
+            // I dati dal server non contengono più le intestazioni, quindi processa tutte le righe
+            for (let i = 0; i < planningData.length; i++) {
                 const row = planningData[i];
 
                 if (row && typeof row === 'object') {
@@ -229,12 +229,12 @@
 
             console.log(`✅ Dati trovati per "${selectedName}":`, employeeData);
 
-            // Prendi le intestazioni dalla prima riga per mappare le colonne
-            const headerRow = planningData[0];
-            const headerKeys = Object.keys(headerRow || {});
+            // Usa la struttura delle chiavi dalla prima riga di dati per mappare le colonne
+            const firstRowKeys = Object.keys(employeeData);
+            const headerKeys = firstRowKeys;
 
             console.log('📋 Intestazioni colonne dal foglio Google:', headerKeys);
-            console.log('📋 Valori intestazioni:', headerRow);
+            console.log('📋 Struttura dati employee:', employeeData);
 
             // Nomi fissi dei giorni in francese
             const fixedDayNames = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
