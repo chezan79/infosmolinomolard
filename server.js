@@ -130,51 +130,83 @@ app.post('/api/download-google-sheets', async (req, res) => {
   try {
     const { sheetUrl, sheetName } = req.body;
     
+    console.log(`📊 RICHIESTA GOOGLE SHEETS: URL=${sheetUrl}, Foglio=${sheetName}`);
+    
     if (!sheetUrl) {
       return res.status(400).json({ error: 'URL Google Sheets richiesto' });
     }
 
-    // Estrai l'ID del foglio dall'URL
+    // Estrai l'ID del foglio dall'URL con controlli migliorati
     const sheetId = extractSheetIdFromUrl(sheetUrl);
     if (!sheetId) {
+      console.error('❌ ERRORE: URL Google Sheets non valido:', sheetUrl);
       return res.status(400).json({ error: 'URL Google Sheets non valido' });
     }
 
+    console.log(`🔑 Sheet ID estratto: ${sheetId}`);
+
     // URL per accedere ai dati del foglio in formato CSV
-    // Se sheetName è specificato, aggiungi il parametro gid
     let csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
     
     // Se è specificato un nome del foglio, aggiungi il parametro per quel foglio
     if (sheetName) {
-      // Per ora usiamo il primo foglio (gid=0) o secondo (gid=1) in base al nome
       const gid = getSheetGidByName(sheetName);
       csvUrl += `&gid=${gid}`;
-      console.log(`Accedendo al foglio "${sheetName}" con GID ${gid}`);
+      console.log(`📋 Accedendo al foglio "${sheetName}" con GID ${gid}`);
+      console.log(`🌐 URL finale: ${csvUrl}`);
     }
     
-    const response = await fetch(csvUrl);
+    // Aggiungi headers per migliorare la compatibilità
+    const response = await fetch(csvUrl, {
+      method: 'GET',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; GoogleSheetsBot/1.0)',
+        'Accept': 'text/csv,text/plain,*/*',
+        'Cache-Control': 'no-cache'
+      }
+    });
+    
+    console.log(`📡 Risposta Google: Status ${response.status} - ${response.statusText}`);
     
     if (!response.ok) {
-      throw new Error('Impossibile accedere al foglio Google. Assicurati che sia pubblico.');
+      const errorText = await response.text();
+      console.error(`❌ Errore Google Sheets (${response.status}):`, errorText);
+      throw new Error(`Errore ${response.status}: ${response.statusText}. Verifica che il foglio sia pubblico e accessibile.`);
     }
 
     const csvText = await response.text();
+    console.log(`📄 CSV ricevuto (primi 200 caratteri):`, csvText.substring(0, 200));
+    
+    if (!csvText || csvText.trim() === '') {
+      throw new Error('Il foglio Google è vuoto o non accessibile');
+    }
+
     const jsonData = parseCSVToJSON(csvText);
     
-    console.log(`Google Sheets processato (foglio: ${sheetName || 'default'}): ${jsonData.length} righe trovate`);
+    console.log(`✅ SUCCESSO: ${jsonData.length} righe processate per il foglio "${sheetName || 'default'}"`);
+    console.log(`📊 Prime 2 righe per debug:`, jsonData.slice(0, 2));
     
     res.json({
       success: true,
       data: jsonData,
       totalRows: jsonData.length,
-      sheetName: sheetName || 'default'
+      sheetName: sheetName || 'default',
+      debug: {
+        sheetId: sheetId,
+        csvUrl: csvUrl,
+        csvLength: csvText.length
+      }
     });
     
   } catch (error) {
-    console.error('Errore nel download da Google Sheets:', error);
+    console.error('❌ ERRORE FINALE nel download da Google Sheets:', error);
     res.status(500).json({ 
       error: 'Errore nel scaricare i dati: ' + error.message + 
-             '. Assicurati che il foglio sia pubblico.'
+             '. Verifica che il foglio Google sia pubblico e accessibile.',
+      debug: {
+        originalUrl: req.body.sheetUrl,
+        sheetName: req.body.sheetName
+      }
     });
   }
 });
@@ -224,26 +256,70 @@ function extractSheetIdFromUrl(url) {
   return null;
 }
 
-// Funzione per convertire CSV in JSON
+// Funzione per convertire CSV in JSON con gestione migliorata
 function parseCSVToJSON(csvText) {
-  const lines = csvText.split('\n').filter(line => line.trim());
-  if (lines.length === 0) return [];
-  
-  // Prima riga contiene le intestazioni
-  const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+  try {
+    console.log(`📄 Inizio parsing CSV (lunghezza: ${csvText.length})`);
+    
+    const lines = csvText.split('\n').filter(line => line.trim());
+    if (lines.length === 0) {
+      console.log('⚠️ CSV vuoto dopo filtraggio');
+      return [];
+    }
+    
+    console.log(`📊 Trovate ${lines.length} righe non vuote`);
+    console.log(`📋 Prima riga (header): ${lines[0]}`);
+    
+    // Prima riga contiene le intestazioni con gestione migliorata delle virgolette
+    const headers = parseCSVLine(lines[0]);
+    console.log(`🏷️ Headers estratti:`, headers);
+    
+    const result = [];
+    
+    for (let i = 1; i < lines.length; i++) {
+      const values = parseCSVLine(lines[i]);
+      const obj = {};
+      
+      headers.forEach((header, index) => {
+        obj[header] = values[index] || '';
+      });
+      
+      // Solo aggiungi righe che hanno almeno un valore non vuoto
+      const hasContent = Object.values(obj).some(val => val && val.trim());
+      if (hasContent) {
+        result.push(obj);
+      }
+    }
+    
+    console.log(`✅ Parsing completato: ${result.length} righe valide`);
+    return result;
+    
+  } catch (error) {
+    console.error('❌ Errore nel parsing CSV:', error);
+    return [];
+  }
+}
+
+// Funzione helper per parsare una riga CSV gestendo le virgolette
+function parseCSVLine(line) {
   const result = [];
+  let current = '';
+  let inQuotes = false;
   
-  for (let i = 1; i < lines.length; i++) {
-    const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
-    const obj = {};
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
     
-    headers.forEach((header, index) => {
-      obj[header] = values[index] || '';
-    });
-    
-    result.push(obj);
+    if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === ',' && !inQuotes) {
+      result.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
   }
   
+  result.push(current.trim());
   return result;
 }
 
