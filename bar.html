@@ -119,14 +119,14 @@
       const select = document.getElementById('employeeSelect');
       select.innerHTML = '<option value="">-- Seleziona il tuo nome --</option>';
 
-      // Salta le prime 3 righe e processa le coppie A4:A5, A6:A7, A8:A9, etc.
+      // Salta le prime 2 righe e processa le coppie A3:A4, A5:A6, A7:A8, etc.
       const employeeNames = [];
-      const dataFromRow4 = planningData.slice(3); // Salta le prime 3 righe (indici 0, 1, 2)
+      const dataFromRow3 = planningData.slice(2); // Salta le prime 2 righe (indici 0, 1)
       
-      // Processa le coppie di righe: A4:A5, A6:A7, A8:A9, etc.
-      for (let i = 0; i < dataFromRow4.length; i += 2) {
-        const row1 = dataFromRow4[i];     // Prima riga della coppia (A4, A6, A8, etc.)
-        const row2 = dataFromRow4[i + 1]; // Seconda riga della coppia (A5, A7, A9, etc.)
+      // Processa le coppie di righe: A3:A4, A5:A6, A7:A8, etc.
+      for (let i = 0; i < dataFromRow3.length; i += 2) {
+        const row1 = dataFromRow3[i];     // Prima riga della coppia (A3, A5, A7, etc.)
+        const row2 = dataFromRow3[i + 1]; // Seconda riga della coppia (A4, A6, A8, etc.)
         
         // Controlla la prima riga della coppia
         if (row1) {
@@ -134,7 +134,7 @@
           const name1 = row1[keys1[0]];
           if (name1 && name1.trim() && isValidEmployeeName(name1)) {
             employeeNames.push(name1.trim());
-            console.log(`Trovato collaboratore in riga ${i + 4}: ${name1.trim()}`);
+            console.log(`Trovato collaboratore in riga ${i + 3}: ${name1.trim()}`);
           }
         }
         
@@ -144,7 +144,7 @@
           const name2 = row2[keys2[0]];
           if (name2 && name2.trim() && isValidEmployeeName(name2)) {
             employeeNames.push(name2.trim());
-            console.log(`Trovato collaboratore in riga ${i + 5}: ${name2.trim()}`);
+            console.log(`Trovato collaboratore in riga ${i + 4}: ${name2.trim()}`);
           }
         }
       }
@@ -152,7 +152,7 @@
       // Rimuovi duplicati e ordina
       const uniqueNames = [...new Set(employeeNames)].sort();
       
-      console.log('Nomi collaboratori filtrati (a coppie A4-A5, A6-A7, etc.):', uniqueNames);
+      console.log('Nomi collaboratori filtrati (a coppie A3-A4, A5-A6, etc.):', uniqueNames);
 
       uniqueNames.forEach(name => {
         const option = document.createElement('option');
@@ -186,8 +186,8 @@
         return;
       }
 
-      // Trova la riga corrispondente al nome selezionato (saltando le prime 3 righe)
-      const employeeData = planningData.slice(3).find(row => {
+      // Trova la riga corrispondente al nome selezionato (saltando le prime 2 righe)
+      const employeeData = planningData.slice(2).find(row => {
         const keys = Object.keys(row);
         return row[keys[0]] === selectedName;
       });
