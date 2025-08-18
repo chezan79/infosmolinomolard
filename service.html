@@ -59,11 +59,7 @@
             </div>
         </section>
 
-        <!-- Canvas per visualizzare il PDF -->
-        <section>
-            <h2></h2>
-            <canvas id="pdf-canvas"></canvas>
-        </section>
+        
         </main>
 
     <footer>
@@ -84,29 +80,7 @@
                 employeeSelect.addEventListener('change', showEmployeeSchedule);
             }
 
-            // Carica anche il PDF
-            const url = 'https://drive.google.com/uc?export=download&id=1f081LFeqYq2cp6jEtdT8tPYAl94vVa0X'; // Link diretto al PDF su Google Drive
-
-            const loadingTask = pdfjsLib.getDocument({ url });
-            loadingTask.promise.then(pdf => {
-                pdf.getPage(1).then(page => {
-                    const scale = 1.5;
-                    const viewport = page.getViewport({ scale });
-
-                    const canvas = document.getElementById('pdf-canvas');
-                    const context = canvas.getContext('2d');
-                    canvas.height = viewport.height;
-                    canvas.width = viewport.width;
-
-                    const renderContext = {
-                        canvasContext: context,
-                        viewport: viewport
-                    };
-                    page.render(renderContext);
-                });
-            }).catch(error => {
-                console.error('Errore nel caricamento del PDF:', error);
-            });
+            
         });
 
         async function loadFromGoogleSheets() {
