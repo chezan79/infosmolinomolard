@@ -8,7 +8,7 @@
     <!-- Includi PDF.js tramite CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.12.313/pdf.min.js"></script>
      <!-- Open Graph tags -->
-  
+
 </head>
 <body>
     <header>
@@ -44,7 +44,152 @@
     </ul>
   </section>
 
-  
+  <section>
+    <h2>Planning Personalizzato</h2>
+    <p>Inserisci il link del foglio Google Sheets:</p>
+    <input type="text" id="googleSheetsLink" value="https://docs.google.com/spreadsheets/d/1QL0gE63O0ljvB8WylRSgQCtZ6YQSi4t-/edit?usp=sharing&ouid=108324642946843384206&rtpof=true&sd=true" style="width: 70%; padding: 10px; margin-right: 10px;">
+    <button onclick="loadFromGoogleSheets()" style="background-color: #4285f4; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">
+      📊 Carica Planning
+    </button>
+    <div id="sheetsLoadingMessage" style="display:none; color: #4285f4; margin: 10px 0;">
+      Caricamento dati da Google Sheets...
+    </div>
+  </section>
+
+  <section id="employeeSelector" style="display:none; margin-top: 30px;">
+    <h2>Seleziona il tuo nome</h2>
+    <select id="employeeSelect" style="width: 100%; padding: 15px; font-size: 16px; margin-bottom: 20px;">
+      <option value="">-- Seleziona il tuo nome --</option>
+    </select>
+  </section>
+
+  <section id="employeeSchedule" style="display:none; margin-top: 30px;">
+    <h2>I tuoi orari della settimana</h2>
+    <div id="scheduleDisplay" style="background-color: #f8f9fa; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+    </div>
+  </section>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <script>
+    let planningData = [];
+
+    async function loadFromGoogleSheets() {
+      const linkInput = document.getElementById('googleSheetsLink');
+      const sheetsLink = linkInput.value.trim();
+
+      if (!sheetsLink) {
+        alert('Inserisci il link del foglio Google Sheets');
+        return;
+      }
+
+      const loadingMessage = document.getElementById('sheetsLoadingMessage');
+      loadingMessage.style.display = 'block';
+
+      try {
+        const response = await fetch('/api/download-google-sheets', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ sheetUrl: sheetsLink })
+        });
+
+        if (!response.ok) {
+          throw new Error('Errore nel caricare i dati da Google Sheets');
+        }
+
+        const result = await response.json();
+
+        if (result.success) {
+          planningData = result.data;
+          populateEmployeeSelect();
+          document.getElementById('employeeSelector').style.display = 'block';
+          loadingMessage.style.display = 'none';
+          console.log(`Dati caricati con successo! Trovati ${planningData.length} collaboratori.`);
+        } else {
+          throw new Error(result.error || 'Errore sconosciuto');
+        }
+
+      } catch (error) {
+        console.error('Errore:', error);
+        loadingMessage.style.display = 'none';
+        alert('Errore nel caricare i dati: ' + error.message);
+      }
+    }
+
+    function populateEmployeeSelect() {
+      const select = document.getElementById('employeeSelect');
+      select.innerHTML = '<option value="">-- Seleziona il tuo nome --</option>';
+
+      // Ottieni tutti i nomi dalla prima colonna (assumendo che la prima colonna contenga i nomi)
+      const names = planningData.map(row => {
+        const keys = Object.keys(row);
+        return row[keys[0]]; // Prima colonna
+      }).filter(name => name && name.trim());
+
+      // Rimuovi duplicati e ordina
+      const uniqueNames = [...new Set(names)].sort();
+
+      uniqueNames.forEach(name => {
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        select.appendChild(option);
+      });
+    }
+
+    function showEmployeeSchedule() {
+      const selectedName = document.getElementById('employeeSelect').value;
+      const scheduleDisplay = document.getElementById('scheduleDisplay');
+      const scheduleSection = document.getElementById('employeeSchedule');
+
+      if (!selectedName) {
+        scheduleSection.style.display = 'none';
+        return;
+      }
+
+      // Trova la riga corrispondente al nome selezionato
+      const employeeData = planningData.find(row => {
+        const keys = Object.keys(row);
+        return row[keys[0]] === selectedName;
+      });
+
+      if (!employeeData) {
+        alert('Dati non trovati per ' + selectedName);
+        return;
+      }
+
+      // Crea la visualizzazione degli orari
+      let scheduleHTML = `<h3 style="color: #333; margin-bottom: 20px;">👤 ${selectedName}</h3>`;
+      scheduleHTML += '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">';
+
+      const keys = Object.keys(employeeData);
+      // Salta la prima colonna (nome) e mostra il resto
+      for (let i = 1; i < keys.length; i++) {
+        const day = keys[i];
+        const schedule = employeeData[day] || 'Non specificato';
+
+        scheduleHTML += `
+          <div style="background: white; padding: 15px; border-radius: 8px; border-left: 4px solid #4285f4; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <div style="font-weight: bold; color: #4285f4; margin-bottom: 5px;">${day}</div>
+            <div style="font-size: 16px; color: #333;">${schedule}</div>
+          </div>
+        `;
+      }
+
+      scheduleHTML += '</div>';
+      scheduleDisplay.innerHTML = scheduleHTML;
+      scheduleSection.style.display = 'block';
+    }
+
+    // Event listener per la selezione del nome
+    document.addEventListener('DOMContentLoaded', function() {
+      const employeeSelect = document.getElementById('employeeSelect');
+      if (employeeSelect) {
+        employeeSelect.addEventListener('change', showEmployeeSchedule);
+      }
+    });
   </script>
 </body>
 </html>
