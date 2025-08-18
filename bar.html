@@ -119,28 +119,19 @@
       const select = document.getElementById('employeeSelect');
       select.innerHTML = '<option value="">-- Seleziona il tuo nome --</option>';
 
-      // Salta le prime 3 righe e prendi i nomi a coppie A4-A5, A6-A7, A8-A9, etc.
+      // Salta le prime 3 righe e prendi solo la prima riga di ogni coppia A4, A6, A8, etc.
       const employeeNames = [];
       const dataFromRow4 = planningData.slice(3); // Salta le prime 3 righe (indici 0, 1, 2)
       
-      // Prendi le righe a coppie: 0-1 (A4-A5), 2-3 (A6-A7), 4-5 (A8-A9), etc.
+      // Prendi solo le righe pari (A4, A6, A8, etc.) che contengono i nomi completi
       for (let i = 0; i < dataFromRow4.length; i += 2) {
-        const row1 = dataFromRow4[i];
-        const row2 = dataFromRow4[i + 1];
+        const row = dataFromRow4[i]; // Solo la prima riga di ogni coppia
         
-        if (row1) {
-          const keys1 = Object.keys(row1);
-          const name1 = row1[keys1[0]];
-          if (name1 && name1.trim() && isValidEmployeeName(name1)) {
-            employeeNames.push(name1);
-          }
-        }
-        
-        if (row2) {
-          const keys2 = Object.keys(row2);
-          const name2 = row2[keys2[0]];
-          if (name2 && name2.trim() && isValidEmployeeName(name2)) {
-            employeeNames.push(name2);
+        if (row) {
+          const keys = Object.keys(row);
+          const fullName = row[keys[0]];
+          if (fullName && fullName.trim() && isValidEmployeeName(fullName)) {
+            employeeNames.push(fullName.trim());
           }
         }
       }
