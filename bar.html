@@ -202,14 +202,29 @@
       scheduleHTML += '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">';
 
       const keys = Object.keys(employeeData);
-      // Salta la prima colonna (nome) e mostra il resto
-      for (let i = 1; i < keys.length; i++) {
-        const day = keys[i];
-        const schedule = employeeData[day] || 'Non specificato';
+      
+      // Mostra gli orari delle colonne B, C, D, E, F, G, H in ordine
+      // (keys[1] = colonna B, keys[2] = colonna C, ecc.)
+      for (let i = 1; i <= 7 && i < keys.length; i++) {
+        const columnKey = keys[i];
+        const schedule = employeeData[columnKey] || 'Non specificato';
+
+        // Determina il nome del giorno basato sulla posizione della colonna
+        let dayName;
+        switch(i) {
+          case 1: dayName = 'Lunedì'; break;
+          case 2: dayName = 'Martedì'; break;
+          case 3: dayName = 'Mercoledì'; break;
+          case 4: dayName = 'Giovedì'; break;
+          case 5: dayName = 'Venerdì'; break;
+          case 6: dayName = 'Sabato'; break;
+          case 7: dayName = 'Domenica'; break;
+          default: dayName = `Colonna ${String.fromCharCode(65 + i)}`; // A, B, C, etc.
+        }
 
         scheduleHTML += `
           <div style="background: white; padding: 15px; border-radius: 8px; border-left: 4px solid #4285f4; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <div style="font-weight: bold; color: #4285f4; margin-bottom: 5px;">${day}</div>
+            <div style="font-weight: bold; color: #4285f4; margin-bottom: 5px;">${dayName}</div>
             <div style="font-size: 16px; color: #333;">${schedule}</div>
           </div>
         `;
