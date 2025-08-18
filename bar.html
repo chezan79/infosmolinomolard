@@ -211,7 +211,7 @@
         const headerKey = headerKeys[i];
         const employeeKey = employeeKeys[i];
         
-        // Usa l'intestazione come nome del giorno
+        // Usa il valore corretto della cella dell'intestazione, non il valore dell'employee
         const dayName = headerRow[headerKey] || `Giorno ${i}`;
         
         let schedule = 'Non specificato';
