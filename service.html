@@ -73,14 +73,13 @@
 
         // Carica automaticamente i dati al caricamento della pagina
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 PAGINA CARICATA - Avvio caricamento dati...');
             loadFromGoogleSheets();
 
             const employeeSelect = document.getElementById('employeeSelect');
             if (employeeSelect) {
                 employeeSelect.addEventListener('change', showEmployeeSchedule);
             }
-
-            
         });
 
         async function loadFromGoogleSheets() {
@@ -88,7 +87,11 @@
             const sheetsLink = "https://docs.google.com/spreadsheets/d/1QL0gE63O0ljvB8WylRSgQCtZ6YQSi4t-/edit?usp=sharing&ouid=108324642946843384206&rtpof=true&sd=true";
 
             const loadingMessage = document.getElementById('sheetsLoadingMessage');
+            const employeeSelector = document.getElementById('employeeSelector');
+            
+            console.log('📡 Inizio caricamento da Google Sheets...');
             loadingMessage.style.display = 'block';
+            employeeSelector.style.display = 'none';
 
             try {
                 const response = await fetch('/api/download-google-sheets', {
@@ -110,18 +113,26 @@
 
                 if (result.success) {
                     planningData = result.data;
+                    console.log('✅ DATI CARICATI CORRETTAMENTE');
                     populateEmployeeSelect();
-                    document.getElementById('employeeSelector').style.display = 'block';
+                    
+                    // MOSTRA SEMPRE LA SEZIONE
+                    employeeSelector.style.display = 'block';
                     loadingMessage.style.display = 'none';
-                    console.log(`Dati caricati con successo! Trovati ${planningData.length} collaboratori.`);
+                    
+                    console.log(`✅ SEZIONE MOSTRATA! Trovati ${planningData.length} collaboratori.`);
                 } else {
                     throw new Error(result.error || 'Errore sconosciuto');
                 }
 
             } catch (error) {
-                console.error('Errore:', error);
+                console.error('❌ Errore caricamento:', error);
                 loadingMessage.style.display = 'none';
-                alert('Errore nel caricare i dati: ' + error.message);
+                // MOSTRA LA SEZIONE ANCHE IN CASO DI ERRORE
+                employeeSelector.style.display = 'block';
+                
+                const select = document.getElementById('employeeSelect');
+                select.innerHTML = '<option value="">❌ Errore nel caricamento</option>';
             }
         }
 
@@ -131,8 +142,8 @@
 
             const employeeNames = [];
 
-            console.log('Dati totali ricevuti da Google Sheets:', planningData.length);
-            console.log('Primi 3 elementi per debug:', planningData.slice(0, 3));
+            console.log('📊 Dati totali ricevuti da Google Sheets:', planningData.length);
+            console.log('📋 Primi 3 elementi per debug:', planningData.slice(0, 3));
 
             // I dati dal server non contengono più le intestazioni, quindi processa tutte le righe
             for (let i = 0; i < planningData.length; i++) {
@@ -179,7 +190,10 @@
                 option.value = name;
                 option.textContent = name;
                 select.appendChild(option);
+                console.log(`➕ Aggiunto al dropdown: ${name}`);
             });
+            
+            console.log('✅ DROPDOWN POPOLATO CON SUCCESSO!');
         }
 
         function isValidEmployeeName(name) {
@@ -228,12 +242,6 @@
 
             if (!employeeData) {
                 console.error(`❌ Dati non trovati per "${selectedName}"`);
-                console.log('📊 Tutti i collaboratori disponibili:', 
-                    planningData.slice(1).map(row => {
-                        const keys = Object.keys(row || {});
-                        return keys.length > 0 ? row[keys[0]] : 'N/A';
-                    }).filter(name => name && name.trim())
-                );
                 alert(`Dati non trovati per ${selectedName}. Controlla la console per i dettagli.`);
                 return;
             }
@@ -245,7 +253,6 @@
             const headerKeys = firstRowKeys;
 
             console.log('📋 Intestazioni colonne dal foglio Google:', headerKeys);
-            console.log('📋 Struttura dati employee:', employeeData);
 
             // Nomi fissi dei giorni in francese
             const fixedDayNames = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
