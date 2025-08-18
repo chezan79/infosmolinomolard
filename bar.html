@@ -119,16 +119,15 @@
       const select = document.getElementById('employeeSelect');
       select.innerHTML = '<option value="">-- Seleziona il tuo nome --</option>';
 
-      // Processa ogni singola riga: A1, A2, A3, A4, etc.
       const employeeNames = [];
       
-      // Processa tutte le righe una per una
-      for (let i = 0; i < planningData.length; i++) {
+      // Salta la prima riga (intestazioni) e processa dal secondo elemento in poi
+      for (let i = 1; i < planningData.length; i++) {
         const row = planningData[i];
         
         if (row) {
           const keys = Object.keys(row);
-          const name = row[keys[0]];
+          const name = row[keys[0]]; // Prima colonna = Nome collaboratore
           if (name && name.trim() && isValidEmployeeName(name)) {
             employeeNames.push(name.trim());
             console.log(`Trovato collaboratore in riga ${i + 1}: ${name.trim()}`);
@@ -139,7 +138,7 @@
       // Rimuovi duplicati e ordina
       const uniqueNames = [...new Set(employeeNames)].sort();
       
-      console.log('Nomi collaboratori filtrati (righe singole A1, A2, A3, etc.):', uniqueNames);
+      console.log('Nomi collaboratori (saltando riga 1 - intestazioni):', uniqueNames);
 
       uniqueNames.forEach(name => {
         const option = document.createElement('option');
@@ -173,7 +172,7 @@
         return;
       }
 
-      // Trova la riga corrispondente al nome selezionato (ora iniziando dalla prima riga)
+      // Trova la riga corrispondente al nome selezionato (saltando la riga intestazioni)
       const employeeData = planningData.find(row => {
         const keys = Object.keys(row);
         return row[keys[0]] === selectedName;
@@ -184,39 +183,42 @@
         return;
       }
 
+      // Prendi le intestazioni dalla prima riga
+      const headerRow = planningData[0];
+      const headerKeys = Object.keys(headerRow);
+
       // Crea la visualizzazione degli orari
       let scheduleHTML = `<h3 style="color: #333; margin-bottom: 20px;">👤 ${selectedName}</h3>`;
       scheduleHTML += '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">';
 
-      const keys = Object.keys(employeeData);
-      
-      // Definisci tutti i giorni della settimana in ordine
-      const daysOfWeek = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
+      const employeeKeys = Object.keys(employeeData);
       
       // Debug: mostra tutte le colonne disponibili
-      console.log('Keys disponibili per', selectedName, ':', keys);
+      console.log('Keys disponibili per', selectedName, ':', employeeKeys);
+      console.log('Intestazioni dalla riga 1:', headerKeys);
       console.log('Dati employee:', employeeData);
       
-      // Forza la visualizzazione di tutti i 7 giorni della settimana
-      // Le colonne dovrebbero essere: A=nome, B=lunedì, C=martedì, D=mercoledì, E=giovedì, F=venerdì, G=sabato, H=domenica
-      for (let i = 0; i < 7; i++) {
-        const columnIndex = i + 1; // +1 perché saltiamo la prima colonna (nome)
-        const columnKey = keys[columnIndex];
-        const dayName = daysOfWeek[i];
+      // Visualizza gli orari per tutti i giorni (saltando la prima colonna che è il nome)
+      for (let i = 1; i < headerKeys.length; i++) {
+        const headerKey = headerKeys[i];
+        const employeeKey = employeeKeys[i];
+        
+        // Usa l'intestazione come nome del giorno
+        const dayName = headerRow[headerKey] || `Giorno ${i}`;
         
         let schedule = 'Non specificato';
-        if (columnKey && employeeData[columnKey]) {
-          schedule = employeeData[columnKey];
+        if (employeeKey && employeeData[employeeKey]) {
+          schedule = employeeData[employeeKey];
         }
         
         // Debug per ogni giorno
-        console.log(`${dayName} (colonna ${columnIndex}, key: ${columnKey}):`, schedule);
+        console.log(`${dayName} (header: ${headerKey}, employee key: ${employeeKey}):`, schedule);
 
         scheduleHTML += `
           <div style="background: white; padding: 15px; border-radius: 8px; border-left: 4px solid #4285f4; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
             <div style="font-weight: bold; color: #4285f4; margin-bottom: 5px;">${dayName}</div>
             <div style="font-size: 16px; color: #333;">${schedule}</div>
-            <div style="font-size: 12px; color: #999; margin-top: 5px;">Debug: Colonna ${columnKey || 'N/A'}</div>
+            <div style="font-size: 12px; color: #999; margin-top: 5px;">Debug: ${employeeKey || 'N/A'}</div>
           </div>
         `;
       }
