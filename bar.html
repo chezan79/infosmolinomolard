@@ -57,6 +57,15 @@
       <select id="personSelect">
         <option value="">-- Seleziona --</option>
       </select>
+      
+      <div style="margin-top: 15px;">
+        <button onclick="exportToExcel()" style="background-color: #28a745; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">
+          📊 Esporta Planning in Excel
+        </button>
+        <button onclick="exportPersonToExcel()" style="background-color: #17a2b8; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px;">
+          👤 Esporta Persona Selezionata
+        </button>
+      </div>
     </div>
 
     <div id="result"></div>
@@ -212,6 +221,104 @@
       table.appendChild(tbody);
 
       resultDiv.appendChild(table);
+    }
+
+    // Funzione per esportare tutti i planning in Excel
+    async function exportToExcel() {
+      if (planningData.length === 0) {
+        alert('Nessun dato da esportare. Carica prima i planning.');
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/export-excel', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            data: planningData,
+            filename: `planning_completo_${new Date().toISOString().split('T')[0]}`
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error('Errore nel server');
+        }
+
+        // Scarica il file
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `planning_completo_${new Date().toISOString().split('T')[0]}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        alert('File Excel esportato con successo!');
+      } catch (error) {
+        console.error('Errore nell\'esportazione:', error);
+        alert('Errore nell\'esportazione del file Excel');
+      }
+    }
+
+    // Funzione per esportare solo la persona selezionata
+    async function exportPersonToExcel() {
+      const personSelect = document.getElementById("personSelect");
+      const selectedPerson = personSelect.value;
+      
+      if (!selectedPerson) {
+        alert('Seleziona prima una persona');
+        return;
+      }
+
+      const personData = planningData.find(row => row["Nome"] === selectedPerson);
+      if (!personData) {
+        alert('Dati della persona non trovati');
+        return;
+      }
+
+      // Trasforma i dati in formato tabellare per Excel
+      const exportData = DAYS.map(day => ({
+        Giorno: day,
+        Orario: personData[day] || "Riposo",
+        Persona: selectedPerson
+      }));
+
+      try {
+        const response = await fetch('/api/export-excel', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            data: exportData,
+            filename: `planning_${selectedPerson.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}`
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error('Errore nel server');
+        }
+
+        // Scarica il file
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `planning_${selectedPerson.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        alert(`Planning di ${selectedPerson} esportato con successo!`);
+      } catch (error) {
+        console.error('Errore nell\'esportazione:', error);
+        alert('Errore nell\'esportazione del file Excel');
+      }
     }
   </script>
 </body>
