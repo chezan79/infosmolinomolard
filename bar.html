@@ -128,13 +128,23 @@
         const row1 = dataFromRow4[i];     // Prima riga della coppia (A4, A6, A8, etc.)
         const row2 = dataFromRow4[i + 1]; // Seconda riga della coppia (A5, A7, A9, etc.)
         
-        // Controlla sempre la prima riga della coppia per il nome del collaboratore
+        // Controlla la prima riga della coppia
         if (row1) {
           const keys1 = Object.keys(row1);
           const name1 = row1[keys1[0]];
           if (name1 && name1.trim() && isValidEmployeeName(name1)) {
             employeeNames.push(name1.trim());
             console.log(`Trovato collaboratore in riga ${i + 4}: ${name1.trim()}`);
+          }
+        }
+        
+        // Controlla anche la seconda riga della coppia
+        if (row2) {
+          const keys2 = Object.keys(row2);
+          const name2 = row2[keys2[0]];
+          if (name2 && name2.trim() && isValidEmployeeName(name2)) {
+            employeeNames.push(name2.trim());
+            console.log(`Trovato collaboratore in riga ${i + 5}: ${name2.trim()}`);
           }
         }
       }
