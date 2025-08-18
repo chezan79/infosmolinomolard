@@ -81,231 +81,102 @@
     <canvas id="pdf-canvas"></canvas>
   </section>
 </main>
-
 <script>
-  // Costanti generali
-  const DAY_LABELS = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"]; // Giorni della settimana
-  const DRIVE_WEEK_CURRENT = "ID_FILE_CORRENTE"; // ID del file PDF corrente su Google Drive
-  const DRIVE_WEEK_NEXT = "ID_FILE_PROSSIMO"; // ID del file PDF della prossima settimana
+    // Costanti
+    const EXCEL_FILE_ID = "1sLzplaAa0npps1Km8zCwnp7y0CCJVP_F"; // ID della cartella o file (modifica con l'ID del file Excel)
+    const DAYS = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato", "Domenica"];
 
-  // Funzione per normalizzare il testo
-  function normalize(text) {
-    return text.trim().toLowerCase().replace(/\s+/g, " ");
-  }
+    // Funzione per ottenere il link diretto di download di un file Excel su Google Drive
+    function getDriveDownloadUrl(fileId) {
+      return `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=YOUR_API_KEY`;
+    }
 
-  // Funzione per filtrare i nomi
-  function filterNames(names) {
-    const dayAliases = DAY_LABELS.map(normalize);
-    return names.filter(n => {
-      const nn = normalize(n);
-      if (dayAliases.some(d => nn.includes(d))) return false;
-      if (/^(planning|bar|service|poste|equipe|team|horaire|orari)\b/i.test(nn)) return false;
-      return true;
-    });
-  }
+    // Funzione per leggere un file Excel e restituire i dati
+    async function readExcelFromDrive(fileId) {
+      const url = getDriveDownloadUrl(fileId);
+      const response = await fetch(url);
+      const data = await response.arrayBuffer(); // Ottieni i dati binari del file
+      const workbook = XLSX.read(data, { type: "array" }); // Leggi il file Excel
+      const sheetName = workbook.SheetNames[0]; // Usa il primo foglio
+      const sheet = workbook.Sheets[sheetName];
+      return XLSX.utils.sheet_to_json(sheet); // Converte il foglio in un array di oggetti
+    }
 
-  // Funzione per raggruppare righe
-  function groupRows(items) {
-    const rows = [];
-    items.forEach(item => {
-      const y = Math.round(item.transform[5]); // Coordinata Y arrotondata
-      const row = rows.find(r => Math.abs(r.y - y) < 5); // Trova righe vicine
-      if (row) {
-        row.items.push(item);
-      } else {
-        rows.push({ y, items: [item] });
-      }
-    });
-    return rows.map(r => r.items.sort((a, b) => a.x - b.x)); // Ordina per X
-  }
-
-  // Funzione per rilevare intestazione e colonne
-  function detectHeaderAndColumns(rows) {
-    for (const row of rows) {
-      const days = row.map(item => normalize(item.str));
-      const colXs = [];
-      DAY_LABELS.forEach((day, i) => {
-        const index = days.findIndex(d => d.startsWith(normalize(day)));
-        if (index !== -1) colXs.push(row[index].x);
+    // Funzione per popolare il menu a discesa con i nomi delle persone
+    function populatePersonSelect(data) {
+      const personSelect = document.getElementById("personSelect");
+      data.forEach(row => {
+        const option = document.createElement("option");
+        option.value = row["Nome"]; // Supponendo che la colonna A abbia l'intestazione "Nome"
+        option.textContent = row["Nome"];
+        personSelect.appendChild(option);
       });
-      if (colXs.length === DAY_LABELS.length) {
-        return { row, colXs };
+    }
+
+    // Funzione per mostrare il planning di una persona selezionata
+    function showPersonPlanning(data, person) {
+      const resultDiv = document.getElementById("result");
+      resultDiv.innerHTML = ""; // Svuota il contenuto precedente
+
+      const personData = data.find(row => row["Nome"] === person);
+      if (!personData) {
+        resultDiv.textContent = "Nessun dato trovato per la persona selezionata.";
+        return;
       }
-    }
-    return null;
-  }
 
-  // Funzione per trovare la riga di una persona
-  function findPersonRow(rows, person) {
-    const normalizedPerson = normalize(person);
-    return rows.find(row => row.some(item => normalize(item.str) === normalizedPerson));
-  }
-
-  // Funzione per creare una mappa giorno-attività
-  function rowToDayMap(personRow, colXs) {
-    const dayMap = {};
-    for (let i = 0; i < colXs.length; i++) {
-      const colX = colXs[i];
-      const cell = personRow.find(item => Math.abs(item.x - colX) < 5); // Tolleranza di 5px
-      const day = DAY_LABELS[i];
-      dayMap[day] = cell ? cell.str : "Nessuna attività"; // Se non c'è testo, lascia vuoto
-    }
-    return dayMap;
-  }
-
-  // Funzione per renderizzare il risultato
-  function renderResult(container, person, week, dayMap) {
-    container.innerHTML = `<h3>Attività per ${person} (${week})</h3>`;
-    const table = document.createElement("table");
-    table.innerHTML = `
-      <thead>
+      // Crea una tabella per mostrare il planning
+      const table = document.createElement("table");
+      table.border = "1";
+      const thead = document.createElement("thead");
+      thead.innerHTML = `
         <tr>
           <th>Giorno</th>
-          <th>Attività</th>
+          <th>Orario</th>
         </tr>
-      </thead>
-      <tbody>
-        ${Object.entries(dayMap).map(([day, activity]) => `
-          <tr>
-            <td>${day}</td>
-            <td>${activity}</td>
-          </tr>
-        `).join("")}
-      </tbody>
-    `;
-    container.appendChild(table);
-  }
+      `;
+      table.appendChild(thead);
 
-  // Funzione per caricare il PDF (mock per esempio)
-  async function loadPdf(url) {
-    const pdfjsLib = window['pdfjs-dist/build/pdf'];
-    pdfjsLib.GlobalWorkerOptions.workerSrc = '//mozilla.github.io/pdf.js/build/pdf.worker.js';
-    const pdf = await pdfjsLib.getDocument(url).promise;
-    return pdf;
-  }
+      const tbody = document.createElement("tbody");
+      DAYS.forEach(day => {
+        const row = document.createElement("tr");
+        const dayCell = document.createElement("td");
+        dayCell.textContent = day;
+        const timeCell = document.createElement("td");
+        timeCell.textContent = personData[day] || "Nessun orario"; // Mostra l'orario o un messaggio vuoto
+        row.appendChild(dayCell);
+        row.appendChild(timeCell);
+        tbody.appendChild(row);
+      });
+      table.appendChild(tbody);
 
-  // Funzione per ottenere tutti gli elementi di testo dal PDF
-  async function getAllTextItems(pdf) {
-    const pages = [];
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const textContent = await page.getTextContent();
-      pages.push({ items: textContent.items });
+      resultDiv.appendChild(table);
     }
-    return pages;
-  }
 
-  // Funzione per ottenere URL diretto del file su Drive
-  function driveDirectUrl(fileId) {
-    return `https://drive.google.com/uc?export=download&id=${fileId}`;
-  }
+    // Inizializzazione
+    async function init() {
+      try {
+        // Leggi i dati dal file Excel
+        const data = await readExcelFromDrive(EXCEL_FILE_ID);
 
-  // Event listener per il cambio di settimana
-  weekSelect.addEventListener("change", async () => {
-    resultEl.innerHTML = "";
-    personSelect.innerHTML = "<option>Caricamento…</option>";
-    personSelect.disabled = true;
-    manualInputEl.style.display = "none";
-    manualInputEl.value = "";
-    statusEl.textContent = "Carico PDF e cerco i nomi…";
+        // Popola il menu a discesa con i nomi delle persone
+        populatePersonSelect(data);
 
-    const id = (weekSelect.value === "current") ? DRIVE_WEEK_CURRENT : DRIVE_WEEK_NEXT;
-    const url = driveDirectUrl(id);
-
-    try {
-      const pdf = await loadPdf(url);
-      const pages = await getAllTextItems(pdf);
-      const allItems = pages.flatMap(p => p.items);
-
-      if (!allItems.length) {
-        statusEl.textContent = "Il PDF non contiene testo estraibile (probabile scansione).";
-        return;
-      }
-
-      const rows = groupRows(allItems);
-      const headerInfo = detectHeaderAndColumns(rows);
-
-      if (!headerInfo) {
-        statusEl.textContent = "Non trovo l'intestazione con i giorni (Lun/Mar/…).";
-        return;
-      }
-
-      const names = filterNames(rows.flatMap(row => row.map(item => item.str)));
-      personSelect.innerHTML = '<option value="">-- Seleziona --</option>';
-      if (names.length) {
-        names.forEach(n => {
-          const opt = document.createElement("option");
-          opt.value = n;
-          opt.textContent = n;
-          personSelect.appendChild(opt);
+        // Aggiungi un listener per il cambio di selezione
+        const personSelect = document.getElementById("personSelect");
+        personSelect.addEventListener("change", () => {
+          const selectedPerson = personSelect.value;
+          if (selectedPerson) {
+            showPersonPlanning(data, selectedPerson);
+          }
         });
-        personSelect.disabled = false;
-        statusEl.textContent = `Trovati ${names.length} nomi.`;
-      } else {
-        statusEl.textContent = "Non ho trovato nomi nel PDF.";
-        manualInputEl.style.display = "inline-block";
-        manualInputEl.focus();
+      } catch (error) {
+        console.error("Errore durante il caricamento del file Excel:", error);
+        document.getElementById("result").textContent = "Errore durante il caricamento del file.";
       }
-    } catch (e) {
-      console.error(e);
-      statusEl.textContent = "Errore nel caricamento/analisi del PDF (controlla link Drive e permessi).";
-    }
-  });
-
-  // Event listener per il submit del form
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    resultEl.innerHTML = "";
-
-    const selected = personSelect.disabled ? "" : (personSelect.value || "").trim();
-    const manual = (!personSelect.disabled ? "" : (manualInputEl.value || "").trim());
-    const person = selected || manual;
-    const weekSel = weekSelect.value;
-
-    if (!person) {
-      statusEl.textContent = "Seleziona o digita un nome.";
-      return;
     }
 
-    const fileId = (weekSel === "current") ? DRIVE_WEEK_CURRENT : DRIVE_WEEK_NEXT;
-    const url = driveDirectUrl(fileId);
-
-    statusEl.textContent = "Carico il PDF e analizzo il testo…";
-
-    try {
-      const pdf = await loadPdf(url);
-      const pages = await getAllTextItems(pdf);
-      const allItems = pages.flatMap(p => p.items);
-
-      if (!allItems.length) {
-        statusEl.textContent = "Il PDF non contiene testo estraibile (probabile scansione).";
-        return;
-      }
-
-      const rows = groupRows(allItems);
-      const headerInfo = detectHeaderAndColumns(rows);
-
-      if (!headerInfo) {
-        statusEl.textContent = "Non trovo l'intestazione con i giorni (Lun/Mar/…).";
-        return;
-      }
-
-      const personRow = findPersonRow(rows, person);
-      if (!personRow) {
-        statusEl.textContent = `Non ho trovato “${person}” nel PDF selezionato.`;
-        return;
-      }
-
-      const dayMap = rowToDayMap(personRow, headerInfo.colXs);
-      renderResult(resultEl, person, (weekSel === "current" ? "Semaine en cours" : "Prochaine semaine"), dayMap);
-      statusEl.textContent = "Fatto.";
-    } catch (err) {
-      console.error(err);
-      statusEl.textContent = "Errore nel caricamento/analisi del PDF (controlla link Drive e permessi).";
-    }
-  });
-
-  // Trigger iniziale
-  weekSelect.dispatchEvent(new Event("change"));
-</script>
-
+    // Avvia l'applicazione
+    init();
+  </script>
+</body>
+</html>
