@@ -119,31 +119,19 @@
       const select = document.getElementById('employeeSelect');
       select.innerHTML = '<option value="">-- Seleziona il tuo nome --</option>';
 
-      // Inizia dalla prima riga e processa le coppie A1:A2, A3:A4, A5:A6, etc.
+      // Processa ogni singola riga: A1, A2, A3, A4, etc.
       const employeeNames = [];
       
-      // Processa le coppie di righe: A1:A2, A3:A4, A5:A6, etc.
-      for (let i = 0; i < planningData.length; i += 2) {
-        const row1 = planningData[i];     // Prima riga della coppia (A1, A3, A5, etc.)
-        const row2 = planningData[i + 1]; // Seconda riga della coppia (A2, A4, A6, etc.)
+      // Processa tutte le righe una per una
+      for (let i = 0; i < planningData.length; i++) {
+        const row = planningData[i];
         
-        // Controlla la prima riga della coppia
-        if (row1) {
-          const keys1 = Object.keys(row1);
-          const name1 = row1[keys1[0]];
-          if (name1 && name1.trim() && isValidEmployeeName(name1)) {
-            employeeNames.push(name1.trim());
-            console.log(`Trovato collaboratore in riga ${i + 1}: ${name1.trim()}`);
-          }
-        }
-        
-        // Controlla anche la seconda riga della coppia
-        if (row2) {
-          const keys2 = Object.keys(row2);
-          const name2 = row2[keys2[0]];
-          if (name2 && name2.trim() && isValidEmployeeName(name2)) {
-            employeeNames.push(name2.trim());
-            console.log(`Trovato collaboratore in riga ${i + 2}: ${name2.trim()}`);
+        if (row) {
+          const keys = Object.keys(row);
+          const name = row[keys[0]];
+          if (name && name.trim() && isValidEmployeeName(name)) {
+            employeeNames.push(name.trim());
+            console.log(`Trovato collaboratore in riga ${i + 1}: ${name.trim()}`);
           }
         }
       }
@@ -151,7 +139,7 @@
       // Rimuovi duplicati e ordina
       const uniqueNames = [...new Set(employeeNames)].sort();
       
-      console.log('Nomi collaboratori filtrati (a coppie A1-A2, A3-A4, etc.):', uniqueNames);
+      console.log('Nomi collaboratori filtrati (righe singole A1, A2, A3, etc.):', uniqueNames);
 
       uniqueNames.forEach(name => {
         const option = document.createElement('option');
