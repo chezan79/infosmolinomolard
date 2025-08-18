@@ -1,11 +1,12 @@
-modules = ["web"]
-run = "node index.js"
+
+modules = ["nodejs-20", "web"]
+run = "npm start"
 
 [nix]
-channel = "stable-25_05"
+channel = "stable-24_05"
 
 [deployment]
-run = ["sh", "-c", "node index.js"]
+run = ["npm", "start"]
 
 [workflows]
 runButton = "Web Server"
@@ -17,4 +18,4 @@ mode = "sequential"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "node server.js"
+args = "npm start"
