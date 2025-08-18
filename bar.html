@@ -206,18 +206,12 @@
       // Definisci tutti i giorni della settimana in ordine
       const daysOfWeek = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
       
-      // Mostra gli orari per tutte le colonne disponibili (saltando la prima che è il nome)
-      for (let i = 1; i < keys.length; i++) {
-        const columnKey = keys[i];
-        const schedule = employeeData[columnKey] || 'Non specificato';
-
-        // Determina il nome del giorno basato sulla posizione della colonna
-        let dayName;
-        if (i <= 7) {
-          dayName = daysOfWeek[i - 1]; // Sottrai 1 perché l'array inizia da 0
-        } else {
-          dayName = `Colonna ${String.fromCharCode(65 + i)}`; // Per colonne extra oltre la settimana
-        }
+      // Forza la visualizzazione di tutti i 7 giorni della settimana
+      for (let i = 0; i < 7; i++) {
+        const columnIndex = i + 1; // +1 perché saltiamo la prima colonna (nome)
+        const columnKey = keys[columnIndex];
+        const schedule = (columnKey && employeeData[columnKey]) ? employeeData[columnKey] : 'Non specificato';
+        const dayName = daysOfWeek[i];
 
         scheduleHTML += `
           <div style="background: white; padding: 15px; border-radius: 8px; border-left: 4px solid #4285f4; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
