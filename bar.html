@@ -119,10 +119,10 @@
       const select = document.getElementById('employeeSelect');
       select.innerHTML = '<option value="">-- Seleziona il tuo nome --</option>';
 
-      // Salta le prime 3 righe e prendi solo le righe pari dalla riga 4 in poi
+      // Salta le prime 3 righe e prendi solo le righe A4, A6, A8, ecc.
       const evenRowNames = planningData
         .slice(3) // Salta le prime 3 righe (indici 0, 1, 2)
-        .filter((row, index) => index % 2 === 1) // Dalle righe rimanenti, prendi solo quelle pari (5°, 7°, 9°, ecc.)
+        .filter((row, index) => index % 2 === 0) // Dalle righe rimanenti, prendi quelle con indice pari (A4, A6, A8, ecc.)
         .map(row => {
           const keys = Object.keys(row);
           return row[keys[0]]; // Prima colonna
