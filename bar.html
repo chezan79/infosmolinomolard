@@ -119,32 +119,50 @@
       const select = document.getElementById('employeeSelect');
       select.innerHTML = '<option value="">-- Seleziona il tuo nome --</option>';
 
-      // Salta le prime 3 righe e prendi tutti i nomi dalla riga 4 in poi
-      const employeeNames = planningData
-        .slice(3) // Salta le prime 3 righe (indici 0, 1, 2)
-        .map(row => {
-          const keys = Object.keys(row);
-          return row[keys[0]]; // Prima colonna
-        })
-        .filter(name => {
-          // Filtra solo nomi validi (non vuoti, non orari, non numeri)
-          if (!name || !name.trim()) return false;
-          
-          // Escludi valori che sembrano orari (contengono h, -, numeri)
-          if (/^\d+h?\d*\s*-\s*\d+h?\d*$/.test(name.trim())) return false;
-          if (/^\d+:\d+\s*-\s*\d+:\d+$/.test(name.trim())) return false;
-          if (/^[\d\s\-h:]+$/.test(name.trim())) return false;
-          
-          // Deve contenere almeno una lettera
-          if (!/[a-zA-ZàáâäèéêëìíîïòóôöùúûüÀÁÂÄÈÉÊËÌÍÎÏÒÓÔÖÙÚÛÜ]/.test(name)) return false;
-          
-          return true;
-        });
+      // Salta le prime 3 righe e prendi i nomi a coppie A4-A5, A6-A7, A8-A9, etc.
+      const employeeNames = [];
+      const dataFromRow4 = planningData.slice(3); // Salta le prime 3 righe (indici 0, 1, 2)
+      
+      // Prendi le righe a coppie: 0-1 (A4-A5), 2-3 (A6-A7), 4-5 (A8-A9), etc.
+      for (let i = 0; i < dataFromRow4.length; i += 2) {
+        const row1 = dataFromRow4[i];
+        const row2 = dataFromRow4[i + 1];
+        
+        if (row1) {
+          const keys1 = Object.keys(row1);
+          const name1 = row1[keys1[0]];
+          if (name1 && name1.trim() && isValidEmployeeName(name1)) {
+            employeeNames.push(name1);
+          }
+        }
+        
+        if (row2) {
+          const keys2 = Object.keys(row2);
+          const name2 = row2[keys2[0]];
+          if (name2 && name2.trim() && isValidEmployeeName(name2)) {
+            employeeNames.push(name2);
+          }
+        }
+      }
+    }
+
+    function isValidEmployeeName(name) {
+      if (!name || !name.trim()) return false;
+      
+      // Escludi valori che sembrano orari (contengono h, -, numeri)
+      if (/^\d+h?\d*\s*-\s*\d+h?\d*$/.test(name.trim())) return false;
+      if (/^\d+:\d+\s*-\s*\d+:\d+$/.test(name.trim())) return false;
+      if (/^[\d\s\-h:]+$/.test(name.trim())) return false;
+      
+      // Deve contenere almeno una lettera
+      if (!/[a-zA-ZàáâäèéêëìíîïòóôöùúûüÀÁÂÄÈÉÊËÌÍÎÏÒÓÔÖÙÚÛÜ]/.test(name)) return false;
+      
+      return true;
 
       // Rimuovi duplicati e ordina
       const uniqueNames = [...new Set(employeeNames)].sort();
       
-      console.log('Nomi collaboratori filtrati:', uniqueNames);
+      console.log('Nomi collaboratori filtrati (a coppie A4-A5, A6-A7, etc.):', uniqueNames);
 
       uniqueNames.forEach(name => {
         const option = document.createElement('option');
