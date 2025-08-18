@@ -125,6 +125,51 @@ app.post('/api/process-planning', (req, res) => {
   }
 });
 
+// API per scaricare file da Google Drive
+app.post('/api/download-google-drive', async (req, res) => {
+  try {
+    const { fileId } = req.body;
+    
+    if (!fileId) {
+      return res.status(400).json({ error: 'File ID richiesto' });
+    }
+
+    // URL per scaricare il file direttamente da Google Drive
+    const downloadUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+    
+    const response = await fetch(downloadUrl);
+    
+    if (!response.ok) {
+      throw new Error('Impossibile scaricare il file da Google Drive. Assicurati che il file sia pubblico.');
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const data = new Uint8Array(arrayBuffer);
+    
+    // Processa il file Excel
+    const workbook = XLSX.read(data, { type: 'array' });
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    const jsonData = XLSX.utils.sheet_to_json(sheet);
+    
+    console.log(`File Google Drive processato: ${jsonData.length} righe trovate`);
+    
+    res.json({
+      success: true,
+      data: jsonData,
+      totalRows: jsonData.length,
+      sheetName: sheetName
+    });
+    
+  } catch (error) {
+    console.error('Errore nel download da Google Drive:', error);
+    res.status(500).json({ 
+      error: 'Errore nel scaricare il file: ' + error.message + 
+             '. Assicurati che il file sia pubblico o condiviso con accesso di visualizzazione.'
+    });
+  }
+});
+
 // API per sincronizzare Google Sheets con Firebase
 app.post('/api/sync-sheets-to-firebase', async (req, res) => {
   try {
