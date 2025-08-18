@@ -96,7 +96,10 @@
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ sheetUrl: sheetsLink })
+                    body: JSON.stringify({ 
+                        sheetUrl: sheetsLink,
+                        sheetName: 'service'
+                    })
                 });
 
                 if (!response.ok) {
