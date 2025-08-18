@@ -188,18 +188,21 @@ function getSheetGidByName(sheetName) {
     'pizzeria': 1785252251, // Vero GID del foglio pizzeria
     'office': 2063781370,   // Vero GID del foglio office
     'commis': 1542997572,   // Vero GID del foglio commis
+    'respo': 487125612,     // Vero GID del foglio respo
     'BAR': 1264033041,
     'SERVICE': 1763904694,
     'CUISINE': 819005714,
     'PIZZERIA': 1785252251,
     'OFFICE': 2063781370,
     'COMMIS': 1542997572,
+    'RESPO': 487125612,
     'Bar': 1264033041,
     'Service': 1763904694,
     'Cuisine': 819005714,
     'Pizzeria': 1785252251,
     'Office': 2063781370,
-    'Commis': 1542997572
+    'Commis': 1542997572,
+    'Respo': 487125612
   };
   
   return sheetMapping[sheetName] || 0; // Default al primo foglio
