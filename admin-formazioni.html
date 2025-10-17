@@ -1,0 +1,394 @@
+
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin - Formazioni Completate</title>
+    <link rel="stylesheet" href="style.css" />
+    <style>
+        .admin-container {
+            max-width: 1400px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #d32f2f;
+            margin: 10px 0;
+        }
+        
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        .filters {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .filter-group {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .filter-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .filter-group select, .filter-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        
+        .results-table {
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin: 20px 0;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th {
+            background: #d32f2f;
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: bold;
+        }
+        
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        tr:hover {
+            background: #f9f9f9;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+        
+        .badge-completed {
+            background: #E8F5E9;
+            color: #388E3C;
+        }
+        
+        .badge-cuisine {
+            background: #FFF3E0;
+            color: #E65100;
+        }
+        
+        .badge-pizzeria {
+            background: #FCE4EC;
+            color: #C2185B;
+        }
+        
+        .badge-service {
+            background: #E3F2FD;
+            color: #1976D2;
+        }
+        
+        .badge-bar {
+            background: #F3E5F5;
+            color: #7B1FA2;
+        }
+        
+        .badge-office {
+            background: #E0F2F1;
+            color: #00796B;
+        }
+        
+        .badge-commis {
+            background: #FBE9E7;
+            color: #D84315;
+        }
+        
+        .export-btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        
+        .export-btn:hover {
+            background: #45a049;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+        
+        .empty-state h3 {
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🎓 Admin - Formazioni Completate</h1>
+        <nav>
+            <ul>
+                <li><a href="index.html">Home</a></li>
+                <li><a href="formazioni-interattive.html">Formazioni</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="admin-container">
+        <h2>📊 Dashboard Formazioni</h2>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Totale Completate</div>
+                <div class="stat-number" id="total-completed">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Collaboratori Attivi</div>
+                <div class="stat-number" id="total-users">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">In Corso</div>
+                <div class="stat-number" id="total-in-progress">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Questo Mese</div>
+                <div class="stat-number" id="this-month">-</div>
+            </div>
+        </div>
+        
+        <div class="filters">
+            <div class="filter-group">
+                <label>Dipartimento:</label>
+                <select id="filter-department" onchange="applyFilters()">
+                    <option value="">Tutti</option>
+                    <option value="Cuisine">Cuisine</option>
+                    <option value="Pizzeria">Pizzeria</option>
+                    <option value="Service">Service</option>
+                    <option value="Bar">Bar</option>
+                    <option value="Office">Office</option>
+                    <option value="Commis">Commis</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Stato:</label>
+                <select id="filter-status" onchange="applyFilters()">
+                    <option value="completed">Solo Completate</option>
+                    <option value="all">Tutte</option>
+                    <option value="in-progress">In Corso</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Cerca Collaboratore:</label>
+                <input type="text" id="search-name" placeholder="Nome o Cognome..." oninput="applyFilters()">
+            </div>
+        </div>
+        
+        <div style="margin: 20px 0;">
+            <button class="export-btn" onclick="exportToExcel()">📥 Esporta Excel</button>
+            <button class="export-btn" style="background: #2196F3;" onclick="printReport()">🖨️ Stampa Report</button>
+        </div>
+        
+        <div class="results-table">
+            <table id="results-table">
+                <thead>
+                    <tr>
+                        <th>Collaboratore</th>
+                        <th>Dipartimento</th>
+                        <th>Formazione</th>
+                        <th>Data Completamento</th>
+                        <th>Stato</th>
+                    </tr>
+                </thead>
+                <tbody id="results-body">
+                    <tr>
+                        <td colspan="5" class="loading">Caricamento dati...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 Pizzeria Molino Molard - Admin Panel</p>
+    </footer>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+        const TRAININGS = {
+            'cuisine-pasta': 'Pasta Fresca',
+            'cuisine-haccp': 'HACCP Cuisine',
+            'cuisine-allergeni': 'Allergeni e Intolleranze',
+            'pizza-dough': 'Preparazione Impasti Pizza',
+            'pizza-oven': 'Gestione Forno',
+            'service-table': 'Servizio al Tavolo',
+            'service-wine': 'Conoscenza Vini',
+            'bar-cocktails': 'Cocktail Classici'
+        };
+
+        let allEnrollments = [];
+        let filteredEnrollments = [];
+
+        async function loadAllEnrollments() {
+            try {
+                const response = await fetch('/api/training/enrollments/all');
+                const result = await response.json();
+                
+                if (result.success) {
+                    allEnrollments = result.data;
+                    filteredEnrollments = allEnrollments;
+                    updateStatistics();
+                    renderTable();
+                } else {
+                    console.error('Errore nel caricare i dati:', result.error);
+                    showEmptyState();
+                }
+            } catch (error) {
+                console.error('Errore di connessione:', error);
+                showEmptyState();
+            }
+        }
+
+        function updateStatistics() {
+            const completed = allEnrollments.filter(e => e.completed);
+            const uniqueUsers = new Set(allEnrollments.map(e => e.userId)).size;
+            const inProgress = allEnrollments.filter(e => !e.completed);
+            
+            const now = new Date();
+            const thisMonth = completed.filter(e => {
+                const completionDate = new Date(e.completionDate);
+                return completionDate.getMonth() === now.getMonth() && 
+                       completionDate.getFullYear() === now.getFullYear();
+            });
+            
+            document.getElementById('total-completed').textContent = completed.length;
+            document.getElementById('total-users').textContent = uniqueUsers;
+            document.getElementById('total-in-progress').textContent = inProgress.length;
+            document.getElementById('this-month').textContent = thisMonth.length;
+        }
+
+        function applyFilters() {
+            const department = document.getElementById('filter-department').value;
+            const status = document.getElementById('filter-status').value;
+            const search = document.getElementById('search-name').value.toLowerCase();
+            
+            filteredEnrollments = allEnrollments.filter(e => {
+                const matchDepartment = !department || e.department === department;
+                const matchStatus = status === 'all' || 
+                                   (status === 'completed' && e.completed) ||
+                                   (status === 'in-progress' && !e.completed);
+                const matchSearch = !search || 
+                                   e.firstName.toLowerCase().includes(search) ||
+                                   e.lastName.toLowerCase().includes(search);
+                
+                return matchDepartment && matchStatus && matchSearch;
+            });
+            
+            renderTable();
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('results-body');
+            
+            if (filteredEnrollments.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><h3>Nessun risultato trovato</h3><p>Prova a modificare i filtri</p></td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = filteredEnrollments.map(e => `
+                <tr>
+                    <td><strong>${e.firstName} ${e.lastName}</strong></td>
+                    <td><span class="badge badge-${e.department.toLowerCase()}">${e.department}</span></td>
+                    <td>${TRAININGS[e.trainingId] || e.trainingId}</td>
+                    <td>${e.completed ? new Date(e.completionDate).toLocaleDateString('it-IT') : '-'}</td>
+                    <td>
+                        ${e.completed ? 
+                            '<span class="badge badge-completed">✓ Completata</span>' : 
+                            '<span class="badge" style="background: #FFF9C4; color: #F57F17;">In Corso</span>'}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function showEmptyState() {
+            const tbody = document.getElementById('results-body');
+            tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><h3>📚 Nessuna formazione completata</h3><p>I dati appariranno qui quando i collaboratori completeranno le formazioni</p></td></tr>';
+        }
+
+        function exportToExcel() {
+            const data = filteredEnrollments.map(e => ({
+                'Collaboratore': `${e.firstName} ${e.lastName}`,
+                'Dipartimento': e.department,
+                'Formazione': TRAININGS[e.trainingId] || e.trainingId,
+                'Data Iscrizione': new Date(e.enrollmentDate).toLocaleDateString('it-IT'),
+                'Data Completamento': e.completed ? new Date(e.completionDate).toLocaleDateString('it-IT') : 'In corso',
+                'Stato': e.completed ? 'Completata' : 'In Corso',
+                'Progresso %': e.progress
+            }));
+            
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Formazioni');
+            
+            const filename = `Formazioni_${new Date().toLocaleDateString('it-IT').replace(/\//g, '-')}.xlsx`;
+            XLSX.writeFile(wb, filename);
+        }
+
+        function printReport() {
+            window.print();
+        }
+
+        // Carica i dati al caricamento della pagina
+        loadAllEnrollments();
+    </script>
+</body>
+</html>

@@ -455,10 +455,21 @@ app.get('/api/training/enrollments/:userId', async (req, res) => {
   }
 });
 
-// API per recuperare tutte le iscrizioni
-app.get('/api/training/enrollments', async (req, res) => {
+// API per recuperare tutte le iscrizioni (per admin)
+app.get('/api/training/enrollments/all', async (req, res) => {
   try {
-    const allEnrollments = Array.from(enrollmentsDB.values());
+    let allEnrollments = [];
+    
+    if (firebaseDb) {
+      const snapshot = await firebaseDb.collection('enrollments').get();
+      snapshot.forEach(doc => {
+        allEnrollments.push(doc.data());
+      });
+      console.log(`📊 Admin: recuperate ${allEnrollments.length} iscrizioni totali da Firebase`);
+    } else {
+      allEnrollments = Array.from(enrollmentsDB.values());
+      console.log(`📊 Admin: recuperate ${allEnrollments.length} iscrizioni totali dalla memoria`);
+    }
     
     res.json({
       success: true,
