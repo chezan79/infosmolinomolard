@@ -399,9 +399,14 @@ app.post('/api/training/enroll', async (req, res) => {
       completionDate: null
     };
     
-    enrollmentsDB.set(enrollmentId, enrollmentData);
-    
-    console.log('✅ Nuova iscrizione salvata:', enrollmentData);
+    // Salva in Firebase se disponibile, altrimenti in memoria
+    if (firebaseDb) {
+      await firebaseDb.collection('enrollments').doc(enrollmentId).set(enrollmentData);
+      console.log('✅ Iscrizione salvata su Firebase:', enrollmentData);
+    } else {
+      enrollmentsDB.set(enrollmentId, enrollmentData);
+      console.log('⚠️ Iscrizione salvata in memoria (Firebase non configurato):', enrollmentData);
+    }
     
     res.json({
       success: true,
@@ -419,11 +424,24 @@ app.post('/api/training/enroll', async (req, res) => {
 app.get('/api/training/enrollments/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
+    let userEnrollments = [];
     
-    const userEnrollments = Array.from(enrollmentsDB.values())
-      .filter(e => e.userId === userId);
-    
-    console.log(`📚 Recuperate ${userEnrollments.length} iscrizioni per utente:`, userId);
+    if (firebaseDb) {
+      const snapshot = await firebaseDb.collection('enrollments')
+        .where('userId', '==', userId)
+        .get();
+      
+      snapshot.forEach(doc => {
+        userEnrollments.push(doc.data());
+      });
+      
+      console.log(`📚 Recuperate ${userEnrollments.length} iscrizioni da Firebase per utente:`, userId);
+    } else {
+      userEnrollments = Array.from(enrollmentsDB.values())
+        .filter(e => e.userId === userId);
+      
+      console.log(`📚 Recuperate ${userEnrollments.length} iscrizioni dalla memoria per utente:`, userId);
+    }
     
     res.json({
       success: true,
