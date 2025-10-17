@@ -2,8 +2,23 @@
 const express = require('express');
 const path = require('path');
 const XLSX = require('xlsx');
+const { initializeFirebase, getDb } = require('./firebase-server-config');
+
 const app = express();
 const PORT = 5000;
+
+// Inizializza Firebase se la configurazione è disponibile
+let firebaseDb = null;
+if (process.env.FIREBASE_CONFIG) {
+  try {
+    const { db } = initializeFirebase();
+    firebaseDb = db;
+  } catch (error) {
+    console.warn('⚠️ Firebase non configurato. Usando storage in memoria.');
+  }
+} else {
+  console.warn('⚠️ FIREBASE_CONFIG non trovato. Usando storage in memoria.');
+}
 
 // Middleware per servire file statici
 app.use(express.static('.'));
