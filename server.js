@@ -9,15 +9,16 @@ const PORT = 5000;
 
 // Inizializza Firebase se la configurazione è disponibile
 let firebaseDb = null;
-if (process.env.FIREBASE_CONFIG) {
+if (process.env.FIREBASE_SERVICE_ACCOUNT) {
   try {
     const { db } = initializeFirebase();
     firebaseDb = db;
   } catch (error) {
-    console.warn('⚠️ Firebase non configurato. Usando storage in memoria.');
+    console.warn('⚠️ Errore inizializzazione Firebase:', error.message);
+    console.warn('⚠️ Usando storage in memoria.');
   }
 } else {
-  console.warn('⚠️ FIREBASE_CONFIG non trovato. Usando storage in memoria.');
+  console.warn('⚠️ FIREBASE_SERVICE_ACCOUNT non trovato nei Secrets. Usando storage in memoria.');
 }
 
 // Middleware per servire file statici
