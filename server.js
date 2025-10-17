@@ -355,8 +355,182 @@ app.post('/api/sync-sheets-to-firebase', async (req, res) => {
   }
 });
 
+// ==================== API PER GESTIONE FORMAZIONI ====================
+
+// Storage in memoria per iscrizioni (da sostituire con Firebase)
+const enrollmentsDB = new Map();
+let enrollmentCounter = 1;
+
+// API per iscrivere un utente a una formazione
+app.post('/api/training/enroll', async (req, res) => {
+  try {
+    const { trainingId, userData } = req.body;
+    
+    if (!trainingId || !userData || !userData.firstName || !userData.lastName) {
+      return res.status(400).json({ error: 'Dati mancanti per l\'iscrizione' });
+    }
+    
+    const enrollmentId = `enrollment_${enrollmentCounter++}_${Date.now()}`;
+    const enrollmentData = {
+      id: enrollmentId,
+      trainingId,
+      userId: userData.userId || `user_${Date.now()}`,
+      firstName: userData.firstName,
+      lastName: userData.lastName,
+      department: userData.department,
+      enrollmentDate: new Date().toISOString(),
+      completed: false,
+      progress: 0,
+      completionDate: null
+    };
+    
+    enrollmentsDB.set(enrollmentId, enrollmentData);
+    
+    console.log('✅ Nuova iscrizione salvata:', enrollmentData);
+    
+    res.json({
+      success: true,
+      message: 'Iscrizione completata con successo',
+      enrollment: enrollmentData
+    });
+    
+  } catch (error) {
+    console.error('Errore nell\'iscrizione:', error);
+    res.status(500).json({ error: 'Errore nell\'iscrizione alla formazione' });
+  }
+});
+
+// API per recuperare le iscrizioni di un utente
+app.get('/api/training/enrollments/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    const userEnrollments = Array.from(enrollmentsDB.values())
+      .filter(e => e.userId === userId);
+    
+    console.log(`📚 Recuperate ${userEnrollments.length} iscrizioni per utente:`, userId);
+    
+    res.json({
+      success: true,
+      data: userEnrollments
+    });
+    
+  } catch (error) {
+    console.error('Errore nel recuperare le iscrizioni:', error);
+    res.status(500).json({ error: 'Errore nel recuperare le iscrizioni' });
+  }
+});
+
+// API per recuperare tutte le iscrizioni
+app.get('/api/training/enrollments', async (req, res) => {
+  try {
+    const allEnrollments = Array.from(enrollmentsDB.values());
+    
+    res.json({
+      success: true,
+      data: allEnrollments
+    });
+    
+  } catch (error) {
+    console.error('Errore nel recuperare le iscrizioni:', error);
+    res.status(500).json({ error: 'Errore nel recuperare le iscrizioni' });
+  }
+});
+
+// API per aggiornare il progresso di una formazione
+app.put('/api/training/progress/:enrollmentId', async (req, res) => {
+  try {
+    const { enrollmentId } = req.params;
+    const { progress } = req.body;
+    
+    const enrollment = enrollmentsDB.get(enrollmentId);
+    
+    if (!enrollment) {
+      return res.status(404).json({ error: 'Iscrizione non trovata' });
+    }
+    
+    enrollment.progress = progress;
+    enrollment.lastUpdated = new Date().toISOString();
+    enrollmentsDB.set(enrollmentId, enrollment);
+    
+    console.log(`📈 Progresso aggiornato per ${enrollmentId}:`, progress);
+    
+    res.json({
+      success: true,
+      message: 'Progresso aggiornato con successo',
+      enrollment
+    });
+    
+  } catch (error) {
+    console.error('Errore nell\'aggiornare il progresso:', error);
+    res.status(500).json({ error: 'Errore nell\'aggiornare il progresso' });
+  }
+});
+
+// API per completare una formazione
+app.post('/api/training/complete/:enrollmentId', async (req, res) => {
+  try {
+    const { enrollmentId } = req.params;
+    
+    const enrollment = enrollmentsDB.get(enrollmentId);
+    
+    if (!enrollment) {
+      return res.status(404).json({ error: 'Iscrizione non trovata' });
+    }
+    
+    enrollment.completed = true;
+    enrollment.progress = 100;
+    enrollment.completionDate = new Date().toISOString();
+    enrollmentsDB.set(enrollmentId, enrollment);
+    
+    console.log(`🎉 Formazione completata:`, enrollment);
+    
+    res.json({
+      success: true,
+      message: 'Formazione completata con successo',
+      enrollment
+    });
+    
+  } catch (error) {
+    console.error('Errore nel completare la formazione:', error);
+    res.status(500).json({ error: 'Errore nel completare la formazione' });
+  }
+});
+
+// API per recuperare tutte le formazioni disponibili
+app.get('/api/training/available', async (req, res) => {
+  try {
+    const trainings = [
+      {
+        id: 'cuisine-pasta',
+        title: 'Techniques de base - Préparation "Pasta Fresca"',
+        description: 'Impara le tecniche fondamentali per la preparazione della pasta fresca artigianale.',
+        department: 'Cuisine',
+        duration: '2 ore'
+      },
+      {
+        id: 'cuisine-haccp',
+        title: 'Procèdures HACCP en Cuisine',
+        description: 'Procedure di sicurezza alimentare e normative HACCP in cucina.',
+        department: 'Cuisine',
+        duration: '1.5 ore'
+      }
+    ];
+    
+    res.json({
+      success: true,
+      data: trainings
+    });
+    
+  } catch (error) {
+    console.error('Errore nel recuperare le formazioni:', error);
+    res.status(500).json({ error: 'Errore nel recuperare le formazioni' });
+  }
+});
+
 // Avvia il server
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server avviato su http://0.0.0.0:${PORT}`);
   console.log('Firebase integration ready!');
+  console.log('Training system API ready!');
 });

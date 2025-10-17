@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Formazioni - Pizzeria Molino Molard</title>
+    <link rel="stylesheet" href="style.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        .training-container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        
+        .training-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 15px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .training-card h3 {
+            color: #d32f2f;
+            margin-top: 0;
+        }
+        
+        .training-card .department {
+            display: inline-block;
+            padding: 5px 10px;
+            background: #f5f5f5;
+            border-radius: 5px;
+            font-size: 0.9em;
+            margin: 5px 0;
+        }
+        
+        .enroll-btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        
+        .enroll-btn:hover {
+            background: #45a049;
+        }
+        
+        .enroll-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .complete-btn {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        
+        .complete-btn:hover {
+            background: #0b7dda;
+        }
+        
+        .diploma-btn {
+            background: #ff9800;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        
+        .diploma-btn:hover {
+            background: #e68900;
+        }
+        
+        .enrollment-form {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+            display: none;
+        }
+        
+        .enrollment-form.active {
+            display: block;
+        }
+        
+        .form-group {
+            margin: 15px 0;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+        
+        .status-enrolled {
+            background: #E3F2FD;
+            color: #1976D2;
+        }
+        
+        .status-completed {
+            background: #E8F5E9;
+            color: #388E3C;
+        }
+        
+        .my-trainings {
+            background: #fff3e0;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        
+        .tab-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #ddd;
+        }
+        
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 16px;
+            font-weight: bold;
+            color: #666;
+            border-bottom: 3px solid transparent;
+        }
+        
+        .tab.active {
+            color: #d32f2f;
+            border-bottom-color: #d32f2f;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🎓 Sistema Formazioni</h1>
+        <nav>
+            <ul>
+                <li><a href="index.html">Home</a></li>
+                <li><a href="formazioni.html">Formazioni Documenti</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="training-container">
+        <div class="tab-container">
+            <button class="tab active" onclick="window.switchTab(event, 'available')">Formazioni Disponibili</button>
+            <button class="tab" onclick="window.switchTab(event, 'mytrainings')">Le Mie Formazioni</button>
+        </div>
+
+        <div id="available-tab" class="tab-content active">
+            <h2>Formazioni Disponibili</h2>
+            <div id="available-trainings"><div class="loading">Caricamento formazioni...</div></div>
+        </div>
+
+        <div id="mytrainings-tab" class="tab-content">
+            <div class="my-trainings">
+                <h2>Le Mie Formazioni</h2>
+                <div id="my-trainings-list"><div class="loading">Caricamento...</div></div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 Pizzeria Molino Molard</p>
+    </footer>
+
+    <script type="module">
+        import { jsPDF } from 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+
+        const TRAININGS = [
+            {
+                id: 'cuisine-pasta',
+                title: 'Techniques de base - Préparation "Pasta Fresca"',
+                description: 'Impara le tecniche fondamentali per la preparazione della pasta fresca artigianale.',
+                department: 'Cuisine',
+                duration: '2 ore',
+                videoUrl: 'https://drive.google.com/file/d/ESEMPIO_ID_CUCINA/view'
+            },
+            {
+                id: 'cuisine-haccp',
+                title: 'Procèdures HACCP en Cuisine',
+                description: 'Procedure di sicurezza alimentare e normative HACCP in cucina.',
+                department: 'Cuisine',
+                duration: '1.5 ore',
+                videoUrl: 'https://drive.google.com/file/d/ESEMPIO_ID_CUCINA2/view'
+            },
+            {
+                id: 'cuisine-allergeni',
+                title: 'Allergènes et intollerances',
+                description: 'Gestione degli allergeni e intolleranze alimentari.',
+                department: 'Cuisine',
+                duration: '1 ora',
+                videoUrl: 'https://drive.google.com/file/d/ESEMPIO_ID_CUCINA3/view'
+            },
+            {
+                id: 'pizza-dough',
+                title: 'Tecniques de préparation des pâtes à pizza',
+                description: 'Tecniche professionali per la preparazione degli impasti per pizza.',
+                department: 'Pizzeria',
+                duration: '2 ore',
+                videoUrl: 'https://drive.google.com/file/d/ESEMPIO_ID_PIZZA/view'
+            },
+            {
+                id: 'pizza-oven',
+                title: 'Gestione du four',
+                description: 'Gestione professionale del forno per pizza.',
+                department: 'Pizzeria',
+                duration: '1.5 ore',
+                videoUrl: 'https://drive.google.com/file/d/ESEMPIO_ID_PIZZA2/view'
+            },
+            {
+                id: 'service-table',
+                title: 'Techniques de service à la table',
+                description: 'Tecniche professionali di servizio al tavolo.',
+                department: 'Service',
+                duration: '2 ore',
+                videoUrl: 'https://drive.google.com/file/d/ESEMPIO_ID_SERVICE/view'
+            },
+            {
+                id: 'service-wine',
+                title: 'Connaissances des vins',
+                description: 'Conoscenza dei vini e abbinamenti.',
+                department: 'Service',
+                duration: '2.5 ore',
+                videoUrl: 'https://drive.google.com/file/d/ESEMPIO_ID_SERVICE2/view'
+            },
+            {
+                id: 'bar-cocktails',
+                title: 'Préparation Cocktails classiques',
+                description: 'Preparazione dei cocktail classici.',
+                department: 'Bar',
+                duration: '2 ore',
+                videoUrl: 'https://drive.google.com/file/d/ESEMPIO_ID_BAR/view'
+            }
+        ];
+
+        let currentUserId = localStorage.getItem('userId') || null;
+        let userEnrollments = [];
+
+        async function loadUserEnrollments() {
+            if (!currentUserId) return;
+            
+            try {
+                const response = await fetch(`/api/training/enrollments/${currentUserId}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    userEnrollments = result.data;
+                }
+            } catch (error) {
+                console.error('Errore nel caricare le iscrizioni:', error);
+            }
+        }
+
+        window.switchTab = function(event, tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tabName + '-tab').classList.add('active');
+            
+            if (tabName === 'mytrainings') {
+                loadMyTrainings();
+            }
+        };
+
+        async function renderAvailableTrainings() {
+            const container = document.getElementById('available-trainings');
+            container.innerHTML = '';
+
+            await loadUserEnrollments();
+
+            TRAININGS.forEach(training => {
+                const enrollment = userEnrollments.find(e => e.trainingId === training.id);
+                
+                const card = document.createElement('div');
+                card.className = 'training-card';
+                card.innerHTML = `
+                    <h3>${training.title}</h3>
+                    <p>${training.description}</p>
+                    <span class="department">📁 ${training.department}</span>
+                    <span class="department">⏱️ ${training.duration}</span>
+                    ${enrollment ? `<span class="status-badge status-${enrollment.completed ? 'completed' : 'enrolled'}">
+                        ${enrollment.completed ? '✓ Completato' : '📚 Iscritto'}
+                    </span>` : ''}
+                    
+                    <div class="enrollment-form" id="form-${training.id}">
+                        <h4>Iscriviti alla formazione</h4>
+                        <div class="form-group">
+                            <label>Nome:</label>
+                            <input type="text" id="firstName-${training.id}" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Cognome:</label>
+                            <input type="text" id="lastName-${training.id}" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Dipartimento:</label>
+                            <select id="department-${training.id}">
+                                <option value="Cuisine">Cuisine</option>
+                                <option value="Pizzeria">Pizzeria</option>
+                                <option value="Service">Service</option>
+                                <option value="Bar">Bar</option>
+                                <option value="Office">Office</option>
+                                <option value="Commis">Commis</option>
+                            </select>
+                        </div>
+                        <button class="enroll-btn" onclick="window.submitEnrollment('${training.id}')">
+                            Conferma Iscrizione
+                        </button>
+                        <button class="enroll-btn" style="background: #666;" onclick="window.toggleEnrollmentForm('${training.id}')">
+                            Annulla
+                        </button>
+                    </div>
+                    
+                    ${!enrollment ? `
+                        <button class="enroll-btn" onclick="window.toggleEnrollmentForm('${training.id}')">
+                            Iscriviti
+                        </button>
+                    ` : ''}
+                    
+                    ${enrollment && !enrollment.completed ? `
+                        <a href="${training.videoUrl}" target="_blank">
+                            <button class="complete-btn">Vai alla Formazione</button>
+                        </a>
+                        <button class="complete-btn" onclick="window.completeTrainingById('${enrollment.id}', '${training.id}')">
+                            Segna come Completata
+                        </button>
+                    ` : ''}
+                    
+                    ${enrollment && enrollment.completed ? `
+                        <button class="diploma-btn" onclick="window.generateDiploma('${training.id}')">
+                            📄 Scarica Diploma
+                        </button>
+                    ` : ''}
+                `;
+                
+                container.appendChild(card);
+            });
+        }
+
+        window.toggleEnrollmentForm = function(trainingId) {
+            const form = document.getElementById(`form-${trainingId}`);
+            form.classList.toggle('active');
+        };
+
+        window.submitEnrollment = async function(trainingId) {
+            const firstName = document.getElementById(`firstName-${trainingId}`).value.trim();
+            const lastName = document.getElementById(`lastName-${trainingId}`).value.trim();
+            const department = document.getElementById(`department-${trainingId}`).value;
+            
+            if (!firstName || !lastName) {
+                alert('Per favore, inserisci nome e cognome');
+                return;
+            }
+            
+            if (!currentUserId) {
+                currentUserId = `user_${Date.now()}`;
+                localStorage.setItem('userId', currentUserId);
+            }
+            
+            try {
+                const response = await fetch('/api/training/enroll', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        trainingId: trainingId,
+                        userData: {
+                            userId: currentUserId,
+                            firstName: firstName,
+                            lastName: lastName,
+                            department: department
+                        }
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(`✅ Iscrizione completata con successo!\n\nBenvenuto/a ${firstName} ${lastName}!`);
+                    window.toggleEnrollmentForm(trainingId);
+                    await renderAvailableTrainings();
+                } else {
+                    alert('Errore nell\'iscrizione: ' + (result.error || 'Errore sconosciuto'));
+                }
+            } catch (error) {
+                console.error('Errore nell\'iscrizione:', error);
+                alert('Errore di connessione al server');
+            }
+        };
+
+        window.completeTrainingById = async function(enrollmentId, trainingId) {
+            try {
+                const response = await fetch(`/api/training/complete/${enrollmentId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('🎉 Congratulazioni! Hai completato la formazione!\n\nOra puoi scaricare il tuo diploma.');
+                    await renderAvailableTrainings();
+                    await loadMyTrainings();
+                } else {
+                    alert('Errore nel completare la formazione: ' + (result.error || 'Errore sconosciuto'));
+                }
+            } catch (error) {
+                console.error('Errore nel completare la formazione:', error);
+                alert('Errore di connessione al server');
+            }
+        };
+
+        window.generateDiploma = function(trainingId) {
+            const training = TRAININGS.find(t => t.id === trainingId);
+            const enrollment = userEnrollments.find(e => e.trainingId === trainingId);
+            
+            if (!training || !enrollment || !enrollment.completed) {
+                alert('Errore nel generare il diploma');
+                return;
+            }
+            
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({
+                orientation: 'landscape',
+                unit: 'mm',
+                format: 'a4'
+            });
+            
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+            
+            doc.setFillColor(245, 245, 245);
+            doc.rect(0, 0, pageWidth, pageHeight, 'F');
+            
+            doc.setFillColor(211, 47, 47);
+            doc.rect(10, 10, pageWidth - 20, pageHeight - 20, 'S');
+            doc.setLineWidth(1);
+            doc.rect(12, 12, pageWidth - 24, pageHeight - 24, 'S');
+            
+            doc.setFontSize(40);
+            doc.setTextColor(211, 47, 47);
+            doc.setFont(undefined, 'bold');
+            doc.text('DIPLOMA DI FORMAZIONE', pageWidth / 2, 40, { align: 'center' });
+            
+            doc.setFontSize(16);
+            doc.setTextColor(0, 0, 0);
+            doc.setFont(undefined, 'normal');
+            doc.text('Si certifica che', pageWidth / 2, 65, { align: 'center' });
+            
+            doc.setFontSize(32);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(211, 47, 47);
+            doc.text(`${enrollment.firstName} ${enrollment.lastName}`, pageWidth / 2, 85, { align: 'center' });
+            
+            doc.setFontSize(16);
+            doc.setTextColor(0, 0, 0);
+            doc.setFont(undefined, 'normal');
+            doc.text('ha completato con successo la formazione', pageWidth / 2, 105, { align: 'center' });
+            
+            doc.setFontSize(22);
+            doc.setFont(undefined, 'bold');
+            doc.text(`"${training.title}"`, pageWidth / 2, 125, { align: 'center' });
+            
+            doc.setFontSize(14);
+            doc.setFont(undefined, 'normal');
+            doc.text(`Dipartimento: ${enrollment.department}`, pageWidth / 2, 140, { align: 'center' });
+            doc.text(`Durata: ${training.duration}`, pageWidth / 2, 150, { align: 'center' });
+            
+            const completionDate = new Date(enrollment.completionDate);
+            doc.text(`Data di completamento: ${completionDate.toLocaleDateString('it-IT')}`, pageWidth / 2, 160, { align: 'center' });
+            
+            doc.setFontSize(18);
+            doc.setFont(undefined, 'bold');
+            doc.text('Pizzeria Molino Molard', pageWidth / 2, 180, { align: 'center' });
+            
+            const filename = `Diploma_${enrollment.firstName}_${enrollment.lastName}_${training.id}.pdf`;
+            doc.save(filename);
+            
+            alert('✅ Diploma scaricato con successo!');
+        };
+
+        async function loadMyTrainings() {
+            const container = document.getElementById('my-trainings-list');
+            
+            await loadUserEnrollments();
+            
+            if (userEnrollments.length === 0) {
+                container.innerHTML = '<p>Non sei ancora iscritto a nessuna formazione.</p>';
+                return;
+            }
+            
+            container.innerHTML = '';
+            
+            userEnrollments.forEach(enrollment => {
+                const training = TRAININGS.find(t => t.id === enrollment.trainingId);
+                if (!training) return;
+                
+                const card = document.createElement('div');
+                card.className = 'training-card';
+                card.innerHTML = `
+                    <h3>${training.title}</h3>
+                    <p><strong>Nome:</strong> ${enrollment.firstName} ${enrollment.lastName}</p>
+                    <p><strong>Dipartimento:</strong> ${enrollment.department}</p>
+                    <p><strong>Data iscrizione:</strong> ${new Date(enrollment.enrollmentDate).toLocaleDateString('it-IT')}</p>
+                    <span class="status-badge status-${enrollment.completed ? 'completed' : 'enrolled'}">
+                        ${enrollment.completed ? '✓ Completato' : '📚 In corso'}
+                    </span>
+                    
+                    ${enrollment.completed ? `
+                        <p><strong>Data completamento:</strong> ${new Date(enrollment.completionDate).toLocaleDateString('it-IT')}</p>
+                        <button class="diploma-btn" onclick="window.generateDiploma('${training.id}')">
+                            📄 Scarica Diploma
+                        </button>
+                    ` : `
+                        <a href="${training.videoUrl}" target="_blank">
+                            <button class="complete-btn">Vai alla Formazione</button>
+                        </a>
+                        <button class="complete-btn" onclick="window.completeTrainingById('${enrollment.id}', '${training.id}')">
+                            Segna come Completata
+                        </button>
+                    `}
+                `;
+                
+                container.appendChild(card);
+            });
+        }
+
+        renderAvailableTrainings();
+    </script>
+</body>
+</html>
