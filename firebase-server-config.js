@@ -1,29 +1,46 @@
 
-// Configurazione Firebase per Node.js (Server-side)
-const { initializeApp } = require('firebase/app');
-const { getFirestore } = require('firebase/firestore');
+// Configurazione Firebase Admin SDK per Node.js (Server-side)
+const admin = require('firebase-admin');
 
-let app;
 let db;
 
 function initializeFirebase() {
   try {
-    // Legge la configurazione dalle variabili d'ambiente
-    const firebaseConfig = JSON.parse(process.env.FIREBASE_CONFIG);
+    // Legge le credenziali del service account dalle variabili d'ambiente
+    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
     
-    app = initializeApp(firebaseConfig);
-    db = getFirestore(app);
+    // Inizializza Firebase Admin
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+      databaseURL: process.env.FIREBASE_DATABASE_URL || "https://tuo-progetto.firebaseio.com"
+    });
     
-    console.log('✅ Firebase inizializzato con successo');
-    return { app, db };
+    db = admin.firestore();
+    
+    console.log('✅ Firebase Admin inizializzato con successo');
+    return { app: admin.app(), db };
   } catch (error) {
-    console.error('❌ Errore nell\'inizializzazione Firebase:', error);
+    console.error('❌ Errore nell\'inizializzazione Firebase Admin:', error);
     throw error;
   }
 }
 
+function getApp() {
+  return admin.app();
+}
+
+function getDb() {
+  return db;
+}
+
+function getAuth() {
+  return admin.auth();
+}
+
 module.exports = {
   initializeFirebase,
-  getApp: () => app,
-  getDb: () => db
+  getApp,
+  getDb,
+  getAuth,
+  admin
 };
