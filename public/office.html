@@ -104,22 +104,26 @@
     };
 
     async function setLinks() {
+      console.log("🔗 Aggiornamento link dei PDF...");
       for (const [key, name] of Object.entries(FILES)) {
         const a = document.getElementById(`link-${key}`);
         try {
           const url = await getDownloadURL(ref(storage, `${folder}/${name}`));
           a.href = url;
-          a.textContent = "Apri (se disponibile)";
+          a.textContent = "Apri PDF";
           a.style.opacity = 1;
-        } catch {
+          console.log(`✅ PDF trovato: ${name}`);
+        } catch (err) {
           a.removeAttribute("href");
           a.textContent = "Non disponibile";
           a.style.opacity = 0.6;
+          console.log(`❌ PDF non trovato: ${name}`, err.code);
         }
       }
     }
 
     async function viewPath(storagePath) {
+      console.log("👁️ Visualizzazione PDF:", storagePath);
       const url = await getDownloadURL(ref(storage, storagePath));
       const loadingTask = pdfjsLib.getDocument({ url });
       const pdf = await loadingTask.promise;
@@ -130,6 +134,7 @@
       canvas.width = viewport.width;
       canvas.height = viewport.height;
       await page.render({ canvasContext: ctx, viewport }).promise;
+      console.log("✅ PDF renderizzato nel canvas");
     }
 
     function mountSlots() {
@@ -158,34 +163,41 @@
           data.append("password", passInput.value);
 
           try {
+            console.log(`📤 Upload PDF "${fixedName}" in corso...`);
             const res = await fetch("/api/uploadPdf", { method: "POST", body: data });
             const out = await res.json();
             if (!out.success) {
               throw new Error(out.error || "Errore upload");
             }
             console.log("✅ PDF salvato su Firebase Storage:", out.path);
-            msg.textContent = "✅ Caricato: " + out.path;
+            msg.textContent = "✅ PDF caricato: " + fixedName;
             await setLinks();
             await viewPath(`${folder}/${fixedName}`);
             fileInput.value = "";
             passInput.value = "";
           } catch (err) {
             msg.textContent = "❌ " + err.message;
-            console.error("❌ Errore:", err);
+            console.error("❌ Errore upload:", err);
           }
         });
 
         viewBtn.addEventListener("click", async () => {
           try {
             await viewPath(`${folder}/${fixedName}`);
-          } catch {
-            alert("File non disponibile");
+          } catch (err) {
+            alert("File non disponibile: " + err.message);
+            console.error("❌ Errore visualizzazione:", err);
           }
         });
       });
     }
 
-    (async () => { await setLinks(); mountSlots(); })();
+    (async () => { 
+      console.log("🚀 Inizializzazione pagina Office...");
+      await setLinks(); 
+      mountSlots(); 
+      console.log("✅ Pagina Office pronta!");
+    })();
   </script>
 </body>
 </html>
