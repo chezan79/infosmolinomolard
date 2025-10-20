@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -155,7 +154,7 @@
           const fileInput = form.querySelector('input[type="file"]');
           const passInput = form.querySelector('input[type="password"]');
           const file = fileInput.files[0];
-          
+
           if (!file || file.type !== "application/pdf") {
             msg.textContent = "❌ Seleziona un PDF valido";
             return;
@@ -171,11 +170,11 @@
           try {
             const res = await fetch("/api/uploadPdf", { method: "POST", body: data });
             const out = await res.json();
-            
+
             if (!out.success) {
               throw new Error(out.error || "Errore upload");
             }
-            
+
             msg.textContent = "✅ Caricato correttamente";
             await setLinks();
             await viewPath(`${folder}/${fixedName}`);
