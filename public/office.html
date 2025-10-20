@@ -156,7 +156,7 @@
         const msg = slot.querySelector(".msg");
         const viewBtn = slot.querySelector(".view-btn");
 
-        // Upload con password
+        // Upload con password → invia a Cloud Function
         form.addEventListener("submit", async (e) => {
           e.preventDefault();
           msg.textContent = "⏳ Caricamento...";
@@ -169,7 +169,7 @@
             return;
           }
 
-          // Rinomina il file al volo
+          // Rinomina il file al volo → sovrascrive sempre il nome fisso
           const renamed = new File([file], fixedName, { type: "application/pdf" });
 
           const data = new FormData();
