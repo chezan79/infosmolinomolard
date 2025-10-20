@@ -5,13 +5,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Office - Planning</title>
-  <link rel="stylesheet" href="../style.css" />
+  <link rel="stylesheet" href="style.css" />
+  <!-- PDF.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.12.313/pdf.min.js"></script>
 </head>
 <body>
   <header>
     <h1>Planning Office</h1>
-    <nav><ul><li><a href="../index.html">Home</a></li></ul></nav>
+    <nav><ul><li><a href="index.html">Home</a></li></ul></nav>
   </header>
 
   <main>
@@ -20,7 +21,7 @@
 
       <div class="slot" data-key="weekCurrent">
         <h3>Semaine en cours</h3>
-        <a id="link-weekCurrent" target="_blank" rel="noopener">Apri (se disponibile)</a>
+        <a id="link-weekCurrent" target="_blank" rel="noopener">Apri PDF</a>
         <form class="upload-form">
           <input type="file" accept="application/pdf" required />
           <input type="password" placeholder="Password" required />
@@ -32,7 +33,7 @@
 
       <div class="slot" data-key="weekNext">
         <h3>Semaine prochaine</h3>
-        <a id="link-weekNext" target="_blank" rel="noopener">Apri (se disponibile)</a>
+        <a id="link-weekNext" target="_blank" rel="noopener">Apri PDF</a>
         <form class="upload-form">
           <input type="file" accept="application/pdf" required />
           <input type="password" placeholder="Password" required />
@@ -48,7 +49,7 @@
 
       <div class="slot" data-key="monthCurrent">
         <h3>Mois en cours</h3>
-        <a id="link-monthCurrent" target="_blank" rel="noopener">Apri (se disponibile)</a>
+        <a id="link-monthCurrent" target="_blank" rel="noopener">Apri PDF</a>
         <form class="upload-form">
           <input type="file" accept="application/pdf" required />
           <input type="password" placeholder="Password" required />
@@ -60,7 +61,7 @@
 
       <div class="slot" data-key="monthNext">
         <h3>Mois prochain</h3>
-        <a id="link-monthNext" target="_blank" rel="noopener">Apri (se disponibile)</a>
+        <a id="link-monthNext" target="_blank" rel="noopener">Apri PDF</a>
         <form class="upload-form">
           <input type="file" accept="application/pdf" required />
           <input type="password" placeholder="Password" required />
@@ -71,9 +72,10 @@
       </div>
     </section>
 
+    <!-- Canvas per PDF.js -->
     <section>
-      <h2>Canvas per visualizzazione PDF</h2>
-      <canvas id="pdf-canvas" style="max-width:100%; border: 1px solid #ccc;"></canvas>
+      <h3>Anteprima PDF</h3>
+      <canvas id="pdf-canvas" style="max-width:100%; border:1px solid #ccc;"></canvas>
     </section>
   </main>
 
@@ -83,29 +85,29 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
     import { getStorage, ref, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-storage.js";
 
-    // ⚠️ CONFIGURAZIONE FIREBASE - Verifica questi dati nel tuo progetto Firebase
+    // 🔧 CONFIGURAZIONE FIREBASE
     const firebaseConfig = {
       apiKey: "AIzaSyAa6EvC5iDxaKO8c3xW_v9TRqnJqRlzM8k",
       authDomain: "infosmolinomoard.firebaseapp.com",
       projectId: "infosmolinomoard",
       storageBucket: "infosmolinomoard.appspot.com",
       messagingSenderId: "961820278371",
-      appId: "1:961820278371:web:yourrealappid"
+      appId: "1:961820278371:web:4e9e3b1f8c2d5a6e7f8g9h"
     };
 
     const app = initializeApp(firebaseConfig);
     const storage = getStorage(app);
 
-    // Percorsi e nomi file fissi per Office
+    // 📁 Percorsi fissi ordinati
     const folder = "public/pdfs";
     const FILES = {
-      weekCurrent:  "planning-office-semaine.pdf",
-      weekNext:     "planning-office-semaine-prochaine.pdf",
-      monthCurrent: "planning-office-mois.pdf",
-      monthNext:    "planning-office-mois-prochain.pdf",
+      weekCurrent:  "planning-semaine.pdf",
+      weekNext:     "planning-semaine-prochaine.pdf",
+      monthCurrent: "planning-mois.pdf",
+      monthNext:    "planning-mois-prochain.pdf",
     };
 
-    // Carica i link disponibili
+    // Carica link disponibili
     async function setLinks() {
       for (const [key, name] of Object.entries(FILES)) {
         const a = document.getElementById(`link-${key}`);
@@ -114,34 +116,26 @@
           a.href = url;
           a.textContent = "Apri PDF";
           a.style.opacity = 1;
-          a.style.pointerEvents = "auto";
         } catch {
           a.removeAttribute("href");
           a.textContent = "Non disponibile";
           a.style.opacity = 0.6;
-          a.style.pointerEvents = "none";
         }
       }
     }
 
     // Renderizza una pagina nel canvas con PDF.js
     async function viewPath(storagePath) {
-      try {
-        const url = await getDownloadURL(ref(storage, storagePath));
-        const loadingTask = pdfjsLib.getDocument({ url });
-        const pdf = await loadingTask.promise;
-        const page = await pdf.getPage(1);
-        const viewport = page.getViewport({ scale: 1.5 });
-        const canvas = document.getElementById("pdf-canvas");
-        const ctx = canvas.getContext("2d");
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        await page.render({ canvasContext: ctx, viewport }).promise;
-        console.log("✅ PDF visualizzato correttamente");
-      } catch (error) {
-        console.error("❌ Errore visualizzazione PDF:", error);
-        alert("Errore nel visualizzare il PDF: " + error.message);
-      }
+      const url = await getDownloadURL(ref(storage, storagePath));
+      const loadingTask = pdfjsLib.getDocument({ url });
+      const pdf = await loadingTask.promise;
+      const page = await pdf.getPage(1);
+      const viewport = page.getViewport({ scale: 1.5 });
+      const canvas = document.getElementById("pdf-canvas");
+      const ctx = canvas.getContext("2d");
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      await page.render({ canvasContext: ctx, viewport }).promise;
     }
 
     // Gestisci i 4 slot
@@ -163,12 +157,13 @@
           const file = fileInput.files[0];
           
           if (!file || file.type !== "application/pdf") {
-            msg.textContent = "❌ Seleziona un file PDF valido";
+            msg.textContent = "❌ Seleziona un PDF valido";
             return;
           }
 
-          // Rinomina il file con il nome fisso
+          // Rinomina il file al volo
           const renamed = new File([file], fixedName, { type: "application/pdf" });
+
           const data = new FormData();
           data.append("file", renamed);
           data.append("password", passInput.value);
@@ -176,7 +171,11 @@
           try {
             const res = await fetch("/api/uploadPdf", { method: "POST", body: data });
             const out = await res.json();
-            if (!out.success) throw new Error(out.error || "Errore upload");
+            
+            if (!out.success) {
+              throw new Error(out.error || "Errore upload");
+            }
+            
             msg.textContent = "✅ Caricato correttamente";
             await setLinks();
             await viewPath(`${folder}/${fixedName}`);
@@ -184,7 +183,6 @@
             passInput.value = "";
           } catch (err) {
             msg.textContent = "❌ " + err.message;
-            console.error("Errore upload:", err);
           }
         });
 
@@ -193,7 +191,7 @@
           try {
             await viewPath(`${folder}/${fixedName}`);
           } catch {
-            alert("File non disponibile. Caricalo prima.");
+            alert("File non disponibile");
           }
         });
       });
@@ -201,13 +199,8 @@
 
     // Inizializzazione
     (async () => {
-      try {
-        await setLinks();
-        mountSlots();
-        console.log("✅ Sistema Office PDF inizializzato");
-      } catch (error) {
-        console.error("❌ Errore inizializzazione:", error);
-      }
+      await setLinks();
+      mountSlots();
     })();
   </script>
 </body>
