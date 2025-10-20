@@ -184,13 +184,15 @@
               throw new Error(out.error || "Errore upload");
             }
 
-            msg.textContent = "✅ Caricato correttamente";
+            console.log("✅ PDF caricato su Firebase Storage:", out.path);
+            msg.textContent = "✅ Caricato su: " + out.path;
             await setLinks();
             await viewPath(`${folder}/${fixedName}`);
             fileInput.value = "";
             passInput.value = "";
           } catch (err) {
             msg.textContent = "❌ " + err.message;
+            console.error("❌ Errore upload:", err);
           }
         });
 
