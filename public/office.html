@@ -125,16 +125,21 @@
 
     // Renderizza una pagina nel canvas con PDF.js
     async function viewPath(storagePath) {
-      const url = await getDownloadURL(ref(storage, storagePath));
-      const loadingTask = pdfjsLib.getDocument({ url });
-      const pdf = await loadingTask.promise;
-      const page = await pdf.getPage(1);
-      const viewport = page.getViewport({ scale: 1.5 });
-      const canvas = document.getElementById("pdf-canvas");
-      const ctx = canvas.getContext("2d");
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      await page.render({ canvasContext: ctx, viewport }).promise;
+      try {
+        const url = await getDownloadURL(ref(storage, storagePath));
+        const loadingTask = pdfjsLib.getDocument({ url });
+        const pdf = await loadingTask.promise;
+        const page = await pdf.getPage(1);
+        const viewport = page.getViewport({ scale: 1.5 });
+        const canvas = document.getElementById("pdf-canvas");
+        const ctx = canvas.getContext("2d");
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        await page.render({ canvasContext: ctx, viewport }).promise;
+      } catch (error) {
+        console.error("Errore nel caricare il PDF:", error);
+        alert("Impossibile caricare il PDF. Verifica che il file esista su Firebase Storage.");
+      }
     }
 
     // Gestisci i 4 slot
@@ -187,10 +192,12 @@
 
         // Visualizza nel canvas
         viewBtn.addEventListener("click", async () => {
+          msg.textContent = "⏳ Caricamento PDF...";
           try {
             await viewPath(`${folder}/${fixedName}`);
-          } catch {
-            alert("File non disponibile");
+            msg.textContent = "✅ PDF caricato";
+          } catch (error) {
+            msg.textContent = "❌ PDF non disponibile";
           }
         });
       });
