@@ -34,7 +34,7 @@
                 <li><a href="reglement.html">📋 Réglements d'entreprise</a></li>
                 <li><a href="proposta.html">👨‍🍳 Proposte Chef - Video et recettes</a></li>
                 <li><a href="video.html">🎬 Videos</a></li>
-                <li><a href="Commenti.html">💬 Commenti Clienti</a></li>
+                
                 <li><a href="stock.html">📦 Infos Importantes</a></li>
             </ul>
         </section>
@@ -46,3 +46,98 @@
     </footer>
 </body>
 </html>
+            <h2>Feedbacks Molino Molard</h2>
+            <!-- ====== SEZIONE RECENSIONI ====== -->
+            <section id="reviews" class="reviews-grid">
+              <!-- Google Reviews -->
+              <article class="review-card">
+                <div class="brand">
+                  <img src="https://www.gstatic.com/images/branding/product/2x/google_maps_96dp.png" alt="Google" />
+                  <h3>Google Reviews</h3>
+                </div>
+
+                <!-- Rating statico (puoi aggiornarlo a mano) -->
+                <div class="rating">
+                  <span class="stars">★★★★★</span>
+                  <small class="hint">4.7 / 5 • valutazione media su Google</small>
+                </div>
+
+                <div class="actions">
+                  <!-- 🔗 LINK GOOGLE MAPS — leggi recensioni -->
+                  <a class="btn" target="_blank" rel="noopener"
+                     href="https://www.google.com/maps/place/Pizzeria+Ristorante+Molino+Molard/@46.2033722,6.1455529,670m/data=!3m2!1e3!5s0x478c652e94d76265:0x3a01b0f9c4c2e835!4m8!3m7!1s0x478c652e94de29af:0x7ff174cdf5e5535!8m2!3d46.2033722!4d6.1481278!9m1!1b1!16s%2Fg%2F1vlz97vg?entry=ttu&g_ep=EgoyMDI1MTAxNC4wIKXMDSoASAFQAw%3D%3D">
+                    Leggi recensioni
+                  </a>
+
+                  <!-- 🔗 LINK GOOGLE — scrivi recensione -->
+                  <a class="btn primary" target="_blank" rel="noopener"
+                     href="https://search.google.com/local/writereview?placeid=ChIJrynelC5ljEcRNVVe30wX_wc">
+                    Scrivi una recensione
+                  </a>
+                </div>
+              </article>
+
+              <!-- Tripadvisor -->
+              <article class="review-card">
+                <div class="brand">
+                  <img src="https://static.tacdn.com/img2/brand_refresh/Tripadvisor_lockup_horizontal_secondary_registered.svg"
+                       alt="Tripadvisor" style="height:28px" />
+                  <h3>Tripadvisor</h3>
+                </div>
+
+                <div class="rating">
+                  <span class="bubbles" title="Valutazione indicativa">●●●●●</span>
+                  <small class="hint">Valutazione media (aggiorna manualmente)</small>
+                </div>
+
+                <div class="actions">
+                  <!-- 🔗 INSERISCI QUI IL TUO LINK TRIPADVISOR -->
+                  <a class="btn" target="_blank" rel="noopener"
+                     href="https://www.tripadvisor.it/Restaurant_Review-g188057-dXXXXXXX">
+                    Leggi recensioni
+                  </a>
+                  <a class="btn primary" target="_blank" rel="noopener"
+                     href="https://www.tripadvisor.it/UserReview-g188057-dXXXXXXX">
+                    Scrivi una recensione
+                  </a>
+                </div>
+              </article>
+            </section>
+
+            <!-- ====== STILI MINIMALI ====== -->
+            <style>
+              .reviews-grid{
+                display:grid;
+                gap:18px;
+                grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+                margin: 24px 0;
+              }
+              .review-card{
+                border:1px solid #e6e6e6;
+                border-radius:14px;
+                padding:16px;
+                background:#fff;
+                box-shadow: 0 2px 8px rgba(0,0,0,.04);
+                transition: transform .2s ease;
+              }
+              .review-card:hover{ transform: translateY(-2px); }
+              .brand{ display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+              .brand img{ height:24px; width:auto; }
+              .rating{ margin:8px 0 14px; color:#444; }
+              .stars{ letter-spacing:2px; color:#f5a623; font-size:18px; }
+              .bubbles{ letter-spacing:3px; color:#00aa6c; font-size:18px; }
+              .hint{ display:block; color:#888; font-size:12px; }
+              .actions{ display:flex; gap:10px; flex-wrap:wrap; }
+              .btn{
+                appearance:none; border:1px solid #ddd; padding:10px 14px;
+                border-radius:10px; text-decoration:none;
+                color:#111; background:#fafafa; transition:.2s;
+              }
+              .btn:hover{
+                transform:translateY(-1px);
+                box-shadow:0 2px 8px rgba(0,0,0,.08);
+              }
+              .btn.primary{
+                background:#111; color:#fff; border-color:#111;
+              }
+            </style>
