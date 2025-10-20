@@ -71,7 +71,7 @@
       </div>
     </section>
 
-    <!-- Canvas per PDF.js -->
+    <!-- Canvas per visualizzare il PDF -->
     <section>
       <h3>Anteprima PDF</h3>
       <canvas id="pdf-canvas" style="max-width:100%; border:1px solid #ccc;"></canvas>
@@ -126,7 +126,10 @@
     // Renderizza una pagina nel canvas con PDF.js
     async function viewPath(storagePath) {
       try {
+        console.log("📄 Caricamento PDF da:", storagePath);
         const url = await getDownloadURL(ref(storage, storagePath));
+        console.log("✅ URL ottenuto:", url);
+
         const loadingTask = pdfjsLib.getDocument({ url });
         const pdf = await loadingTask.promise;
         const page = await pdf.getPage(1);
@@ -136,9 +139,10 @@
         canvas.width = viewport.width;
         canvas.height = viewport.height;
         await page.render({ canvasContext: ctx, viewport }).promise;
+        console.log("✅ PDF renderizzato con successo");
       } catch (error) {
-        console.error("Errore nel caricare il PDF:", error);
-        alert("Impossibile caricare il PDF. Verifica che il file esista su Firebase Storage.");
+        console.error("❌ Errore nel caricare il PDF:", error);
+        alert("Impossibile caricare il PDF. Verifica che il file esista su Firebase Storage nel percorso: " + storagePath);
       }
     }
 
