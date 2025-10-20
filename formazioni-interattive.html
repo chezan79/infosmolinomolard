@@ -217,6 +217,15 @@
 
         const TRAININGS = [
             {
+                id: 'premiers-jours',
+                title: 'Premier et Deuxième Jours',
+                description: 'Formation complète pour les nouveaux collaborateurs couvrant l\'entreprise, la philosophie, les standards, les produits clés, l\'hygiène et la sécurité.',
+                department: 'Tous',
+                duration: '4 heures',
+                videoUrl: 'formation-premiers-jours.html',
+                isExternalPage: true
+            },
+            {
                 id: 'cuisine-pasta',
                 title: 'Techniques de base - Préparation "Pasta Fresca"',
                 description: 'Impara le tecniche fondamentali per la preparazione della pasta fresca artigianale.',
@@ -368,7 +377,7 @@
                     ` : ''}
                     
                     ${enrollment && !enrollment.completed ? `
-                        <a href="${training.videoUrl}" target="_blank">
+                        <a href="${training.videoUrl}" ${training.isExternalPage ? '' : 'target="_blank"'}>
                             <button class="complete-btn">Vai alla Formazione</button>
                         </a>
                         <button class="complete-btn" onclick="window.completeTrainingById('${enrollment.id}', '${training.id}')">
@@ -565,7 +574,7 @@
                             📄 Scarica Diploma
                         </button>
                     ` : `
-                        <a href="${training.videoUrl}" target="_blank">
+                        <a href="${training.videoUrl}" ${training.isExternalPage ? '' : 'target="_blank"'}>
                             <button class="complete-btn">Vai alla Formazione</button>
                         </a>
                         <button class="complete-btn" onclick="window.completeTrainingById('${enrollment.id}', '${training.id}')">
