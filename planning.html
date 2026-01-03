@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -6,12 +5,49 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Planning - Pizzeria Molino Molard</title>
     <link rel="stylesheet" href="style.css" />
-    <!-- Tag Open Graph -->
     <meta property="og:title" content="Planning - Pizzeria Molino Molard">
     <meta property="og:description" content="Planning Pizzeria Molino Molard.">
     <meta property="og:image" content="https://images2.imgbox.com/25/47/OOeN6cfM_o.jpg">
     <meta property="og:url" content="https://infomolinomolard.playcode.io/">
     <meta property="og:type" content="website">
+    <style>
+        .planning-nav {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        .planning-nav h2 {
+            margin-top: 0;
+            color: #d32f2f;
+        }
+        .planning-nav ul {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .planning-nav li a {
+            display: block;
+            padding: 10px 20px;
+            background: #76d7c4;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+        .planning-nav li a:hover {
+            background: #5ab8a6;
+        }
+        .planning-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+    </style>
 </head>
 
 <body>
@@ -25,273 +61,216 @@
     </header>
 
     <main>
-    <div class="planning-box">
-    <h2>Planning</h2>
-    <nav>
-        <ul>
-            
-        </ul>
-    </nav>
-</div>
+        <div class="planning-nav">
+            <h2>Accès Rapide</h2>
+            <ul>
+                <li><a href="#cuisine">Cuisine</a></li>
+                <li><a href="#pizzeria">Pizzeria</a></li>
+                <li><a href="#service">Service</a></li>
+                <li><a href="#bar">Bar</a></li>
+                <li><a href="#commis">Commis</a></li>
+                <li><a href="#office">Office</a></li>
+                <li><a href="#adj-cdb">ADJ-CdB</a></li>
+            </ul>
+        </div>
+
         <div class="planning-grid">
-        
-
-        <section id="Cuisine" class="menu-hover">
-            <h2>CUCINA</h2>
-
-            <div class="content">
-                <section>
-                    <h3>Planning hebdomadaire</h3>
-                    <ul>
-                        <li>
-                            <a href="https://drive.google.com/file/d/15CCzN8h8y8T7NF6o-q-OLeVUCf6bii45/view?usp=sharing" target="_blank">Planning semaine en cours</a>
-                        </li>
-                        <li>
-                            <a href="https://drive.google.com/file/d/15-amFdWdXVqi2i4AFvjs2RpEFOgw-uqS/view?usp=sharing" target="_blank">Planning prochaine semaine</a>
-                        </li>
-                    </ul>
-                </section>
-
-                <section>
-                    <h3>Planning Mensuel</h3>
-                    <ul>
-                        <li>
-                            <a href="https://drive.google.com/file/d/1_x8sbrAzYnYz6LInqRP9EvIBXQKthoFU/view?usp=sharing" target="_blank">Planning du mois en cours</a>
-                        </li>
-                        <li>
-                            <a href="https://drive.google.com/file/d/1IIv-B_Qa4X4BoEcwtqcvCIiNA-14_5mH/view?usp=sharing" target="_blank">Planning du mois prochain</a>
-                        </li>
-                    </ul>
-                </section>
-            </div>
-        </section>
-
-
-        <section id="Pizzeria" class="menu-hover">
-            <h2>PIZZERIA</h2>
-
-            <div class="content">
-                <section>
-                    <h3>Planning hebdomadaire</h3>
-                    <ul>
-                        <li>
-                            <a href="https://drive.google.com/file/d/1q2w0_Ua2KpLe8IzckNp2Yhn4cvmo1p4v/view?usp=drivesdk" target="_blank">Planning semaine en cours</a>
-                        </li>
-                        <li>
-                            <a href="https://drive.google.com/file/d/1zMSZxMYyiOXMZA5jSUsY9ywIeJ6RepAt/view?usp=sharing" target="_blank">Planning prochaine semaine</a>
-                        </li>
-                    </ul>
-                </section>
-
-                <section>
-                    <h3>Planning Mensuel</h3>
-                    <ul>
-                        <li>
-                            <a href="https://drive.google.com/file/d/1fisuxGi1rKgsUNPeI11uhCSdfe8x6z7t/view?usp=sharing" target="_blank">Planning du mois en cours</a>
-                        </li>
-                        <li>
-                            <a href="https://drive.google.com/file/d/1MvwR8OVO4d4asnAuNBdK4W3Ja03tQ7gr/view?usp=sharing" target="_blank">Planning du mois prochain</a>
-                        </li>
-                    </ul>
-                </section>
-            </div>
-        </section>
-
-
-        <section class="menu-hover">
-            <h2>SERVICE</h2>
-
-            <div class="content">
-                <section>
-                    <h3>Planning hebdomadaire</h3>
-                    <ul>
-                        <li>
-                            <a href="https://drive.google.com/file/d/1cLugx6l_DJiB324ZhBKiUMutGoCP1dug/view?usp=sharing" target="_blank">
-                                Planning semaine en cours
-                            </a>
-                        </li>
-                        <li>
-                            <a href="https://drive.google.com/file/d/1SCadhx56efYuqVp_HpVEpUAsovoYLF6F/view?usp=sharing" target="_blank">
-                                Planning prochaine semaine
-                            </a>
-                        </li>
-                    </ul>
-                </section>
-
-                <section>
-                    <h3>Planning Mensuel</h3>
-                    <ul>
-                        <li>
-                            <a href="https://drive.google.com/file/d/1WQs0T4uSWqh2cIXAS8v42JdNxioxI041/view?usp=sharing" target="_blank">
-                                Planning du mois en cours
-                            </a>
-                        </li>
-                        <li>
-                            <a href="https://drive.google.com/file/d/1lka99_EgO4_pNkpXMzSSiijoQXUQIxHw/view?usp=sharing" target="_blank">
-                                Planning du mois prochain
-                            </a>
-                        </li>
-                    </ul>
-                </section>
-            </div>
-        </section>
-
-
-        <section class="menu-hover">
-            <h2>OFFICE</h2>
-
-            <div class="content">
-                <section>
-                    <h3>Planning hebdomadaire</h3>
-                    <ul>
-                        <li>
-                            <a href="https://drive.google.com/file/d/1u2GeBJEngDu3qKCk3_mbsbQsa2U9KHsw/view?usp=drivesdk" target="_blank">
-                                Planning semaine en cours
-                            </a>
-                        </li>
-                        <li>
-                            <a href="https://drive.google.com/file/d/18ADDTB-Motb3a57sQUc_lDkm6tTdoyXQ/view?usp=sharing" target="_blank">
-                                Planning prochaine semaine
-                            </a>
-                        </li>
-                    </ul>
-                </section>
-
-                <section>
-                    <h3>Planning Mensuel</h3>
-                    <ul>
-                        <li>
-                            <a href="https://drive.google.com/file/d/1ZsGmZqPuT4wtUIPIJC94JSsbFrcwnQ8R/view?usp=sharing" target="_blank">
-                                Planning du mois en cours
-                            </a>
-                        </li>
-                        <li>
-                            <a href="https://drive.google.com/file/d/17VfuD43DdHoya-sZb4ICk8iBPIKcf16Z/view?usp=sharing" target="_blank">
-                                Planning du mois prochain
-                            </a>
-                        </li>
-                    </ul>
-                </section>
-            </div>
-        </section>
-
-
-    <section class="menu-hover">
-        <h2>ADJ-CdB"</h2>
-
-        <div class="content">
-            <section>
-                <h3>Planning hebdomadaire</h3>
-                <ul>
-                    <li>
-                        <a href="https://drive.google.com/file/d/1LcyClCbfoB_SuNmtkbB0yk5hOHC0hSV3/view?usp=drivesdk" target="_blank">
-                            Planning semaine en cours
-                        </a>
-                    </li>
-                    <li>
-                        <a href="https://drive.google.com/file/d/14px8dUeSv6QKh-3QS8vnpqIipL_tH4Xc/view?usp=sharing" target="_blank">
-                            Planning prochaine semaine
-                        </a>
-                    </li>
-                </ul>
+            <section id="cuisine" class="menu-hover">
+                <h2>CUISINE</h2>
+                <div class="content">
+                    <section>
+                        <h3>Planning hebdomadaire</h3>
+                        <ul>
+                            <li>
+                                <a href="https://drive.google.com/file/d/15CCzN8h8y8T7NF6o-q-OLeVUCf6bii45/view?usp=sharing" target="_blank">Planning semaine en cours</a>
+                            </li>
+                            <li>
+                                <a href="https://drive.google.com/file/d/15-amFdWdXVqi2i4AFvjs2RpEFOgw-uqS/view?usp=sharing" target="_blank">Planning prochaine semaine</a>
+                            </li>
+                        </ul>
+                    </section>
+                    <section>
+                        <h3>Planning Mensuel</h3>
+                        <ul>
+                            <li>
+                                <a href="https://drive.google.com/file/d/1_x8sbrAzYnYz6LInqRP9EvIBXQKthoFU/view?usp=sharing" target="_blank">Planning du mois en cours</a>
+                            </li>
+                            <li>
+                                <a href="https://drive.google.com/file/d/1IIv-B_Qa4X4BoEcwtqcvCIiNA-14_5mH/view?usp=sharing" target="_blank">Planning du mois prochain</a>
+                            </li>
+                        </ul>
+                    </section>
+                </div>
             </section>
 
-            <section>
-                <h3>Planning Mensuel</h3>
-                <ul>
-                    <li>
-                        <a href="https://drive.google.com/file/d/1Z-T6JtozQBUxq5AZr5vXPaDbZ3imCAo0/view?usp=sharing" target="_blank">
-                            Planning du mois en cours
-                        </a>
-                    </li>
-                    <li>
-                        <a href="https://drive.google.com/file/d/1clpXKmUH4nbmCv6p2cP33smDsVawiZ9n/view?usp=sharing" target="_blank">
-                            Planning du mois prochain
-                        </a>
-                    </li>
-                </ul>
+            <section id="pizzeria" class="menu-hover">
+                <h2>PIZZERIA</h2>
+                <div class="content">
+                    <section>
+                        <h3>Planning hebdomadaire</h3>
+                        <ul>
+                            <li>
+                                <a href="https://drive.google.com/file/d/1q2w0_Ua2KpLe8IzckNp2Yhn4cvmo1p4v/view?usp=drivesdk" target="_blank">Planning semaine en cours</a>
+                            </li>
+                            <li>
+                                <a href="https://drive.google.com/file/d/1zMSZxMYyiOXMZA5jSUsY9ywIeJ6RepAt/view?usp=sharing" target="_blank">Planning prochaine semaine</a>
+                            </li>
+                        </ul>
+                    </section>
+                    <section>
+                        <h3>Planning Mensuel</h3>
+                        <ul>
+                            <li>
+                                <a href="https://drive.google.com/file/d/1fisuxGi1rKgsUNPeI11uhCSdfe8x6z7t/view?usp=sharing" target="_blank">Planning du mois en cours</a>
+                            </li>
+                            <li>
+                                <a href="https://drive.google.com/file/d/1MvwR8OVO4d4asnAuNBdK4W3Ja03tQ7gr/view?usp=sharing" target="_blank">Planning du mois prochain</a>
+                            </li>
+                        </ul>
+                    </section>
+                </div>
+            </section>
+
+            <section id="service" class="menu-hover">
+                <h2>SERVICE</h2>
+                <div class="content">
+                    <section>
+                        <h3>Planning hebdomadaire</h3>
+                        <ul>
+                            <li>
+                                <a href="https://drive.google.com/file/d/1cLugx6l_DJiB324ZhBKiUMutGoCP1dug/view?usp=sharing" target="_blank">Planning semaine en cours</a>
+                            </li>
+                            <li>
+                                <a href="https://drive.google.com/file/d/1SCadhx56efYuqVp_HpVEpUAsovoYLF6F/view?usp=sharing" target="_blank">Planning prochaine semaine</a>
+                            </li>
+                        </ul>
+                    </section>
+                    <section>
+                        <h3>Planning Mensuel</h3>
+                        <ul>
+                            <li>
+                                <a href="https://drive.google.com/file/d/1WQs0T4uSWqh2cIXAS8v42JdNxioxI041/view?usp=sharing" target="_blank">Planning du mois en cours</a>
+                            </li>
+                            <li>
+                                <a href="https://drive.google.com/file/d/1lka99_EgO4_pNkpXMzSSiijoQXUQIxHw/view?usp=sharing" target="_blank">Planning du mois prochain</a>
+                            </li>
+                        </ul>
+                    </section>
+                </div>
+            </section>
+
+            <section id="bar" class="menu-hover">
+                <h2>BAR</h2>
+                <div class="content">
+                    <section>
+                        <h3>Planning hebdomadaire</h3>
+                        <ul>
+                            <li>
+                                <a href="https://drive.google.com/file/d/1SLNgQCB3ZXopTxLk1CWP--PNxvTEzLS-/view?usp=drivesdk" target="_blank">Planning semaine en cours</a>
+                            </li>
+                            <li>
+                                <a href="https://drive.google.com/file/d/1VcXwl2xULtHb1ISHiSGytSczMW2tpHDV/view?usp=sharing" target="_blank">Planning prochaine semaine</a>
+                            </li>
+                        </ul>
+                    </section>
+                    <section>
+                        <h3>Planning Mensuel</h3>
+                        <ul>
+                            <li>
+                                <a href="https://drive.google.com/file/d/1CsEbQtyK26sO1XkKOVWgJ0FEFPM7zal8/view?usp=sharing" target="_blank">Planning du mois en cours</a>
+                            </li>
+                            <li>
+                                <a href="https://drive.google.com/file/d/1pIfNK2fbHp2OIewRLHaibCLC9bURh59p/view?usp=sharing" target="_blank">Planning du mois prochain</a>
+                            </li>
+                        </ul>
+                    </section>
+                </div>
+            </section>
+
+            <section id="commis" class="menu-hover">
+                <h2>COMMIS</h2>
+                <div class="content">
+                    <section>
+                        <h3>Planning hebdomadaire</h3>
+                        <ul>
+                            <li>
+                                <a href="https://drive.google.com/file/d/1YQ1a7yUNUIi0GXmfiZbUVqA5EuZUrWI7/view?usp=drivesdk" target="_blank">Planning semaine en cours</a>
+                            </li>
+                            <li>
+                                <a href="https://drive.google.com/file/d/1Nae29GajP4AZijq3rtGyurxMsqeBJXCs/view?usp=sharing" target="_blank">Planning prochaine semaine</a>
+                            </li>
+                        </ul>
+                    </section>
+                    <section>
+                        <h3>Planning Mensuel</h3>
+                        <ul>
+                            <li>
+                                <a href="https://drive.google.com/file/d/1vozOxs56ftnDwTdM4R_Sgq0f3qsQSGeA/view?usp=sharing" target="_blank">Planning du mois en cours</a>
+                            </li>
+                            <li>
+                                <a href="https://drive.google.com/file/d/1XZIgjMTC5whogTLac8OrqUSUOmnHUU_M/view?usp=sharing" target="_blank">Planning du mois prochain</a>
+                            </li>
+                        </ul>
+                    </section>
+                </div>
+            </section>
+
+            <section id="office" class="menu-hover">
+                <h2>OFFICE</h2>
+                <div class="content">
+                    <section>
+                        <h3>Planning hebdomadaire</h3>
+                        <ul>
+                            <li>
+                                <a href="https://drive.google.com/file/d/1u2GeBJEngDu3qKCk3_mbsbQsa2U9KHsw/view?usp=drivesdk" target="_blank">Planning semaine en cours</a>
+                            </li>
+                            <li>
+                                <a href="https://drive.google.com/file/d/18ADDTB-Motb3a57sQUc_lDkm6tTdoyXQ/view?usp=sharing" target="_blank">Planning prochaine semaine</a>
+                            </li>
+                        </ul>
+                    </section>
+                    <section>
+                        <h3>Planning Mensuel</h3>
+                        <ul>
+                            <li>
+                                <a href="https://drive.google.com/file/d/1ZsGmZqPuT4wtUIPIJC94JSsbFrcwnQ8R/view?usp=sharing" target="_blank">Planning du mois en cours</a>
+                            </li>
+                            <li>
+                                <a href="https://drive.google.com/file/d/17VfuD43DdHoya-sZb4ICk8iBPIKcf16Z/view?usp=sharing" target="_blank">Planning du mois prochain</a>
+                            </li>
+                        </ul>
+                    </section>
+                </div>
+            </section>
+
+            <section id="adj-cdb" class="menu-hover">
+                <h2>ADJ-CdB</h2>
+                <div class="content">
+                    <section>
+                        <h3>Planning hebdomadaire</h3>
+                        <ul>
+                            <li>
+                                <a href="https://drive.google.com/file/d/1LcyClCbfoB_SuNmtkbB0yk5hOHC0hSV3/view?usp=drivesdk" target="_blank">Planning semaine en cours</a>
+                            </li>
+                            <li>
+                                <a href="https://drive.google.com/file/d/14px8dUeSv6QKh-3QS8vnpqIipL_tH4Xc/view?usp=sharing" target="_blank">Planning prochaine semaine</a>
+                            </li>
+                        </ul>
+                    </section>
+                    <section>
+                        <h3>Planning Mensuel</h3>
+                        <ul>
+                            <li>
+                                <a href="https://drive.google.com/file/d/1Z-T6JtozQBUxq5AZr5vXPaDbZ3imCAo0/view?usp=sharing" target="_blank">Planning du mois en cours</a>
+                            </li>
+                            <li>
+                                <a href="https://drive.google.com/file/d/1clpXKmUH4nbmCv6p2cP33smDsVawiZ9n/view?usp=sharing" target="_blank">Planning du mois prochain</a>
+                            </li>
+                        </ul>
+                    </section>
+                </div>
             </section>
         </div>
-    </section>
-
-
-        <section class="menu-hover">
-            <h2>BAR</h2>
-
-            <div class="content">
-                <section>
-                    <h3>Planning hebdomadaire</h3>
-                    <ul>
-                        <li>
-                            <a href="https://drive.google.com/file/d/1SLNgQCB3ZXopTxLk1CWP--PNxvTEzLS-/view?usp=drivesdk" target="_blank">
-                                Planning semaine en cours
-                            </a>
-                        </li>
-                        <li>
-                            <a href="https://drive.google.com/file/d/1VcXwl2xULtHb1ISHiSGytSczMW2tpHDV/view?usp=sharing" target="_blank">
-                                Planning prochaine semaine
-                            </a>
-                        </li>
-                    </ul>
-                </section>
-
-                <section>
-                    <h3>Planning Mensuel</h3>
-                    <ul>
-                        <li>
-                            <a href="https://drive.google.com/file/d/1CsEbQtyK26sO1XkKOVWgJ0FEFPM7zal8/view?usp=sharing" target="_blank">
-                                Planning du mois en cours
-                            </a>
-                        </li>
-                        <li>
-                            <a href="https://drive.google.com/file/d/1pIfNK2fbHp2OIewRLHaibCLC9bURh59p/view?usp=sharing" target="_blank">
-                                Planning du mois prochain
-                            </a>
-                        </li>
-                    </ul>
-                </section>
-            </div>
-        </section>
-
-
-        <section class="menu-hover">
-            <h2>COMMIS</h2>
-
-            <div class="content">
-                <section>
-                    <h3>Planning hebdomadaire</h3>
-                    <ul>
-                        <li>
-                            <a href="https://drive.google.com/file/d/1YQ1a7yUNUIi0GXmfiZbUVqA5EuZUrWI7/view?usp=drivesdk" target="_blank">
-                                Planning semaine en cours
-                            </a>
-                        </li>
-                        <li>
-                            <a href="https://drive.google.com/file/d/1Nae29GajP4AZijq3rtGyurxMsqeBJXCs/view?usp=sharing" target="_blank">
-                                Planning prochaine semaine
-                            </a>
-                        </li>
-                    </ul>
-                </section>
-
-                <section>
-                    <h3>Planning Mensuel</h3>
-                    <ul>
-                        <li>
-                            <a href="https://drive.google.com/file/d/1vozOxs56ftnDwTdM4R_Sgq0f3qsQSGeA/view?usp=sharing" target="_blank">
-                                Planning du mois en cours
-                            </a>
-                        </li>
-                        <li>
-                            <a href="https://drive.google.com/file/d/1XZIgjMTC5whogTLac8OrqUSUOmnHUU_M/view?usp=sharing" target="_blank">
-                                Planning du mois prochain
-                            </a>
-                        </li>
-                    </ul>
-                </section>
-            </div>
-        </section>
-            </div>
     </main>
 
     <footer>
