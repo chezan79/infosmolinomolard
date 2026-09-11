@@ -66,6 +66,64 @@ section h2 {
   margin-bottom: 25px;
 }
 
+#Navigation .dashboard-groups {
+  display: grid;
+  gap: 24px;
+}
+
+#Navigation .dashboard-group {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
+#Navigation .dashboard-group h3 {
+  margin: 0 0 12px;
+  color: #333;
+  font-size: 20px;
+}
+
+#Navigation .navigation-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+#Navigation .navigation-card {
+  display: flex;
+  align-items: center;
+  min-height: 52px;
+  padding: 14px 16px;
+  border: 1px solid #dfe8e6;
+  border-radius: 10px;
+  background-color: #f4f4f9;
+  color: #333;
+  font-weight: 600;
+  line-height: 1.35;
+  text-decoration: none;
+  box-sizing: border-box;
+  transition: background-color 0.2s ease, border-color 0.2s ease,
+    color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+#Navigation .navigation-card:hover,
+#Navigation .navigation-card:focus-visible {
+  background-color: #76d7c4;
+  border-color: #76d7c4;
+  color: #fff;
+  text-decoration: none;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+#Navigation .navigation-card:focus-visible {
+  outline: 3px solid rgba(0, 120, 215, 0.3);
+  outline-offset: 2px;
+}
+
 #Navigation ul li {
   margin-bottom: 18px;
   font-size: 18px;
@@ -231,4 +289,118 @@ section ul li a:hover {
 .menu-hover .content section {
     flex: 1;
     min-width: 150px;
+}
+
+/* Homepage reviews */
+#QuickAccess .reviews-grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  margin: 24px 0 0;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
+#QuickAccess .review-card {
+  border: 1px solid #e6e6e6;
+  border-radius: 14px;
+  padding: 16px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: transform 0.2s ease;
+}
+
+#QuickAccess .review-card:hover {
+  transform: translateY(-2px);
+}
+
+#QuickAccess .brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+#QuickAccess .brand img {
+  height: 24px;
+  width: auto;
+}
+
+#QuickAccess .brand .tripadvisor-logo {
+  height: 28px;
+}
+
+#QuickAccess .rating {
+  margin: 8px 0 14px;
+  color: #444;
+}
+
+#QuickAccess .stars {
+  letter-spacing: 2px;
+  color: #f5a623;
+  font-size: 18px;
+}
+
+#QuickAccess .bubbles {
+  letter-spacing: 3px;
+  color: #00aa6c;
+  font-size: 18px;
+}
+
+#QuickAccess .hint {
+  display: block;
+  color: #888;
+  font-size: 12px;
+}
+
+#QuickAccess .actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+#QuickAccess .btn {
+  appearance: none;
+  border: 1px solid #ddd;
+  padding: 10px 14px;
+  border-radius: 10px;
+  text-decoration: none;
+  color: #111;
+  background: #fafafa;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+#QuickAccess .btn:hover {
+  color: #111;
+  text-decoration: none;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+#QuickAccess .btn.primary {
+  background: #111;
+  color: #fff;
+  border-color: #111;
+}
+
+.homepage footer {
+  position: static;
+  box-sizing: border-box;
+}
+
+@media (max-width: 640px) {
+  main {
+    padding: 20px 0;
+  }
+
+  #Navigation {
+    padding: 20px;
+  }
+
+  #Navigation .navigation-cards,
+  #QuickAccess .reviews-grid {
+    grid-template-columns: 1fr;
+  }
 }

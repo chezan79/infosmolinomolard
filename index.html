@@ -14,7 +14,7 @@
     <meta property="og:type" content="website">
 </head>
 
-<body>
+<body class="homepage">
     <header>
         <h1>PIZZERIA MOLINO MOLARD</h1>
     </header>
@@ -25,31 +25,41 @@
             
         </section>
 
-        <section id="Navigation">
-            <h2>Sections principales</h2>
-            <ul>
-                <li><a href="planning.html">📅 Planning Collaborateurs</a></li>
-                <!--
-                  <li><a href="formazioni-interattive.html">🎓 Formations Interactives (Nuovo!)</a></li>
-                  -->
+        <section id="Navigation" aria-labelledby="navigation-title">
+            <h2 id="navigation-title">Sections principales</h2>
+            <div class="dashboard-groups">
+                <section class="dashboard-group" aria-labelledby="organisation-title">
+                    <h3 id="organisation-title">Organisation</h3>
+                    <div class="navigation-cards">
+                        <!--
+                          <a class="navigation-card" href="formazioni-interattive.html">🎓 Formations Interactives (Nuovo!)</a>
+                        -->
+                        <a class="navigation-card" href="planning.html">📅 Planning Collaborateurs</a>
+                        <a class="navigation-card" href="formazioni.html">📚 Formations et trainning - Documenti</a>
+                        <a class="navigation-card" href="reglement.html">📋 Réglements d'entreprise</a>
+                        <a class="navigation-card" href="stock.html">📦 Infos Importantes</a>
+                    </div>
+                </section>
 
-        
-                <li><a href="formazioni.html">📚 Formations et trainning - Documenti</a></li>
-                <li><a href="reglement.html">📋 Réglements d'entreprise</a></li>
-              <li class="chef-links">
-                👨‍🍳 <strong>Proposte Chef</strong><br>
-                <a href="proposta.html">⭐ Proposta dello Chef en cours: Video et recettes</a><br>
-                <a href="proposta2.html">⭐ Prochiane Proposta dello Chef</a>
-              </li>
+                <section class="dashboard-group" aria-labelledby="gestion-title">
+                    <h3 id="gestion-title">Gestion mensuelle</h3>
+                    <div class="navigation-cards">
+                        <a class="navigation-card" href="budget.html">💰 Budget</a>
+                        <a class="navigation-card" href="competition-mois.html">🏆 Compétition du mois</a>
+                        <a class="navigation-card" href="pourboires.html">💵 Pourboires</a>
+                        <a class="navigation-card" href="commentaires-mois.html">💬 Commentaires du mois</a>
+                    </div>
+                </section>
 
-                <li><a href="video.html">🎬 Videos</a></li>
-                
-                <li><a href="stock.html">📦 Infos Importantes</a></li>
-                <li><a href="budget.html">💰 Budget</a></li>
-                <li><a href="competition-mois.html">🏆 Compétition du mois</a></li>
-                <li><a href="pourboires.html">💵 Pourboires</a></li>
-                <li><a href="commentaires-mois.html">💬 Commentaires du mois</a></li>
-            </ul>
+                <section class="dashboard-group" aria-labelledby="chef-title">
+                    <h3 id="chef-title">Chef &amp; contenus</h3>
+                    <div class="navigation-cards">
+                        <a class="navigation-card" href="proposta.html">⭐ Proposta dello Chef en cours: Video et recettes</a>
+                        <a class="navigation-card" href="proposta2.html">⭐ Prochiane Proposta dello Chef</a>
+                        <a class="navigation-card" href="video.html">🎬 Videos</a>
+                    </div>
+                </section>
+            </div>
         </section>
 
         <section id="QuickAccess">
@@ -89,8 +99,9 @@
               <!-- Tripadvisor -->
               <article class="review-card">
                 <div class="brand">
-                  <img src="https://static.tacdn.com/img2/brand_refresh/Tripadvisor_lockup_horizontal_secondary_registered.svg"
-                       alt="Tripadvisor" style="height:28px" />
+                  <img class="tripadvisor-logo"
+                       src="https://static.tacdn.com/img2/brand_refresh/Tripadvisor_lockup_horizontal_secondary_registered.svg"
+                       alt="Tripadvisor" />
                   <h3>Tripadvisor</h3>
                 </div>
 
@@ -113,45 +124,11 @@
               </article>
             </section>
 
-            <!-- ====== STILI MINIMALI ====== -->
-            <style>
-              .reviews-grid{
-                display:grid;
-                gap:18px;
-                grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
-                margin: 24px 0;
-              }
-              .review-card{
-                border:1px solid #e6e6e6;
-                border-radius:14px;
-                padding:16px;
-                background:#fff;
-                box-shadow: 0 2px 8px rgba(0,0,0,.04);
-                transition: transform .2s ease;
-              }
-              .review-card:hover{ transform: translateY(-2px); }
-              .brand{ display:flex; align-items:center; gap:10px; margin-bottom:8px; }
-              .brand img{ height:24px; width:auto; }
-              .rating{ margin:8px 0 14px; color:#444; }
-              .stars{ letter-spacing:2px; color:#f5a623; font-size:18px; }
-              .bubbles{ letter-spacing:3px; color:#00aa6c; font-size:18px; }
-              .hint{ display:block; color:#888; font-size:12px; }
-              .actions{ display:flex; gap:10px; flex-wrap:wrap; }
-              .btn{
-                appearance:none; border:1px solid #ddd; padding:10px 14px;
-                border-radius:10px; text-decoration:none;
-                color:#111; background:#fafafa; transition:.2s;
-              }
-              .btn:hover{
-                transform:translateY(-1px);
-                box-shadow:0 2px 8px rgba(0,0,0,.08);
-              }
-              .btn.primary{
-                background:#111; color:#fff; border-color:#111;
-              }
-            </style>
-            <footer>
-                <p>&copy; 2026 Pizzeria Molino Molard</p>
-            </footer>
-            </body>
-            </html>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2026 Pizzeria Molino Molard</p>
+    </footer>
+</body>
+</html>
