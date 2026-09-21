@@ -8,17 +8,16 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Preserve the browser collections already used by the existing app.
-    // Their permissive legacy policy should be replaced in a separate,
-    // authenticated migration rather than silently broken by this feature.
+    // These collections contain operational and personnel data. The current
+    // application accesses them through the server-side Admin SDK only.
     match /planning/{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
     match /enrollments/{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
     match /trainings/{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
   }
 }
