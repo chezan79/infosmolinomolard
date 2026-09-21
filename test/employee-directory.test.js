@@ -349,6 +349,7 @@ test('Firestore rules deny browser access to directory snapshots', () => {
   const rules = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
   assert.ok(rules.includes('match /employeeDirectorySnapshots/{siteId}'));
   assert.match(rules, /allow read, write: if false/);
+  assert.ok(rules.includes('match /electionSites/{document=**}'));
   for (const collection of ['planning', 'enrollments', 'trainings']) {
     assert.ok(rules.includes(`match /${collection}/{document=**}`));
   }

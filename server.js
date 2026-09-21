@@ -4,6 +4,7 @@ const path = require('path');
 const XLSX = require('xlsx');
 const { initializeFirebase, getAuth } = require('./firebase-server-config');
 const { createDirectoryRuntime } = require('./employee-directory');
+const { createElectionRuntime } = require('./election-engine');
 
 const app = express();
 const PORT = 5000;
@@ -26,13 +27,19 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT) {
 
 // Middleware per servire file statici
 app.use(express.static('.'));
-app.use(express.json());
 
 const employeeDirectory = createDirectoryRuntime({
   env: process.env,
   firebaseDb,
   firebaseAuth,
 });
+const electionRuntime = createElectionRuntime({
+  env: process.env,
+  firebaseDb,
+  directoryService: employeeDirectory.service,
+});
+electionRuntime.mount(app);
+app.use(express.json());
 employeeDirectory.mount(app);
 
 // Route per la home page

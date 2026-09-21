@@ -73,8 +73,12 @@ The safe candidate endpoint is:
 
 - `GET /api/v1/employee-directory/candidates`
 
+## Election integration
+
+The monthly election engine consumes the immutable last-known-good snapshot. It never reads planning sheets and never writes election data back to Google Sheets. Election creation copies only stable employee IDs and the safe fields needed for voter/candidate eligibility; each month remains independent.
+
 ## Tests and next boundary
 
 Run `npm test` for the directory suite and `npm run test:firestore-rules` for the Firestore emulator policy. Tests cover normalization, independent voter/candidate flags, duplicate and malformed rejection, safe serialization, last-known-good fallback, photo fallback, manager site isolation, directory denial, and compatibility for existing client collections.
 
-The next task may implement rate-limited voter verification against the stored verifiers and then private ballot submission. It must not store votes, participation, comments, elections, or results in Google Sheets.
+The election suite runs as part of `npm test`. Firestore rule enforcement runs with `npm run test:firestore-rules`.

@@ -8,6 +8,12 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // All election records and nested grants, throttles, participation,
+    // anonymous ballots, audits and result internals are Express-only.
+    match /electionSites/{document=**} {
+      allow read, write: if false;
+    }
+
     // These collections contain operational and personnel data. The current
     // application accesses them through the server-side Admin SDK only.
     match /planning/{document=**} {

@@ -1,6 +1,33 @@
 # Collaborateur du mois — Technical architecture
 
-Status: the election design remains unimplemented. The employee-directory decision below has been superseded by `docs/employee-directory-operations.md`: the dedicated management Google Sheet is authoritative, while Firestore retains only a validated operational snapshot and verifier material.
+Status: the secure monthly backend is implemented. The final voting and management interfaces, notifications, and publication remain separate work.
+
+## Implemented operations (September 2026)
+
+The configured `ELECTION_TIME_ZONE` is authoritative; production should set it to the restaurant's IANA timezone (`Europe/Zurich` for Molard). Each `YYYY-MM` election opens at local midnight on the 25th and closes at the exclusive local start of the next month. UTC boundaries are persisted once with an immutable eligibility snapshot from the last-known-good employee directory.
+
+Required secrets/configuration:
+
+- existing `FIREBASE_SERVICE_ACCOUNT`, `EMPLOYEE_DIRECTORY_SITE_ID`, and `EMPLOYEE_DIRECTORY_PEPPER`;
+- `ELECTION_TIME_ZONE` (IANA name);
+- `ELECTION_GRANT_SECRET` (at least 32 characters);
+- optional `ELECTION_GRANT_TTL_MS` (default ten minutes).
+- optional `ELECTION_TRUST_PROXY_HOPS` (default one trusted Replit proxy hop).
+
+Public Express operations are `GET /api/v1/public/election`, `POST /api/v1/public/election/verify-code`, `GET /api/v1/public/election/candidates`, `GET /api/v1/public/election/participation`, and `POST /api/v1/public/election/ballots`. Authorized operations use an in-memory client-held Bearer grant, are `no-store`, and never accept a site ID. Verification bodies are capped by the global 16 KiB JSON limit.
+
+Firestore stores data below `electionSites/{siteId}`: deterministic monthly elections with embedded immutable voter/candidate and server-only verifier snapshots, grants, rate limits, deterministic participation records, random-ID anonymous ballots, coarse audit events, and finalized result internals. Browser rules deny the complete tree. The engine has no in-memory production fallback. Directory changes do not silently alter an existing election.
+
+Verification uses three durable 15-minute limits (network 30, site/month 300, privacy-safe credential fingerprint 8), returns generic credential failures, and grants a ten-minute default authorization. Ballot submission requires exactly CUISINE and SERVICE choices plus separate trimmed comments of 10–1000 characters. The transaction rechecks the election, authorization, voter and candidates; consumes the grant; and creates participation and ballot together.
+
+Participation contains no choices or ballot reference. Ballots contain only schema version, choices, and comments: no voter, verifier, grant, participation reference, network metadata, analytics identity, or exact client timestamp. There are no ballot mutation or raw-ballot APIs. Results remain sealed while open; explicit idempotent finalization takes a closed `YYYY-MM` and includes every tied highest-count candidate.
+
+Validation commands:
+
+- `npm test` — directory regressions plus lifecycle, eligibility, authorization, payload, concurrency, privacy, tenant/configuration, sealing, and tie behavior.
+- `npm run test:firestore-rules` — emulator proof that browser reads/writes to directory and election trees are denied.
+
+Recommended next work is the already-planned employee-facing voting interface and protected management participation/results experience.
 
 ## 1. Decision summary
 
