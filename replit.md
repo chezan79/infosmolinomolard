@@ -58,6 +58,10 @@ Preferred communication style: Simple, everyday language.
 - **Con**: Current approach requires manual link updates when documents change
 - **Con**: No built-in version control for planning documents
 
+### Secure Employee Directory
+
+The dedicated management Google Sheet is the authoritative employee source for the future Collaborateur du mois module. The Express server reads it with server-only, read-only credentials, validates the complete dataset, and stores only the last-known-good operational snapshot in Firestore. Public candidate records never contain Salaire-ID or verifier material. Setup and column rules are documented in `docs/employee-directory-operations.md`.
+
 ### Client-Side Features
 
 **PDF.js Integration**: Multiple pages include PDF.js CDN for in-browser PDF viewing capabilities, though actual implementation is incomplete.

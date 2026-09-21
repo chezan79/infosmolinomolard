@@ -1,12 +1,12 @@
 # Collaborateur du mois — Technical architecture
 
-Status: design only; no schema, production data, application code, deployment, or winner has been changed.
+Status: the election design remains unimplemented. The employee-directory decision below has been superseded by `docs/employee-directory-operations.md`: the dedicated management Google Sheet is authoritative, while Firestore retains only a validated operational snapshot and verifier material.
 
 ## 1. Decision summary
 
 Build the module as a server-authoritative feature behind the existing Express application, using one canonical Firestore production database and Firebase Storage for employee photos. The browser must never write election, participation, ballot, result, employee, or photo metadata directly.
 
-Before voting is enabled, create one canonical employee directory with stable opaque employee IDs. Import and reconcile names from the management-maintained source into that directory; do not use planning rows as identities and do not create a second election-only employee list.
+Before voting is enabled, use the dedicated management Google Sheet as the one canonical employee directory with stable employee IDs. Validate it into a server-only operational snapshot; do not use planning rows as identities and do not create a second election-only employee list.
 
 The public voting page may remain a static, mobile-first page, but all sensitive decisions belong to the server: code verification, election state, eligibility, self-vote rejection, duplicate prevention, ballot storage, closing, result computation, authorization, and tenant isolation.
 

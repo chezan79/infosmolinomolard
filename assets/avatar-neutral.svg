@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-labelledby="title">
+  <title id="title">Neutral employee avatar</title>
+  <rect width="160" height="160" rx="24" fill="#e7efed"/>
+  <circle cx="80" cy="59" r="29" fill="#829b95"/>
+  <path d="M28 145c5-32 24-50 52-50s47 18 52 50" fill="#829b95"/>
+</svg>

@@ -3,6 +3,7 @@ run = "npm start"
 
 [nix]
 channel = "stable-24_05"
+packages = ["jdk17_headless"]
 
 [deployment]
 run = ["npm", "start"]

@@ -2,17 +2,20 @@
 const express = require('express');
 const path = require('path');
 const XLSX = require('xlsx');
-const { initializeFirebase, getDb } = require('./firebase-server-config');
+const { initializeFirebase, getAuth } = require('./firebase-server-config');
+const { createDirectoryRuntime } = require('./employee-directory');
 
 const app = express();
 const PORT = 5000;
 
 // Inizializza Firebase se la configurazione è disponibile
 let firebaseDb = null;
+let firebaseAuth = null;
 if (process.env.FIREBASE_SERVICE_ACCOUNT) {
   try {
     const { db } = initializeFirebase();
     firebaseDb = db;
+    firebaseAuth = getAuth();
   } catch (error) {
     console.warn('⚠️ Errore inizializzazione Firebase:', error.message);
     console.warn('⚠️ Usando storage in memoria.');
@@ -24,6 +27,13 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT) {
 // Middleware per servire file statici
 app.use(express.static('.'));
 app.use(express.json());
+
+const employeeDirectory = createDirectoryRuntime({
+  env: process.env,
+  firebaseDb,
+  firebaseAuth,
+});
+employeeDirectory.mount(app);
 
 // Route per la home page
 app.get('/', (req, res) => {
@@ -573,9 +583,13 @@ app.get('/api/training/available', async (req, res) => {
   }
 });
 
-// Avvia il server
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server avviato su http://0.0.0.0:${PORT}`);
-  console.log('Firebase integration ready!');
-  console.log('Training system API ready!');
-});
+// Avvia il server dopo aver caricato l'ultima directory valida disponibile.
+employeeDirectory.start()
+  .catch(() => console.warn('Employee directory unavailable at startup'))
+  .finally(() => {
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Server avviato su http://0.0.0.0:${PORT}`);
+      console.log('Firebase integration ready!');
+      console.log('Training system API ready!');
+    });
+  });
