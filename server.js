@@ -4,6 +4,7 @@ const path = require('path');
 const { mountPublicFiles } = require('./public-files');
 const XLSX = require('xlsx');
 const { initializeFirebase, getAuth } = require('./firebase-server-config');
+const { mountFirebaseClientConfig } = require('./firebase-client-config-route');
 const { createDirectoryRuntime } = require('./employee-directory');
 const { createElectionRuntime } = require('./election-engine');
 
@@ -41,6 +42,7 @@ const electionRuntime = createElectionRuntime({
 electionRuntime.mount(app);
 app.use(express.json());
 employeeDirectory.mount(app);
+mountFirebaseClientConfig(app, process.env);
 
 app.get(
   ['/administration', '/administration.html'],
@@ -77,22 +79,6 @@ app.get('/', (req, res) => {
 app.get('/collaborateur-du-mois', (_req, res) => {
   res.set('Cache-Control', 'no-store');
   res.sendFile(path.join(__dirname, 'collaborateur-du-mois.html'));
-});
-
-app.get('/api/v1/public/firebase-client-config', (_req, res) => {
-  const config = {
-    apiKey: process.env.apiKey,
-    authDomain: process.env.authDomain,
-    projectId: process.env.projectId,
-    appId: process.env.appId,
-    messagingSenderId: process.env.messagingSenderId,
-    storageBucket: process.env.storageBucket,
-  };
-  if (!config.apiKey || !config.authDomain || !config.projectId || !config.appId) {
-    return res.status(503).json({ error: 'AUTH_CONFIGURATION_UNAVAILABLE' });
-  }
-  res.set('Cache-Control', 'no-store');
-  return res.json(config);
 });
 
 // API per salvare planning su Firebase

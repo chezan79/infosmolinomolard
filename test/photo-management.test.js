@@ -14,6 +14,10 @@ const { EmployeeDirectoryService } = require('../employee-directory/service');
 const { ElectionService } = require('../election-engine/service');
 const { createSalaireVerifier } = require('../employee-directory/contract');
 const { mountPublicFiles } = require('../public-files');
+const {
+  CLIENT_KEYS,
+  mountFirebaseClientConfig,
+} = require('../firebase-client-config-route');
 
 const root = path.join(__dirname, '..');
 const rows = [
@@ -161,6 +165,9 @@ test('management UI is localized, responsive and contains protected photo action
   for (const locale of ['fr:', 'it:', 'en:']) assert.ok(js.includes(locale));
   for (const action of ["method:'PUT'", "method:'DELETE'", 'getIdToken']) assert.ok(js.includes(action));
   assert.match(login, /signInWithEmailAndPassword/);
+  assert.match(login, /configurationUnavailable/);
+  assert.match(login, /if \(!state\.auth\)/);
+  assert.doesNotMatch(login, /await signOut\(auth\)/);
   assert.match(html, /name="viewport"/);
   assert.match(js, /accept="image\/jpeg,image\/png,image\/webp,image\/heic,image\/heif"/);
   assert.match(js, /capture="environment"/);
@@ -173,6 +180,33 @@ test('management UI is localized, responsive and contains protected photo action
   assert.match(administrationJs, /signOut/);
   assert.match(homepage, /🔐 Administration/);
   assert.doesNotMatch(homepage, /Andrea|Capriotti|firebase|uid|password/i);
+});
+
+test('Firebase web client configuration route survives the static allowlist and exposes only public keys', async (t) => {
+  const env = {
+    apiKey: 'public-api-key',
+    authDomain: 'development.example.test',
+    projectId: 'development-project',
+    appId: 'public-app-id',
+    messagingSenderId: 'public-sender',
+    storageBucket: 'development-bucket',
+    FIREBASE_SERVICE_ACCOUNT: 'must-not-leak',
+    MOLARD_ADMIN_FIREBASE_UID: 'must-not-leak',
+    EMPLOYEE_DIRECTORY_PEPPER: 'must-not-leak',
+  };
+  const app = express();
+  mountPublicFiles(app, root);
+  mountFirebaseClientConfig(app, env);
+  const server = app.listen(0, '127.0.0.1');
+  t.after(() => server.close());
+  await new Promise((resolve) => server.once('listening', resolve));
+  const response = await fetch(`http://127.0.0.1:${server.address().port}/api/v1/public/firebase-client-config`);
+  const body = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+  assert.deepEqual(Object.keys(body).sort(), [...CLIENT_KEYS].sort());
+  assert.equal(body.projectId, env.projectId);
+  assert.equal(JSON.stringify(body).includes('must-not-leak'), false);
 });
 
 test('rules deny direct browser access to photo metadata and objects', () => {
