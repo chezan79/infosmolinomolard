@@ -60,7 +60,7 @@ Preferred communication style: Simple, everyday language.
 
 ### Secure Employee Directory
 
-The dedicated management Google Sheet is the authoritative employee source for the Collaborateur du mois module. Express reads it with server-only, read-only credentials, validates the complete dataset, and stores only the last-known-good operational snapshot in Firestore. Public candidate records never contain Salaire-ID or verifier material. Managers can maintain normalized private-bucket portraits through `/gestion-photos-collaborateurs`; all metadata and Storage access remain Admin-SDK-only. Setup and rules are documented in `docs/employee-directory-operations.md`.
+The dedicated management Google Sheet is the authoritative employee source for the Collaborateur du mois module. Express reads it with server-only, read-only credentials, validates the complete dataset, and stores only the last-known-good operational snapshot in Firestore. Public candidate records never contain Salaire-ID or verifier material. Only the explicitly configured Molard administrator can maintain normalized private-bucket portraits through `/gestion-photos-collaborateurs`; all metadata and Storage access remain Admin-SDK-only. Setup and rules are documented in `docs/employee-directory-operations.md`.
 
 ### Client-Side Features
 

@@ -8,6 +8,7 @@ const PUBLIC_ROOT_SCRIPTS = new Set([
   'firebase-config.js',
   'gestion-photos-collaborateurs.js',
   'gestion-photos-login.js',
+  'administration.js',
 ]);
 
 function publicRootFile(reqPath) {
@@ -19,7 +20,7 @@ function publicRootFile(reqPath) {
   }
   const normalized = path.posix.normalize(`/${decoded}`).replace(/^\/+/, '');
   if (!normalized || normalized.includes('/')) return null;
-  if (normalized === 'gestion-photos-collaborateurs.html') return null;
+  if (['administration.html', 'gestion-photos-collaborateurs.html'].includes(normalized)) return null;
   const extension = path.extname(normalized).toLowerCase();
   return PUBLIC_ROOT_EXTENSIONS.has(extension) || PUBLIC_ROOT_SCRIPTS.has(normalized)
     ? normalized

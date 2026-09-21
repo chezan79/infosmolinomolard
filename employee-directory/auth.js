@@ -12,22 +12,21 @@ function cookieValue(req, name) {
   return '';
 }
 
-function hasManagementAccess(decoded, siteId) {
-  const roles = Array.isArray(decoded.roles) ? decoded.roles : [decoded.role].filter(Boolean);
-  return decoded.siteId === siteId && roles.some((role) => ['manager', 'admin'].includes(role))
-    ? roles
-    : null;
+function hasAdministrationAccess(decoded, siteId, administratorUid) {
+  if (!siteId || !administratorUid) return false;
+  return decoded.siteId === siteId && decoded.uid === administratorUid;
 }
 
-function createManagerAuthorization({ firebaseAuth, siteId }) {
-  return async function authorizeDirectoryManager(req, res, next) {
+function createAdministrationAuthorization({ firebaseAuth, siteId, administratorUid }) {
+  return async function authorizeAdministration(req, res, next) {
     const token = bearerToken(req);
     if (!token) return res.status(401).json({ error: 'AUTH_REQUIRED' });
     try {
       const decoded = await firebaseAuth.verifyIdToken(token, true);
-      const roles = hasManagementAccess(decoded, siteId);
-      if (!roles) return res.status(403).json({ error: 'FORBIDDEN' });
-      req.manager = { uid: decoded.uid, siteId: decoded.siteId, roles };
+      if (!hasAdministrationAccess(decoded, siteId, administratorUid)) {
+        return res.status(403).json({ error: 'FORBIDDEN' });
+      }
+      req.administrator = { uid: decoded.uid, siteId: decoded.siteId };
       return next();
     } catch {
       return res.status(401).json({ error: 'INVALID_AUTH' });
@@ -35,18 +34,20 @@ function createManagerAuthorization({ firebaseAuth, siteId }) {
   };
 }
 
-function createManagerPageAuthorization({ firebaseAuth, siteId }) {
-  return async function authorizeManagerPage(req, res, next) {
+function createAdministrationPageAuthorization({ firebaseAuth, siteId, administratorUid, loginPath = '/gestion-photos-login.html' }) {
+  return async function authorizeAdministrationPage(req, res, next) {
     const sessionCookie = cookieValue(req, '__session');
-    if (!sessionCookie) return res.status(401).send('Authentication required');
+    if (!sessionCookie) return res.redirect(302, loginPath);
     try {
       const decoded = await firebaseAuth.verifySessionCookie(sessionCookie, true);
-      const roles = hasManagementAccess(decoded, siteId);
-      if (!roles) return res.status(403).send('Forbidden');
-      req.manager = { uid: decoded.uid, siteId: decoded.siteId, roles };
+      if (!hasAdministrationAccess(decoded, siteId, administratorUid)) {
+        return res.redirect(302, `${loginPath}?error=access`);
+      }
+      req.administrator = { uid: decoded.uid, siteId: decoded.siteId };
       return next();
     } catch {
-      return res.status(401).send('Invalid session');
+      res.clearCookie('__session', { httpOnly: true, secure: true, sameSite: 'strict', path: '/' });
+      return res.redirect(302, `${loginPath}?error=session`);
     }
   };
 }
@@ -54,7 +55,7 @@ function createManagerPageAuthorization({ firebaseAuth, siteId }) {
 module.exports = {
   bearerToken,
   cookieValue,
-  createManagerAuthorization,
-  createManagerPageAuthorization,
-  hasManagementAccess,
+  createAdministrationAuthorization,
+  createAdministrationPageAuthorization,
+  hasAdministrationAccess,
 };

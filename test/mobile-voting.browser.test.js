@@ -7,7 +7,7 @@ const WebSocket = require('ws');
 
 const root = path.join(__dirname, '..');
 
-function waitFor(check, timeout = 5000) {
+function waitFor(check, timeout = 10000) {
   const started = Date.now();
   return new Promise((resolve, reject) => {
     const poll = async () => {

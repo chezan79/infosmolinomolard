@@ -28,7 +28,7 @@ Validation commands:
 - `npm test` — directory regressions plus lifecycle, eligibility, authorization, payload, concurrency, privacy, tenant/configuration, sealing, and tie behavior.
 - `npm run test:firestore-rules` — emulator proof that browser reads/writes to directory and election trees are denied.
 
-The public employee flow is available at `/collaborateur-du-mois`. Managed portraits are available at `/gestion-photos-collaborateurs` to authenticated, site-scoped managers. Recommended next work is the protected management participation/results experience and production election configuration.
+The public employee flow is available at `/collaborateur-du-mois`. Managed portraits are available at `/gestion-photos-collaborateurs` only to the explicitly allowlisted, site-scoped Molard administrator. Recommended next work is the protected management participation/results experience and production election configuration.
 
 ## 1. Decision summary
 

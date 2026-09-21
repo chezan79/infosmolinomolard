@@ -152,6 +152,8 @@ test('directory membership and traversal-safe IDs are enforced, including inacti
 
 test('management UI is localized, responsive and contains protected photo actions', () => {
   const html = fs.readFileSync(path.join(root, 'private-pages', 'gestion-photos-collaborateurs.html'), 'utf8');
+  const administration = fs.readFileSync(path.join(root, 'private-pages', 'administration.html'), 'utf8');
+  const administrationJs = fs.readFileSync(path.join(root, 'administration.js'), 'utf8');
   const js = fs.readFileSync(path.join(root, 'gestion-photos-collaborateurs.js'), 'utf8');
   const css = fs.readFileSync(path.join(root, 'gestion-photos-collaborateurs.css'), 'utf8');
   const login = fs.readFileSync(path.join(root, 'gestion-photos-login.js'), 'utf8');
@@ -164,8 +166,13 @@ test('management UI is localized, responsive and contains protected photo action
   assert.match(js, /capture="environment"/);
   assert.match(css, /@media\(max-width:650px\)/);
   assert.match(login, /\/api\/v1\/management\/session/);
-  assert.match(js, /location\.replace\('\/gestion-photos-login\.html'\)/);
-  assert.doesNotMatch(homepage, /gestion-photos/i);
+  assert.match(login, /location\.replace\('\/administration'\)/);
+  assert.match(js, /gestion-photos-login\.html\?error=session/);
+  assert.match(administration, /📷/);
+  assert.match(administration, /Photos collaborateurs/);
+  assert.match(administrationJs, /signOut/);
+  assert.match(homepage, /🔐 Administration/);
+  assert.doesNotMatch(homepage, /Andrea|Capriotti|firebase|uid|password/i);
 });
 
 test('rules deny direct browser access to photo metadata and objects', () => {
@@ -176,13 +183,14 @@ test('rules deny direct browser access to photo metadata and objects', () => {
   assert.match(storage, /allow read, write: if false/);
 });
 
-test('photo management routes require matching manager role and never expose private directory fields', async (t) => {
+test('administration APIs require the sole configured Molard UID and never expose private directory fields', async (t) => {
   const memory = new MemoryPhotoStore();
   const firebaseAuth = {
     async verifyIdToken(token) {
+      if (token === 'authorized') return { uid: 'andrea-uid', siteId: 'molard', role: 'employee' };
       if (token === 'manager') return { uid: 'manager-1', siteId: 'molard', role: 'manager' };
-      if (token === 'admin') return { uid: 'admin-1', siteId: 'molard', role: 'admin' };
-      if (token === 'wrong-site') return { uid: 'manager-2', siteId: 'other', role: 'manager' };
+      if (token === 'generic-admin') return { uid: 'admin-1', siteId: 'molard', role: 'admin' };
+      if (token === 'wrong-site') return { uid: 'andrea-uid', siteId: 'other', role: 'admin' };
       if (token === 'voting-grant') throw new Error('Not a Firebase ID token');
       return { uid: 'voter-1', siteId: 'molard', role: 'employee' };
     },
@@ -195,6 +203,7 @@ test('photo management routes require matching manager role and never expose pri
   const runtime = createDirectoryRuntime({
     env: {
       EMPLOYEE_DIRECTORY_SITE_ID: 'molard',
+      MOLARD_ADMIN_FIREBASE_UID: 'andrea-uid',
       EMPLOYEE_PHOTO_URL_SECRET: 'photo-url-test-secret-at-least-thirty-two-bytes',
     },
     firebaseDb: null,
@@ -215,14 +224,14 @@ test('photo management routes require matching manager role and never expose pri
   await new Promise((resolve) => server.once('listening', resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
 
-  for (const token of [null, 'voter', 'wrong-site', 'voting-grant']) {
+  for (const token of [null, 'voter', 'manager', 'generic-admin', 'wrong-site', 'voting-grant', 'SAL-1001']) {
     const response = await fetch(`${base}/api/v1/management/employee-photos`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
     assert.equal(response.status, token === null || token === 'voting-grant' ? 401 : 403);
   }
   const list = await fetch(`${base}/api/v1/management/employee-photos`, {
-    headers: { Authorization: 'Bearer manager' },
+    headers: { Authorization: 'Bearer authorized' },
   });
   const body = await list.json();
   assert.equal(list.status, 200);
@@ -234,7 +243,7 @@ test('photo management routes require matching manager role and never expose pri
   const image = await sharp({ create: { width: 24, height: 24, channels: 3, background: 'purple' } }).png().toBuffer();
   const uploaded = await fetch(`${base}/api/v1/management/employee-photos/emp-1`, {
     method: 'PUT',
-    headers: { Authorization: 'Bearer manager', 'Content-Type': 'image/png' },
+    headers: { Authorization: 'Bearer authorized', 'Content-Type': 'image/png' },
     body: image,
   });
   assert.equal(uploaded.status, 200);
@@ -254,45 +263,48 @@ test('photo management routes require matching manager role and never expose pri
   assert.equal(signedPhoto.headers.get('content-type'), 'image/webp');
   const removed = await fetch(`${base}/api/v1/management/employee-photos/emp-1`, {
     method: 'DELETE',
-    headers: { Authorization: 'Bearer admin' },
+    headers: { Authorization: 'Bearer authorized' },
   });
   assert.equal(removed.status, 200);
 
-  const managerSession = await fetch(`${base}/api/v1/management/session`, {
+  const administratorSession = await fetch(`${base}/api/v1/management/session`, {
     method: 'POST',
-    headers: { Authorization: 'Bearer manager' },
+    headers: { Authorization: 'Bearer authorized' },
   });
-  assert.equal(managerSession.status, 204);
-  assert.match(managerSession.headers.get('set-cookie'), /__session=session-manager/);
-  const voterSession = await fetch(`${base}/api/v1/management/session`, {
-    method: 'POST',
-    headers: { Authorization: 'Bearer voter' },
-  });
-  assert.equal(voterSession.status, 403);
+  assert.equal(administratorSession.status, 204);
+  assert.match(administratorSession.headers.get('set-cookie'), /__session=session-authorized/);
+  for (const deniedToken of ['voter', 'manager', 'generic-admin', 'wrong-site']) {
+    const deniedSession = await fetch(`${base}/api/v1/management/session`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${deniedToken}` },
+    });
+    assert.equal(deniedSession.status, 403);
+  }
 });
 
-test('management page itself rejects unauthenticated, voting, employee, and wrong-site access', async (t) => {
+test('private Administration pages redirect every identity except the configured Molard UID', async (t) => {
   const firebaseAuth = {
     async verifyIdToken() { throw new Error('not used'); },
     async verifySessionCookie(token) {
       const claims = {
+        authorized: { uid: 'andrea-uid', siteId: 'molard', role: 'employee' },
         manager: { uid: 'm1', siteId: 'molard', role: 'manager' },
         admin: { uid: 'a1', siteId: 'molard', role: 'admin' },
         employee: { uid: 'e1', siteId: 'molard', role: 'employee' },
-        'wrong-site': { uid: 'm2', siteId: 'other', role: 'manager' },
+        'wrong-site': { uid: 'andrea-uid', siteId: 'other', role: 'admin' },
       };
       if (!claims[token]) throw new Error('invalid session, including voting grants');
       return claims[token];
     },
   };
   const runtime = createDirectoryRuntime({
-    env: { EMPLOYEE_DIRECTORY_SITE_ID: 'molard' },
+    env: { EMPLOYEE_DIRECTORY_SITE_ID: 'molard', MOLARD_ADMIN_FIREBASE_UID: 'andrea-uid' },
     firebaseDb: null,
     firebaseAuth,
   });
   const app = express();
-  for (const route of ['/gestion-photos-collaborateurs', '/gestion-photos-collaborateurs.html']) {
-    app.get(route, runtime.authorizeManagerPage, (_req, res) => res.send('PRIVATE_PHOTO_MANAGEMENT'));
+  for (const route of ['/administration', '/administration.html', '/gestion-photos-collaborateurs', '/gestion-photos-collaborateurs.html']) {
+    app.get(route, runtime.authorizeAdministrationPage, (_req, res) => res.send('PRIVATE_ADMINISTRATION'));
   }
   mountPublicFiles(app, root);
   const server = app.listen(0, '127.0.0.1');
@@ -300,9 +312,10 @@ test('management page itself rejects unauthenticated, voting, employee, and wron
   await new Promise((resolve) => server.once('listening', resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
 
-  for (const route of ['/gestion-photos-collaborateurs', '/gestion-photos-collaborateurs.html']) {
-    const anonymous = await fetch(`${base}${route}`);
-    assert.equal(anonymous.status, 401, 'knowing either URL must not grant access');
+  for (const route of ['/administration', '/administration.html', '/gestion-photos-collaborateurs', '/gestion-photos-collaborateurs.html']) {
+    const anonymous = await fetch(`${base}${route}`, { redirect: 'manual' });
+    assert.equal(anonymous.status, 302, 'knowing a private URL must not grant access');
+    assert.equal(anonymous.headers.get('location'), '/gestion-photos-login.html');
   }
   for (const bypass of [
     '/%67estion-photos-collaborateurs.html',
@@ -310,24 +323,42 @@ test('management page itself rejects unauthenticated, voting, employee, and wron
     '//gestion-photos-collaborateurs.html',
     '/public/../gestion-photos-collaborateurs.html',
   ]) {
-    const denied = await fetch(`${base}${bypass}`);
+    const denied = await fetch(`${base}${bypass}`, { redirect: 'manual' });
     assert.notEqual(denied.status, 200);
-    assert.equal((await denied.text()).includes('PRIVATE_PHOTO_MANAGEMENT'), false);
+    assert.equal((await denied.text()).includes('PRIVATE_ADMINISTRATION'), false);
   }
-  for (const session of ['voting-grant', 'employee', 'wrong-site']) {
+  for (const session of ['voting-grant', 'employee', 'manager', 'admin', 'wrong-site']) {
     const denied = await fetch(`${base}/gestion-photos-collaborateurs`, {
       headers: { Cookie: `__session=${session}` },
+      redirect: 'manual',
     });
-    assert.equal(denied.status, session === 'voting-grant' ? 401 : 403);
-    assert.equal((await denied.text()).includes('PRIVATE_PHOTO_MANAGEMENT'), false);
+    assert.equal(denied.status, 302);
+    assert.match(denied.headers.get('location'), /gestion-photos-login\.html\?error=(session|access)/);
+    assert.equal((await denied.text()).includes('PRIVATE_ADMINISTRATION'), false);
   }
-  for (const session of ['manager', 'admin']) {
-    const allowed = await fetch(`${base}/gestion-photos-collaborateurs`, {
-      headers: { Cookie: `__session=${session}` },
-    });
+  for (const route of ['/administration', '/gestion-photos-collaborateurs']) {
+    const allowed = await fetch(`${base}${route}`, { headers: { Cookie: '__session=authorized' } });
     assert.equal(allowed.status, 200);
-    assert.equal(await allowed.text(), 'PRIVATE_PHOTO_MANAGEMENT');
+    assert.equal(await allowed.text(), 'PRIVATE_ADMINISTRATION');
   }
+});
+
+test('administration fails closed when the sole UID configuration is absent', async (t) => {
+  const runtime = createDirectoryRuntime({
+    env: { EMPLOYEE_DIRECTORY_SITE_ID: 'molard' },
+    firebaseDb: null,
+    firebaseAuth: { async verifyIdToken() { return { uid: 'any', siteId: 'molard' }; } },
+  });
+  assert.equal(runtime.administrationConfigured, false);
+  const app = express();
+  runtime.mount(app);
+  app.get('/administration', runtime.authorizeAdministrationPage);
+  const server = app.listen(0, '127.0.0.1');
+  t.after(() => server.close());
+  await new Promise((resolve) => server.once('listening', resolve));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  assert.equal((await fetch(`${base}/api/v1/management/session`, { method: 'POST' })).status, 404);
+  assert.equal((await fetch(`${base}/administration`)).status, 503);
 });
 
 test('photo errors expose stable codes without image bytes', () => {

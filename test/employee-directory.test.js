@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 
-const { createManagerAuthorization } = require('../employee-directory/auth');
+const { createAdministrationAuthorization } = require('../employee-directory/auth');
 const {
   DEFAULT_PHOTO,
   MAX_DIRECTORY_ROWS,
@@ -305,16 +305,16 @@ test('does not configure Google publication without Firestore persistence', () =
   assert.equal(runtime.service.getStatus().configured, false);
 });
 
-test('full directory is not public and manager status enforces tenant authorization', async (t) => {
+test('full directory is not public and administration status enforces sole identity authorization', async (t) => {
   const normalized = normalizeDirectory(validRows(), OPTIONS);
   const firebaseAuth = {
     async verifyIdToken(token) {
-      if (token === 'allowed') return { uid: 'u1', siteId: 'molard', role: 'manager' };
+      if (token === 'allowed') return { uid: 'u1', siteId: 'molard', role: 'employee' };
       return { uid: 'u2', siteId: 'other', role: 'manager' };
     },
   };
   const runtime = createDirectoryRuntime({
-    env: { EMPLOYEE_DIRECTORY_SITE_ID: 'molard' },
+    env: { EMPLOYEE_DIRECTORY_SITE_ID: 'molard', MOLARD_ADMIN_FIREBASE_UID: 'u1' },
     firebaseDb: null,
     firebaseAuth,
   });
@@ -396,7 +396,7 @@ test('persisted snapshot rejects object-valued public fields and invalid generat
   assert.ok(codes.has('INVALID_SNAPSHOT_DATE'));
 });
 
-test('manager authorization enforces role and site isolation', async () => {
+test('administration authorization enforces exact UID and site isolation', async () => {
   function response() {
     return {
       statusCode: 200,
@@ -407,16 +407,18 @@ test('manager authorization enforces role and site isolation', async () => {
   }
   const req = { get: () => 'Bearer token' };
   let nextCalled = false;
-  const allowed = createManagerAuthorization({
+  const allowed = createAdministrationAuthorization({
     siteId: 'molard',
+    administratorUid: 'u1',
     firebaseAuth: { async verifyIdToken() { return { uid: 'u1', siteId: 'molard', role: 'manager' }; } },
   });
   await allowed(req, response(), () => { nextCalled = true; });
   assert.equal(nextCalled, true);
 
   const deniedResponse = response();
-  const denied = createManagerAuthorization({
+  const denied = createAdministrationAuthorization({
     siteId: 'molard',
+    administratorUid: 'u1',
     firebaseAuth: { async verifyIdToken() { return { uid: 'u2', siteId: 'other', role: 'manager' }; } },
   });
   await denied(req, deniedResponse, () => assert.fail('must not authorize'));

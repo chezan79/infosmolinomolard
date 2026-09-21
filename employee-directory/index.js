@@ -1,4 +1,8 @@
-const { bearerToken, createManagerAuthorization, createManagerPageAuthorization } = require('./auth');
+const {
+  bearerToken,
+  createAdministrationAuthorization,
+  createAdministrationPageAuthorization,
+} = require('./auth');
 const { FirestoreDirectoryStore } = require('./firestore-store');
 const { GoogleSheetsDirectorySource } = require('./google-sheets-source');
 const { EmployeeDirectoryService } = require('./service');
@@ -12,6 +16,7 @@ function parsePositiveInteger(value, fallback) {
 
 function createDirectoryRuntime({ env, firebaseDb, firebaseAuth, firebaseBucket, logger = console, photoStore: suppliedPhotoStore = null }) {
   const siteId = env.EMPLOYEE_DIRECTORY_SITE_ID || '';
+  const administratorUid = String(env.MOLARD_ADMIN_FIREBASE_UID || '').trim();
   const spreadsheetId = env.EMPLOYEE_DIRECTORY_SHEET_ID || '';
   const range = env.EMPLOYEE_DIRECTORY_SHEET_RANGE || 'Employees!A:J';
   const pepper = env.EMPLOYEE_DIRECTORY_PEPPER || '';
@@ -79,9 +84,13 @@ function createDirectoryRuntime({ env, firebaseDb, firebaseAuth, firebaseBucket,
       }
     });
 
-    if (!firebaseAuth || !siteId) return;
-    const authorizeManager = createManagerAuthorization({ firebaseAuth, siteId });
-    app.post('/api/v1/management/session', authorizeManager, async (req, res) => {
+    if (!firebaseAuth || !siteId || !administratorUid) return;
+    const authorizeAdministrator = createAdministrationAuthorization({
+      firebaseAuth,
+      siteId,
+      administratorUid,
+    });
+    app.post('/api/v1/management/session', authorizeAdministrator, async (req, res) => {
       try {
         const sessionCookie = await firebaseAuth.createSessionCookie(bearerToken(req), {
           expiresIn: 8 * 60 * 60 * 1000,
@@ -104,11 +113,11 @@ function createDirectoryRuntime({ env, firebaseDb, firebaseAuth, firebaseBucket,
       res.set('Cache-Control', 'no-store');
       return res.status(204).end();
     });
-    app.get('/api/v1/management/employee-directory/status', authorizeManager, (_req, res) => {
+    app.get('/api/v1/management/employee-directory/status', authorizeAdministrator, (_req, res) => {
       res.set('Cache-Control', 'no-store');
       return res.json(service.getStatus());
     });
-    app.post('/api/v1/management/employee-directory/refresh', authorizeManager, async (_req, res) => {
+    app.post('/api/v1/management/employee-directory/refresh', authorizeAdministrator, async (_req, res) => {
       try {
         const status = await service.refresh();
         res.set('Cache-Control', 'no-store');
@@ -118,14 +127,14 @@ function createDirectoryRuntime({ env, firebaseDb, firebaseAuth, firebaseBucket,
         return res.status(503).json({ error: code, status: service.getStatus() });
       }
     });
-    app.get('/api/v1/management/employee-photos', authorizeManager, (_req, res) => {
+    app.get('/api/v1/management/employee-photos', authorizeAdministrator, (_req, res) => {
       res.set('Cache-Control', 'no-store');
       try { return res.json(photos.list()); } catch (error) {
         return res.status(error.status || 503).json({ error: error.code || 'PHOTO_SERVICE_UNAVAILABLE' });
       }
     });
     const imageBody = require('express').raw({ type: () => true, limit: MAX_UPLOAD_BYTES });
-    app.put('/api/v1/management/employee-photos/:employeeId', authorizeManager, imageBody, async (req, res) => {
+    app.put('/api/v1/management/employee-photos/:employeeId', authorizeAdministrator, imageBody, async (req, res) => {
       res.set('Cache-Control', 'no-store');
       try {
         return res.json(await photos.upload(req.params.employeeId, req.body, req.get('content-type') || ''));
@@ -134,7 +143,7 @@ function createDirectoryRuntime({ env, firebaseDb, firebaseAuth, firebaseBucket,
         return res.status(known ? error.status : 503).json({ error: known ? error.code : 'PHOTO_SERVICE_UNAVAILABLE' });
       }
     });
-    app.delete('/api/v1/management/employee-photos/:employeeId', authorizeManager, async (req, res) => {
+    app.delete('/api/v1/management/employee-photos/:employeeId', authorizeAdministrator, async (req, res) => {
       res.set('Cache-Control', 'no-store');
       try { return res.json(await photos.remove(req.params.employeeId)); } catch (error) {
         const known = error instanceof PhotoError;
@@ -143,10 +152,18 @@ function createDirectoryRuntime({ env, firebaseDb, firebaseAuth, firebaseBucket,
     });
   }
 
-  const authorizeManagerPage = firebaseAuth && siteId
-    ? createManagerPageAuthorization({ firebaseAuth, siteId })
-    : (_req, res) => res.status(503).send('Management authentication unavailable');
-  return { service, photos, start, stop, mount, authorizeManagerPage };
+  const authorizeAdministrationPage = firebaseAuth && siteId && administratorUid
+    ? createAdministrationPageAuthorization({ firebaseAuth, siteId, administratorUid })
+    : (_req, res) => res.status(503).send('Administration authentication unavailable');
+  return {
+    service,
+    photos,
+    start,
+    stop,
+    mount,
+    authorizeAdministrationPage,
+    administrationConfigured: Boolean(firebaseAuth && siteId && administratorUid),
+  };
 }
 
 module.exports = { createDirectoryRuntime };

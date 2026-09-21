@@ -9,6 +9,7 @@ Set these through Replit Secrets; never commit values:
 - `FIREBASE_SERVICE_ACCOUNT`: service-account JSON used by Firebase Admin and read-only Google Sheets access.
 - `EMPLOYEE_DIRECTORY_SHEET_ID`: dedicated spreadsheet ID.
 - `EMPLOYEE_DIRECTORY_PEPPER`: high-entropy secret used to create keyed, non-reversible Salaire-ID verifiers.
+- `MOLARD_ADMIN_FIREBASE_UID`: the one Firebase Authentication UID explicitly allowed to administer the Molard site.
 
 Set these non-secret environment variables:
 
@@ -60,11 +61,11 @@ Raw Salaire-ID values are transformed in memory into versioned HMAC-SHA-256 veri
 
 - On startup, the service loads the last valid Firestore snapshot, then attempts Google refresh.
 - It refreshes on the configured interval. A Firestore-backed lease serializes the Google read and snapshot commit across server instances; each committed snapshot receives a monotonic generation.
-- Managers may call `POST /api/v1/management/employee-directory/refresh`.
+- The explicitly configured Molard administrator may call `POST /api/v1/management/employee-directory/refresh`.
 - Temporary Google errors or invalid rows never replace the last valid snapshot.
 - Public candidates return `503 DIRECTORY_UNAVAILABLE` until a valid snapshot exists.
 
-Management routes require a Firebase ID token with matching `siteId` and role `manager` or `admin`:
+Management routes require a Firebase ID token whose UID exactly matches `MOLARD_ADMIN_FIREBASE_UID` and whose `siteId` claim exactly matches `EMPLOYEE_DIRECTORY_SITE_ID`. Roles, directory membership, Salaire-ID knowledge, and permissions from other applications do not grant access:
 
 - `GET /api/v1/management/employee-directory/status`
 - `POST /api/v1/management/employee-directory/refresh`
@@ -76,7 +77,7 @@ Status reports timestamps, health, counts, and redacted issue codes/row numbers.
 
 ## Managed employee portraits
 
-The private sign-in entry is `/gestion-photos-login.html`; it is intentionally absent from all public navigation. After Firebase email/password sign-in, the server verifies the ID token, matching `siteId`, and `manager` or `admin` role before issuing an eight-hour `HttpOnly`, `Secure`, `SameSite=Strict` management session. Both `/gestion-photos-collaborateurs` and the direct `.html` form require that server-verified session before the page file is served. The private page file is outside every public static mount; the server exposes only an explicit allowlist of public root assets, preventing encoded filename, repeated-slash, and dot-segment bypasses. Knowing either URL is insufficient. Public voting grants and ordinary employee accounts cannot create a management session, open the page, or call management operations.
+The public homepage links discreetly to `/gestion-photos-login.html`. After Firebase email/password sign-in, the server verifies the ID token, its exact allowlisted UID, and the matching Molard `siteId` claim before issuing an eight-hour `HttpOnly`, `Secure`, `SameSite=Strict` session. It then opens the protected `/administration` landing page, whose only initial option is `📷 Photos collaborateurs`. The landing page and both photo-page URL forms require a current, non-revoked server session before any private HTML is served. Missing, expired, revoked, wrong-site, and unauthorized sessions redirect to login. The private page files are outside every public static mount. Public voting grants, ordinary employees, managers, generic administrators, directory members, and Salaire-ID values cannot create a session, open private pages, or call management operations.
 
 Uploads use the selected file as the raw request body. The server accepts JPEG, PNG, and WebP up to 8 MiB, verifies the decoded format against the declared MIME type, rejects malformed or spoofed files, and limits decoded dimensions to 12,000 × 12,000 pixels. HEIC/HEIF is explicitly rejected with localized guidance. Sharp applies EXIF orientation, crops to a 512 × 512 square, re-encodes to quality-82 WebP, and does not copy EXIF/GPS metadata. Original uploads are not retained.
 
@@ -84,13 +85,20 @@ The private object path is deterministic: `employee-photos/{siteId}/{employeeId}
 
 The same-origin image route uses a ten-minute HMAC-signed reference containing version, expiry, and signature. Guessing an Employee ID/version, changing any query value, or reusing an expired reference returns 404. Election snapshots retain the validated legacy/fallback reference, while authorized candidate serialization dynamically prefers an active managed URL. Replacements increment the version query so a browser requests the new portrait despite immutable private caching. Deletion removes the object and active reference, retains only the private version tombstone, and immediately restores legacy/fallback behavior without editing the Google Sheet or any eligibility fields. Inactive employees may retain managed portraits, but their managed image cannot be enumerated without a fresh signed reference issued to authorized management.
 
-Firebase setup required outside the codebase:
+### One-time non-production administrator setup
+
+Perform this only in the development Firebase project. Do not put an email, password, UID, or credential in source code, HTML, documentation, logs, or chat.
 
 1. Enable Firebase Authentication email/password sign-in.
-2. Create manager accounts and assign server-verified `siteId` plus `manager` or `admin` custom claims.
-3. Enable Cloud Storage for the configured Firebase project and bucket.
-4. Deploy `firestore.rules` and `storage.rules` before any production use.
-5. Keep Preview on development data and do not use real employee imagery for verification.
+2. In the Firebase console, create one separate Authentication identity for Andrea. Use a unique temporary password delivered through a secure channel and require it to be changed before regular use. Do not create employee accounts.
+3. Using a trusted server-side Admin SDK script or Firebase administrative tooling, set only the required custom claim on that identity: `{ "siteId": "<the exact EMPLOYEE_DIRECTORY_SITE_ID value>" }`. A `manager` or `admin` role is neither required nor accepted as authorization.
+4. Copy the identity's UID from Firebase Authentication and store it as the Replit Secret `MOLARD_ADMIN_FIREBASE_UID`. Never store it in committed configuration. Restart Preview so the server reads the secret. If this secret, the site ID, or Firebase Admin is absent, Administration intentionally fails closed.
+5. Validate in Preview: open the public homepage, select `🔐 Administration`, sign in, confirm `/administration` appears, then open `📷 Photos collaborateurs`. Confirm a different Firebase identity and the same UID with a wrong-site claim are denied. Confirm direct private URLs redirect to login and logout removes both the browser login and server cookie.
+6. Revoke access by revoking refresh tokens or disabling/deleting the Firebase identity, and remove `MOLARD_ADMIN_FIREBASE_UID` from Secrets. The server verifies revocation on every session-backed page request and every ID-token-backed management API request.
+
+Adding any future administrator is outside the current design. It requires an explicit reviewed change to the single-identity server configuration contract; do not broaden access through roles or directory membership.
+
+Enable Cloud Storage for the configured Firebase project and bucket. Deploy `firestore.rules` and `storage.rules` before any future production use. Keep Preview on development data and do not use real employee imagery for verification.
 
 The safe candidate endpoint is:
 
@@ -104,21 +112,20 @@ The monthly election engine consumes the immutable last-known-good snapshot. It 
 
 ## Tests and next boundary
 
-Run `npm test` for the directory, election, browser, and photo suites. Photo coverage includes manager/site authorization, privacy-safe payloads, traversal-safe employee IDs, directory membership, supported/unsupported/spoofed/corrupt files, byte and dimension policies, metadata removal, replacement versioning, deletion fallback, inactive retention, localization, and responsive UI.
+Run `npm test` for the directory, election, browser, and photo suites. Photo coverage includes sole-UID/site authorization, generic-role denial, fail-closed configuration, private-page redirects, logout, privacy-safe payloads, traversal-safe employee IDs, directory membership, image policies, localization, and responsive UI.
 
 Firestore and Storage rule enforcement runs with `npm run test:firestore-rules`, including unauthenticated, manager, and cross-site browser denial. Deploy both rule files together.
 
 ## Preview verification — 21 September 2026
 
-- Route: `/gestion-photos-collaborateurs`
+- Flow: homepage → `/gestion-photos-login.html` → `/administration` → `/gestion-photos-collaborateurs`
 - Environment: Preview/development only; no production deployment
-- Directory state before and after cleanup: 53 total, 0 managed portraits, 53 legacy/fallback portraits
-- Disposable flow: JPEG upload passed; processed WebP serving passed; candidate payload precedence passed; deletion restored legacy/fallback behavior; PNG re-upload used a higher non-reused version; temporary object, active metadata, and test identity were removed
-- Privacy check: no Salaire-ID, verifier, site claim, or voting eligibility field appeared in the candidate payload
-- Automated results: `npm test` passed 57/57; `npm run test:firestore-rules` passed 3/3
-- Preview access checks: both management page URLs returned 401 without a server session; manager/admin sessions and APIs returned 200; employee and voting credentials were rejected; the removed full-directory endpoint returned 404
-- Static bypass checks: encoded filename characters, encoded extensions, repeated slashes, dot segments, and the private file path all returned 404 without exposing protected HTML
-- Managed portrait checks: a fresh signed URL returned 200, while guessed and tampered portrait URLs returned 404; management storage paths and metadata were not returned
-- The private login page and Firebase client configuration returned HTTP 200; the running server reported a healthy 53-row directory
+- A disposable authorized Firebase identity completed session creation, the private Administration landing page, and photo-page navigation.
+- Invalid credentials, a different identity with an `admin` role, and the allowlisted UID carrying a wrong-site claim were denied.
+- Logout returned a clearing `__session` cookie. Revoking refresh tokens caused the existing private-page session to redirect to login without serving private HTML.
+- Both disposable Firebase identities were deleted immediately after verification. No test credential or allowlist value was retained.
+- Without `MOLARD_ADMIN_FIREBASE_UID`, Preview returned `503`/`404` for private pages/session creation and served no private content, confirming fail-closed configuration.
+- The public homepage, dedicated login, and voting page remained available without authentication. The login layout was inspected at 390 × 844 and desktop size.
+- Automated results: `npm test` passed 58/58, including sole-UID, tenant, redirect, logout, revocation response, mobile, public, and voting regression coverage.
 
-Production remains intentionally unchanged. Before production use, complete the Firebase Authentication account/custom-claim setup and deploy both rules files described above. The recommended next product task is the already-planned protected manager workflow for closing votes and confirming winners.
+Production remains intentionally unchanged. Before production use, complete Andrea's Firebase Authentication account/custom-claim setup and deploy both rules files described above. The recommended next product task is the already-planned protected manager workflow for closing votes and confirming winners.

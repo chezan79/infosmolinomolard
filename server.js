@@ -43,8 +43,17 @@ app.use(express.json());
 employeeDirectory.mount(app);
 
 app.get(
+  ['/administration', '/administration.html'],
+  employeeDirectory.authorizeAdministrationPage,
+  (_req, res) => {
+    res.set('Cache-Control', 'no-store');
+    res.sendFile(path.join(__dirname, 'private-pages', 'administration.html'));
+  },
+);
+
+app.get(
   ['/gestion-photos-collaborateurs', '/gestion-photos-collaborateurs.html'],
-  employeeDirectory.authorizeManagerPage,
+  employeeDirectory.authorizeAdministrationPage,
   (_req, res) => {
     res.set('Cache-Control', 'no-store');
     res.sendFile(path.join(__dirname, 'private-pages', 'gestion-photos-collaborateurs.html'));

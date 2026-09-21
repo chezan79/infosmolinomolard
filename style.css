@@ -390,6 +390,18 @@ section ul li a:hover {
   box-sizing: border-box;
 }
 
+.administration-link {
+  color: #d8d8d8;
+  font-size: 0.82rem;
+  text-decoration: none;
+}
+
+.administration-link:hover,
+.administration-link:focus-visible {
+  color: #fff;
+  text-decoration: underline;
+}
+
 @media (max-width: 640px) {
   main {
     padding: 20px 0;
