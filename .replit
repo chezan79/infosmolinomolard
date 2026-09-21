@@ -59,3 +59,12 @@ expertMode = true
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 180000
+
+[userenv]
+
+[userenv.development]
+ELECTION_DATA_ENVIRONMENT = "development"
+ELECTION_TIME_ZONE = "Europe/Zurich"
+ELECTION_TRUST_PROXY_HOPS = "1"
+EMPLOYEE_DIRECTORY_SHEET_RANGE = "Collaborateurs!A:M"
+EMPLOYEE_DIRECTORY_SITE_ID = "molard"

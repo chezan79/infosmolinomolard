@@ -13,10 +13,11 @@ Required secrets/configuration:
 - `ELECTION_GRANT_SECRET` (at least 32 characters);
 - optional `ELECTION_GRANT_TTL_MS` (default ten minutes).
 - optional `ELECTION_TRUST_PROXY_HOPS` (default one trusted Replit proxy hop).
+- `ELECTION_DATA_ENVIRONMENT` (`development` in Preview and `production` only in a future production deployment).
 
 Public Express operations are `GET /api/v1/public/election`, `POST /api/v1/public/election/verify-code`, `GET /api/v1/public/election/candidates`, `GET /api/v1/public/election/participation`, and `POST /api/v1/public/election/ballots`. Authorized operations use an in-memory client-held Bearer grant, are `no-store`, and never accept a site ID. Verification bodies are capped by the global 16 KiB JSON limit.
 
-Firestore stores data below `electionSites/{siteId}`: deterministic monthly elections with embedded immutable voter/candidate and server-only verifier snapshots, grants, rate limits, deterministic participation records, random-ID anonymous ballots, coarse audit events, and finalized result internals. Browser rules deny the complete tree. The engine has no in-memory production fallback. Directory changes do not silently alter an existing election.
+Firestore stores data below `electionSites/{siteId}/dataEnvironments/{development|production}`: deterministic monthly elections with embedded immutable voter/candidate and server-only verifier snapshots, grants, rate limits, deterministic participation records, random-ID anonymous ballots, coarse audit events, and finalized result internals. Preview must use `development`; future production must use `production`, so ballots, grants, throttles, participation, and already-voted state are disjoint. Browser rules deny the complete tree. The engine has no in-memory production fallback. Directory changes do not silently alter an existing election.
 
 Verification uses three durable 15-minute limits (network 30, site/month 300, privacy-safe credential fingerprint 8), returns generic credential failures, and grants a ten-minute default authorization. Ballot submission requires exactly CUISINE and SERVICE choices plus separate trimmed comments of 10–1000 characters. The transaction rechecks the election, authorization, voter and candidates; consumes the grant; and creates participation and ballot together.
 

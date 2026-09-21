@@ -8,11 +8,15 @@ class ElectionError extends Error {
 }
 
 class FirestoreElectionStore {
-  constructor(db, siteId) {
-    if (!db || !siteId) throw new Error('Election persistence is not configured');
+  constructor(db, siteId, dataEnvironment) {
+    if (!db || !siteId || !['development', 'production'].includes(dataEnvironment)) {
+      throw new Error('Election persistence is not configured');
+    }
     this.db = db;
     this.siteId = siteId;
-    this.siteRef = db.collection('electionSites').doc(siteId);
+    this.dataEnvironment = dataEnvironment;
+    this.siteRef = db.collection('electionSites').doc(siteId)
+      .collection('dataEnvironments').doc(dataEnvironment);
   }
 
   electionRef(monthKey) {
@@ -44,6 +48,7 @@ class FirestoreElectionStore {
       }
       tx.create(ref, {
         schemaVersion: 1, siteId: this.siteId, monthKey: window.monthKey,
+        dataEnvironment: this.dataEnvironment,
         timeZone: window.timeZone, opensAt: window.opensAt, closesAt: window.closesAt,
         categories: ['CUISINE', 'SERVICE'], sourceGeneration: directory.sourceGeneration,
         voters, candidates, eligibleVoterCount: Object.keys(voters).length,

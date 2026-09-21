@@ -43,8 +43,9 @@ test('blocks unauthenticated browser access to server-managed collections', asyn
 test('Firestore transaction creates one anonymous ballot for simultaneous submissions', async () => {
   const app = admin.initializeApp({ projectId: 'employee-directory-rules-test' }, 'election-transaction-test');
   const db = app.firestore();
-  const store = new FirestoreElectionStore(db, 'molard');
-  const electionRef = db.collection('electionSites').doc('molard').collection('elections').doc('2026-09');
+  const store = new FirestoreElectionStore(db, 'molard', 'development');
+  const electionRef = db.collection('electionSites').doc('molard')
+    .collection('dataEnvironments').doc('development').collection('elections').doc('2026-09');
   await electionRef.set({
     schemaVersion: 1, siteId: 'molard', monthKey: '2026-09', timeZone: 'Europe/Zurich',
     opensAt: '2026-09-24T22:00:00.000Z', closesAt: '2026-09-30T22:00:00.000Z',

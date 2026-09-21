@@ -57,6 +57,28 @@ test('normalizes departments, groups, flags and photo fallback', () => {
   assert.ok(result.warnings.some((warning) => warning.code === 'MISSING_PHOTO'));
 });
 
+test('privacy-safe status includes validation and eligibility aggregates', () => {
+  const normalized = normalizeDirectory(validRows(), OPTIONS);
+  const service = new EmployeeDirectoryService({ source: null, store: null, ...OPTIONS });
+  service.snapshot = {
+    schemaVersion: 1,
+    siteId: OPTIONS.siteId,
+    sourceGeneration: 1,
+    refreshedAt: '2026-09-01T00:00:00.000Z',
+    employees: normalized.employees,
+    verifierRecords: normalized.verifierRecords,
+    warnings: normalized.warnings,
+  };
+  const status = service.getStatus();
+  assert.equal(status.counts.rows, 3);
+  assert.equal(status.counts.departments.Pizzeria, 1);
+  assert.equal(status.counts.candidateOnly, 1);
+  assert.equal(status.counts.voterOnly, 1);
+  assert.equal(status.counts.fallbackAvatars, 1);
+  assert.equal(JSON.stringify(status).includes('SAL-100'), false);
+  assert.equal(JSON.stringify(status).includes('verifier'), false);
+});
+
 test('candidate model keeps voting and election eligibility separate', () => {
   const result = normalizeDirectory(validRows(), OPTIONS);
   const candidates = getCandidates(result.employees);

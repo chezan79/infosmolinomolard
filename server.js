@@ -18,11 +18,10 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT) {
     firebaseDb = db;
     firebaseAuth = getAuth();
   } catch (error) {
-    console.warn('⚠️ Errore inizializzazione Firebase:', error.message);
-    console.warn('⚠️ Usando storage in memoria.');
+    console.warn('Firebase Admin initialization failed; server-managed durable features are unavailable');
   }
 } else {
-  console.warn('⚠️ FIREBASE_SERVICE_ACCOUNT non trovato nei Secrets. Usando storage in memoria.');
+  console.warn('Firebase Admin is not configured; server-managed durable features are unavailable');
 }
 
 // Middleware per servire file statici
@@ -41,6 +40,12 @@ const electionRuntime = createElectionRuntime({
 electionRuntime.mount(app);
 app.use(express.json());
 employeeDirectory.mount(app);
+
+app.get('/api/v1/operations/election-readiness', (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const report = electionRuntime.readiness();
+  return res.status(report.ready ? 200 : 503).json(report);
+});
 
 // Route per la home page
 app.get('/', (req, res) => {

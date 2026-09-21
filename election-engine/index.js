@@ -35,7 +35,10 @@ function networkKey(req) {
 
 function createElectionRuntime({ env, firebaseDb, directoryService, electionService = null }) {
   const siteId = env.EMPLOYEE_DIRECTORY_SITE_ID || '';
-  const store = firebaseDb && siteId ? new FirestoreElectionStore(firebaseDb, siteId) : null;
+  const dataEnvironment = env.ELECTION_DATA_ENVIRONMENT || '';
+  const store = firebaseDb && siteId && ['development', 'production'].includes(dataEnvironment)
+    ? new FirestoreElectionStore(firebaseDb, siteId, dataEnvironment)
+    : null;
   const service = electionService || new ElectionService({
     store, directoryService, siteId,
     timeZone: env.ELECTION_TIME_ZONE || '',
@@ -69,7 +72,30 @@ function createElectionRuntime({ env, firebaseDb, directoryService, electionServ
     app.get('/api/v1/public/election/participation', handler(async (req, res) => res.json(await service.participation(bearer(req)))));
     app.post('/api/v1/public/election/ballots', electionJson, handler(async (req, res) => res.status(201).json(await service.submit(bearer(req), req.body))));
   }
-  return { service, mount };
+  function readiness() {
+    const directory = directoryService?.getStatus?.() || { configured: false, sourceHealth: 'not_configured' };
+    const checks = {
+      firebaseAdmin: Boolean(firebaseDb),
+      siteIdentity: Boolean(siteId),
+      directorySheet: Boolean(env.EMPLOYEE_DIRECTORY_SHEET_ID),
+      directoryVerifier: Boolean(env.EMPLOYEE_DIRECTORY_PEPPER),
+      electionTimeZone: env.ELECTION_TIME_ZONE === 'Europe/Zurich',
+      electionAuthorization: typeof env.ELECTION_GRANT_SECRET === 'string' && env.ELECTION_GRANT_SECRET.length >= 32,
+      trustedProxy: Number.isInteger(Number.parseInt(env.ELECTION_TRUST_PROXY_HOPS, 10)) &&
+        Number.parseInt(env.ELECTION_TRUST_PROXY_HOPS, 10) > 0,
+      developmentIsolation: dataEnvironment === 'development',
+      validDirectorySnapshot: Boolean(directory.lastSuccessfulRefreshAt),
+    };
+    return {
+      ready: Object.values(checks).every(Boolean),
+      checks,
+      siteId: siteId || null,
+      timeZone: env.ELECTION_TIME_ZONE || null,
+      dataEnvironment: dataEnvironment || null,
+      directory,
+    };
+  }
+  return { service, mount, readiness };
 }
 
 module.exports = { createElectionRuntime, networkKey };

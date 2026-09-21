@@ -104,6 +104,10 @@ class EmployeeDirectoryService {
   getStatus() {
     const employees = this.snapshot?.employees || [];
     const candidates = getCandidates(employees);
+    const active = employees.filter((employee) => employee.active);
+    const warnings = this.snapshot?.warnings || [];
+    const invalidRows = new Set(this.lastErrors.filter((error) => error.row > 1).map((error) => error.row));
+    const duplicateCodes = new Set(['DUPLICATE_EMPLOYEE_ID', 'DUPLICATE_SALAIRE_ID']);
     return {
       configured: Boolean(this.source),
       sourceHealth: this.sourceHealth,
@@ -111,14 +115,30 @@ class EmployeeDirectoryService {
       lastAttemptAt: this.lastAttemptAt,
       lastSuccessfulRefreshAt: this.snapshot?.refreshedAt || null,
       counts: {
+        rows: employees.length,
         employees: employees.length,
-        active: employees.filter((employee) => employee.active).length,
-        voters: employees.filter((employee) => employee.active && employee.canVote).length,
+        active: active.length,
+        voters: active.filter((employee) => employee.canVote).length,
         candidates: candidates.length,
         cuisineCandidates: candidates.filter((employee) => employee.votingGroup === 'CUISINE').length,
         serviceCandidates: candidates.filter((employee) => employee.votingGroup === 'SERVICE').length,
+        departments: {
+          Cuisine: employees.filter((employee) => employee.department === 'Cuisine').length,
+          Pizzeria: employees.filter((employee) => employee.department === 'Pizzeria').length,
+          Plonge: employees.filter((employee) => employee.department === 'Plonge').length,
+          Service: employees.filter((employee) => employee.department === 'Service').length,
+        },
+        voterOnly: active.filter((employee) => employee.canVote && !employee.canBeElected).length,
+        candidateOnly: active.filter((employee) => !employee.canVote && employee.canBeElected).length,
+        voterAndCandidate: active.filter((employee) => employee.canVote && employee.canBeElected).length,
+        neitherEligible: active.filter((employee) => !employee.canVote && !employee.canBeElected).length,
+        duplicateIssues: this.lastErrors.filter((error) => duplicateCodes.has(error.code)).length,
+        invalidRows: invalidRows.size,
+        photos: employees.filter((employee) => employee.photoUrl && employee.photoUrl !== '/assets/avatar-neutral.svg').length,
+        fallbackAvatars: warnings.filter((warning) =>
+          ['MISSING_PHOTO', 'UNSAFE_PHOTO', 'UNAPPROVED_PHOTO_ORIGIN', 'INVALID_PHOTO_URL'].includes(warning.code)).length,
       },
-      warnings: (this.snapshot?.warnings || []).map(redactIssue),
+      warnings: warnings.map(redactIssue),
       errors: this.lastErrors.map(redactIssue),
     };
   }

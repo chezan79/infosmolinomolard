@@ -211,6 +211,26 @@ test('fails closed without timezone, durable store, directory, or strong grant s
   await assert.rejects(service.current(), (error) => error.code === 'SERVICE_UNAVAILABLE');
 });
 
+test('runtime readiness names missing configuration without exposing secret values', () => {
+  const runtime = createElectionRuntime({
+    env: {
+      EMPLOYEE_DIRECTORY_SITE_ID: 'molard',
+      ELECTION_TIME_ZONE: 'Europe/Zurich',
+      ELECTION_TRUST_PROXY_HOPS: '1',
+      ELECTION_DATA_ENVIRONMENT: 'development',
+    },
+    firebaseDb: null,
+    directoryService: { getStatus: () => ({ configured: false, sourceHealth: 'not_configured' }) },
+  });
+  const report = runtime.readiness();
+  assert.equal(report.ready, false);
+  assert.equal(report.checks.siteIdentity, true);
+  assert.equal(report.checks.firebaseAdmin, false);
+  assert.equal(report.checks.directoryVerifier, false);
+  assert.equal(report.checks.electionAuthorization, false);
+  assert.equal(JSON.stringify(report).includes('secret'), false);
+});
+
 test('snapshotted eligibility survives later directory deactivation and removal', async () => {
   const { service } = serviceAt('2026-09-25T12:00:00Z');
   await service.current();
