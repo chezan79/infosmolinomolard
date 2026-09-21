@@ -7,6 +7,9 @@ service cloud.firestore {
     match /employeeDirectorySnapshots/{siteId} {
       allow read, write: if false;
     }
+    match /employeePhotoSites/{document=**} {
+      allow read, write: if false;
+    }
 
     // All election records and nested grants, throttles, participation,
     // anonymous ballots, audits and result internals are Express-only.

@@ -28,7 +28,7 @@ Preferred communication style: Simple, everyday language.
 
 ### Backend Architecture
 
-**Express.js Server** (`server.js`): Minimal Node.js server currently serving static files and providing placeholder API endpoints for future Firebase integration.
+**Express.js Server** (`server.js`): Serves static pages and server-authoritative Firebase-backed employee-directory, election, and managed-photo APIs, alongside older planning/training endpoints.
 
 **Current Server Functions**:
 - Static file serving for HTML, CSS, and JavaScript files
@@ -60,7 +60,7 @@ Preferred communication style: Simple, everyday language.
 
 ### Secure Employee Directory
 
-The dedicated management Google Sheet is the authoritative employee source for the future Collaborateur du mois module. The Express server reads it with server-only, read-only credentials, validates the complete dataset, and stores only the last-known-good operational snapshot in Firestore. Public candidate records never contain Salaire-ID or verifier material. Setup and column rules are documented in `docs/employee-directory-operations.md`.
+The dedicated management Google Sheet is the authoritative employee source for the Collaborateur du mois module. Express reads it with server-only, read-only credentials, validates the complete dataset, and stores only the last-known-good operational snapshot in Firestore. Public candidate records never contain Salaire-ID or verifier material. Managers can maintain normalized private-bucket portraits through `/gestion-photos-collaborateurs`; all metadata and Storage access remain Admin-SDK-only. Setup and rules are documented in `docs/employee-directory-operations.md`.
 
 ### Client-Side Features
 

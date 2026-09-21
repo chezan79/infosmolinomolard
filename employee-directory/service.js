@@ -97,8 +97,16 @@ class EmployeeDirectoryService {
     return this.getStatus();
   }
 
-  getCandidates() {
-    return getCandidates(this.snapshot?.employees || []);
+  getCandidates(transform = (employee) => employee) {
+    return getCandidates((this.snapshot?.employees || []).map(transform));
+  }
+
+  getElectionSnapshot() {
+    if (!this.snapshot) return null;
+    return {
+      ...this.snapshot,
+      employees: this.snapshot.employees.map((employee) => ({ ...employee })),
+    };
   }
 
   getStatus() {

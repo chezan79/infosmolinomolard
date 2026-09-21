@@ -305,7 +305,7 @@ test('does not configure Google publication without Firestore persistence', () =
   assert.equal(runtime.service.getStatus().configured, false);
 });
 
-test('candidate and manager routes enforce safe output and tenant authorization', async (t) => {
+test('full directory is not public and manager status enforces tenant authorization', async (t) => {
   const normalized = normalizeDirectory(validRows(), OPTIONS);
   const firebaseAuth = {
     async verifyIdToken(token) {
@@ -335,9 +335,7 @@ test('candidate and manager routes enforce safe output and tenant authorization'
   const base = `http://127.0.0.1:${server.address().port}`;
 
   const candidatesResponse = await fetch(`${base}/api/v1/employee-directory/candidates`);
-  const candidatesBody = await candidatesResponse.json();
-  assert.equal(candidatesResponse.status, 200);
-  assert.equal(JSON.stringify(candidatesBody).includes('verifier'), false);
+  assert.equal(candidatesResponse.status, 404);
 
   const denied = await fetch(`${base}/api/v1/management/employee-directory/status`, {
     headers: { Authorization: 'Bearer denied' },

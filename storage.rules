@@ -1,0 +1,10 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Employee portraits are read and written only by the server-side Admin SDK.
+    match /employee-photos/{siteId}/{employeeId}/{fileName} {
+      allow read, write: if false;
+    }
+  }
+}

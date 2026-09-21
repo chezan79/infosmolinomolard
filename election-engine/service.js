@@ -21,7 +21,8 @@ class ElectionService {
     if (!this.configured() || !this.directoryService.snapshot) throw new ElectionError('SERVICE_UNAVAILABLE');
     const now = this.now();
     const window = { ...electionWindow(now, this.timeZone), timeZone: this.timeZone };
-    const election = await this.store.ensureElection(window, this.directoryService.snapshot, now);
+    const snapshot = this.directoryService.getElectionSnapshot?.() || this.directoryService.snapshot;
+    const election = await this.store.ensureElection(window, snapshot, now);
     return { election, now, state: electionState(election, now) };
   }
 
@@ -75,7 +76,10 @@ class ElectionService {
     const { election, grant } = await this.authorize(token);
     const grouped = { CUISINE: [], SERVICE: [] };
     for (const candidate of Object.values(election.candidates)) {
-      if (candidate.employeeId !== grant.employeeId) grouped[candidate.votingGroup].push(safeCandidate(candidate));
+      if (candidate.employeeId !== grant.employeeId) {
+        const photoUrl = this.directoryService.resolvePhotoUrl?.(candidate.employeeId, candidate.photoUrl) || candidate.photoUrl;
+        grouped[candidate.votingGroup].push(safeCandidate({ ...candidate, photoUrl }));
+      }
     }
     for (const category of CATEGORIES) grouped[category].sort((a, b) => a.displayName.localeCompare(b.displayName, 'fr'));
     return { code: 'CANDIDATES', monthKey: election.monthKey, candidates: grouped };

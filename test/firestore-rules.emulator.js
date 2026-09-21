@@ -7,6 +7,7 @@ const {
   initializeTestEnvironment,
 } = require('@firebase/rules-unit-testing');
 const { doc, getDoc, setDoc } = require('firebase/firestore');
+const { getBytes, ref, uploadBytes } = require('firebase/storage');
 const admin = require('firebase-admin');
 const { FirestoreElectionStore } = require('../election-engine/firestore-store');
 const { electionState } = require('../election-engine/contract');
@@ -19,7 +20,22 @@ test.before(async () => {
     firestore: {
       rules: fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8'),
     },
+    storage: {
+      rules: fs.readFileSync(path.join(__dirname, '..', 'storage.rules'), 'utf8'),
+    },
   });
+});
+
+test('blocks every browser role from employee portrait objects', async () => {
+  for (const context of [
+    environment.unauthenticatedContext(),
+    environment.authenticatedContext('manager', { siteId: 'molard', role: 'manager' }),
+    environment.authenticatedContext('other-manager', { siteId: 'other', role: 'manager' }),
+  ]) {
+    const object = ref(context.storage(), 'employee-photos/molard/emp-1/portrait.webp');
+    await assertFails(uploadBytes(object, Buffer.from('not-an-image'), { contentType: 'image/webp' }));
+    await assertFails(getBytes(object));
+  }
 });
 
 test.after(async () => {

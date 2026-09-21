@@ -342,6 +342,7 @@ function isExactIsoTimestamp(value) {
 module.exports = {
   ALLOWED_DEPARTMENTS,
   DEFAULT_PHOTO,
+  EMPLOYEE_ID_PATTERN,
   MAX_DIRECTORY_ROWS,
   OPTIONAL_HEADERS,
   REQUIRED_HEADERS,

@@ -89,8 +89,6 @@ function safeCandidate(employee) {
     employeeId: employee.employeeId,
     displayName: employee.displayName,
     jobTitle: employee.jobTitle,
-    department: employee.department,
-    votingGroup: employee.votingGroup,
     photoUrl: employee.photoUrl,
   };
 }

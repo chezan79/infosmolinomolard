@@ -1,0 +1,343 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const test = require('node:test');
+const sharp = require('sharp');
+const express = require('express');
+const { createDirectoryRuntime } = require('../employee-directory');
+const { normalizeStorageBucket } = require('../firebase-server-config');
+const { normalizeDirectory } = require('../employee-directory/contract');
+const {
+  EmployeePhotoService, MAX_UPLOAD_BYTES, PORTRAIT_SIZE, PhotoError,
+} = require('../employee-directory/photo-service');
+const { EmployeeDirectoryService } = require('../employee-directory/service');
+const { ElectionService } = require('../election-engine/service');
+const { createSalaireVerifier } = require('../employee-directory/contract');
+const { mountPublicFiles } = require('../public-files');
+
+const root = path.join(__dirname, '..');
+const rows = [
+  ['Employee ID', 'Salaire-ID', 'Name', 'Department', 'Active', 'Can Vote', 'Can Be Elected', 'Job Title', 'Photo URL', 'Site ID'],
+  ['emp-1', 'SAL-1001', 'Anna Rossi', 'Cuisine', 'yes', 'yes', 'yes', 'Cheffe', 'https://images.example.test/anna.jpg', 'molard'],
+  ['emp-2', 'SAL-1002', 'Luca Bianchi', 'Service', 'no', 'no', 'no', '', '', 'molard'],
+];
+const options = { siteId: 'molard', pepper: 'photo-tests', allowedPhotoOrigins: ['https://images.example.test'] };
+
+class MemoryPhotoStore {
+  constructor() { this.records = new Map(); this.bytes = new Map(); }
+  async list() { return new Map(this.records); }
+  async save(employeeId, bytes, metadata) {
+    const record = { schemaVersion: 1, objectPath: `employee-photos/molard/${employeeId}/portrait.webp`, ...metadata };
+    this.records.set(employeeId, record); this.bytes.set(employeeId, bytes); return record;
+  }
+  async read(record) { return this.bytes.get(record.objectPath.split('/')[2]); }
+  async remove(employeeId, record, deletedAt) {
+    this.bytes.delete(employeeId);
+    const tombstone = { schemaVersion: 1, version: record.version, deletedAt };
+    this.records.set(employeeId, tombstone);
+    return tombstone;
+  }
+}
+
+function fixture() {
+  const normalized = normalizeDirectory(rows, options);
+  const directoryService = new EmployeeDirectoryService({ source: null, store: null, ...options });
+  directoryService.snapshot = {
+    schemaVersion: 1, siteId: 'molard', sourceGeneration: 1,
+    refreshedAt: '2026-09-01T00:00:00.000Z',
+    employees: normalized.employees, verifierRecords: normalized.verifierRecords, warnings: normalized.warnings,
+  };
+  const store = new MemoryPhotoStore();
+  const photos = new EmployeePhotoService({
+    directoryService,
+    store,
+    photoUrlSecret: 'photo-url-test-secret-at-least-thirty-two-bytes',
+    now: () => new Date('2026-09-21T10:00:00.000Z'),
+  });
+  directoryService.resolvePhotoUrl = (employeeId, fallback) => photos.resolvePhotoUrl(employeeId, fallback);
+  return { photos, store, directoryService };
+}
+
+test('processing normalizes orientation, dimensions, format and metadata', async () => {
+  const { photos } = fixture();
+  const source = await sharp({
+    create: { width: 900, height: 600, channels: 3, background: '#d25b42' },
+  }).jpeg().withMetadata({ orientation: 6, exif: { IFD0: { Copyright: 'private metadata' } } }).toBuffer();
+  const output = await photos.process(source, 'image/jpeg');
+  const metadata = await sharp(output).metadata();
+  assert.equal(metadata.format, 'webp');
+  assert.equal(metadata.width, PORTRAIT_SIZE);
+  assert.equal(metadata.height, PORTRAIT_SIZE);
+  assert.equal(metadata.exif, undefined);
+  assert.equal(output.includes(Buffer.from('private metadata')), false);
+});
+
+test('validation rejects oversized, malformed, unsupported and spoofed images', async () => {
+  const { photos } = fixture();
+  await assert.rejects(photos.process(Buffer.alloc(MAX_UPLOAD_BYTES + 1), 'image/jpeg'), (e) => e.code === 'IMAGE_TOO_LARGE');
+  await assert.rejects(photos.process(Buffer.from('not an image'), 'image/jpeg'), (e) => e.code === 'MALFORMED_IMAGE');
+  await assert.rejects(photos.process(Buffer.from('heic'), 'image/heic'), (e) => e.code === 'HEIC_NOT_SUPPORTED');
+  const png = await sharp({ create: { width: 10, height: 10, channels: 3, background: 'red' } }).png().toBuffer();
+  await assert.rejects(photos.process(png, 'image/jpeg'), (e) => e.code === 'MIME_MISMATCH');
+});
+
+test('upload, replacement and deletion preserve legacy precedence and eligibility', async () => {
+  const { photos, store, directoryService } = fixture();
+  const jpeg = await sharp({ create: { width: 20, height: 30, channels: 3, background: 'blue' } }).jpeg().toBuffer();
+  const before = directoryService.snapshot.employees.map(({ active, canVote, canBeElected }) => ({ active, canVote, canBeElected }));
+  const first = await photos.upload('emp-1', jpeg, 'image/jpeg');
+  const second = await photos.upload('emp-1', jpeg, 'image/jpeg');
+  assert.equal(first.version, 1);
+  assert.equal(second.version, 2);
+  assert.notEqual(first.photoUrl, second.photoUrl);
+  assert.match(second.photoUrl, /^\/api\/v1\/employee-photos\/emp-1\?v=2&expires=\d+&signature=[A-Za-z0-9_-]{43}$/);
+  assert.deepEqual(directoryService.getElectionSnapshot().employees.map(({ active, canVote, canBeElected }) => ({ active, canVote, canBeElected })), before);
+  assert.equal(directoryService.getElectionSnapshot().employees[0].photoUrl, 'https://images.example.test/anna.jpg');
+  assert.equal(directoryService.resolvePhotoUrl('emp-1', '/legacy.jpg'), second.photoUrl);
+  assert.equal(store.records.get('emp-1').displayName, undefined);
+  assert.equal(store.records.get('emp-1').siteId, undefined);
+  const removed = await photos.remove('emp-1');
+  assert.equal(removed.photoStatus, 'legacy');
+  assert.equal(removed.photoUrl, 'https://images.example.test/anna.jpg');
+  assert.equal(directoryService.resolvePhotoUrl('emp-1', '/legacy.jpg'), '/legacy.jpg');
+  const third = await photos.upload('emp-1', jpeg, 'image/jpeg');
+  assert.equal(third.version, 3);
+  assert.match(third.photoUrl, /\?v=3&expires=\d+&signature=/);
+});
+
+test('existing election candidates return to legacy fallback after managed portrait deletion', async () => {
+  const { photos, directoryService } = fixture();
+  const jpeg = await sharp({ create: { width: 24, height: 24, channels: 3, background: 'navy' } }).jpeg().toBuffer();
+  const managed = await photos.upload('emp-1', jpeg, 'image/jpeg');
+  let election;
+  const store = {
+    async ensureElection(_window, snapshot) {
+      if (!election) {
+        const candidate = snapshot.employees.find((item) => item.employeeId === 'emp-1');
+        election = {
+          monthKey: '2026-09', timeZone: 'Europe/Zurich',
+          opensAt: '2026-09-24T22:00:00.000Z', closesAt: '2026-09-30T22:00:00.000Z',
+          eligibleVoterCount: 1,
+          voters: { voter: { employeeId: 'voter', verifier: createSalaireVerifier('SAL-9999', options.pepper), verifierVersion: 1 } },
+          candidates: { 'emp-1': { ...candidate } },
+        };
+      }
+      return election;
+    },
+    async authorize() { return { employeeId: 'voter' }; },
+  };
+  const electionService = new ElectionService({
+    store, directoryService, siteId: 'molard', timeZone: 'Europe/Zurich',
+    pepper: options.pepper, grantSecret: 'a-secure-test-grant-secret-over-32-bytes',
+    now: () => new Date('2026-09-25T12:00:00.000Z'),
+  });
+  const token = 'a-valid-test-authorization-token-over-32-bytes';
+  assert.equal((await electionService.candidates(token)).candidates.CUISINE[0].photoUrl, managed.photoUrl);
+  await photos.remove('emp-1');
+  assert.equal(
+    (await electionService.candidates(token)).candidates.CUISINE[0].photoUrl,
+    'https://images.example.test/anna.jpg',
+  );
+});
+
+test('directory membership and traversal-safe IDs are enforced, including inactive retention', async () => {
+  const { photos } = fixture();
+  const jpeg = await sharp({ create: { width: 20, height: 20, channels: 3, background: 'green' } }).jpeg().toBuffer();
+  await assert.rejects(photos.upload('../emp-1', jpeg, 'image/jpeg'), (e) => e.code === 'INVALID_EMPLOYEE_ID');
+  await assert.rejects(photos.upload('other', jpeg, 'image/jpeg'), (e) => e.code === 'EMPLOYEE_NOT_FOUND');
+  const inactive = await photos.upload('emp-2', jpeg, 'image/jpeg');
+  assert.equal(inactive.photoStatus, 'managed');
+  assert.equal(photos.list().employees.find((e) => e.employeeId === 'emp-2').active, false);
+});
+
+test('management UI is localized, responsive and contains protected photo actions', () => {
+  const html = fs.readFileSync(path.join(root, 'private-pages', 'gestion-photos-collaborateurs.html'), 'utf8');
+  const js = fs.readFileSync(path.join(root, 'gestion-photos-collaborateurs.js'), 'utf8');
+  const css = fs.readFileSync(path.join(root, 'gestion-photos-collaborateurs.css'), 'utf8');
+  const login = fs.readFileSync(path.join(root, 'gestion-photos-login.js'), 'utf8');
+  const homepage = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  for (const locale of ['fr:', 'it:', 'en:']) assert.ok(js.includes(locale));
+  for (const action of ["method:'PUT'", "method:'DELETE'", 'getIdToken']) assert.ok(js.includes(action));
+  assert.match(login, /signInWithEmailAndPassword/);
+  assert.match(html, /name="viewport"/);
+  assert.match(js, /accept="image\/jpeg,image\/png,image\/webp,image\/heic,image\/heif"/);
+  assert.match(js, /capture="environment"/);
+  assert.match(css, /@media\(max-width:650px\)/);
+  assert.match(login, /\/api\/v1\/management\/session/);
+  assert.match(js, /location\.replace\('\/gestion-photos-login\.html'\)/);
+  assert.doesNotMatch(homepage, /gestion-photos/i);
+});
+
+test('rules deny direct browser access to photo metadata and objects', () => {
+  const firestore = fs.readFileSync(path.join(root, 'firestore.rules'), 'utf8');
+  const storage = fs.readFileSync(path.join(root, 'storage.rules'), 'utf8');
+  assert.match(firestore, /employeePhotoSites\/\{document=\*\*\}/);
+  assert.match(storage, /employee-photos\/\{siteId\}\/\{employeeId\}\/\{fileName\}/);
+  assert.match(storage, /allow read, write: if false/);
+});
+
+test('photo management routes require matching manager role and never expose private directory fields', async (t) => {
+  const memory = new MemoryPhotoStore();
+  const firebaseAuth = {
+    async verifyIdToken(token) {
+      if (token === 'manager') return { uid: 'manager-1', siteId: 'molard', role: 'manager' };
+      if (token === 'admin') return { uid: 'admin-1', siteId: 'molard', role: 'admin' };
+      if (token === 'wrong-site') return { uid: 'manager-2', siteId: 'other', role: 'manager' };
+      if (token === 'voting-grant') throw new Error('Not a Firebase ID token');
+      return { uid: 'voter-1', siteId: 'molard', role: 'employee' };
+    },
+    async verifySessionCookie(token) {
+      const value = token.replace(/^session-/, '');
+      return this.verifyIdToken(value);
+    },
+    async createSessionCookie(token) { return `session-${token}`; },
+  };
+  const runtime = createDirectoryRuntime({
+    env: {
+      EMPLOYEE_DIRECTORY_SITE_ID: 'molard',
+      EMPLOYEE_PHOTO_URL_SECRET: 'photo-url-test-secret-at-least-thirty-two-bytes',
+    },
+    firebaseDb: null,
+    firebaseAuth,
+    photoStore: memory,
+  });
+  const normalized = normalizeDirectory(rows, options);
+  runtime.service.snapshot = {
+    schemaVersion: 1, siteId: 'molard', sourceGeneration: 1,
+    refreshedAt: '2026-09-01T00:00:00.000Z',
+    employees: normalized.employees, verifierRecords: normalized.verifierRecords, warnings: normalized.warnings,
+  };
+  await runtime.photos.initialize();
+  const app = express();
+  runtime.mount(app);
+  const server = app.listen(0, '127.0.0.1');
+  t.after(() => server.close());
+  await new Promise((resolve) => server.once('listening', resolve));
+  const base = `http://127.0.0.1:${server.address().port}`;
+
+  for (const token of [null, 'voter', 'wrong-site', 'voting-grant']) {
+    const response = await fetch(`${base}/api/v1/management/employee-photos`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    assert.equal(response.status, token === null || token === 'voting-grant' ? 401 : 403);
+  }
+  const list = await fetch(`${base}/api/v1/management/employee-photos`, {
+    headers: { Authorization: 'Bearer manager' },
+  });
+  const body = await list.json();
+  assert.equal(list.status, 200);
+  assert.equal(list.headers.get('cache-control'), 'no-store');
+  for (const forbidden of ['SAL-1001', 'verifier', 'canVote', 'canBeElected', 'siteId']) {
+    assert.equal(JSON.stringify(body).includes(forbidden), false);
+  }
+
+  const image = await sharp({ create: { width: 24, height: 24, channels: 3, background: 'purple' } }).png().toBuffer();
+  const uploaded = await fetch(`${base}/api/v1/management/employee-photos/emp-1`, {
+    method: 'PUT',
+    headers: { Authorization: 'Bearer manager', 'Content-Type': 'image/png' },
+    body: image,
+  });
+  assert.equal(uploaded.status, 200);
+  const uploadedBody = await uploaded.json();
+  for (const forbidden of ['objectPath', 'schemaVersion', 'updatedAt', 'deletedAt', 'siteId']) {
+    assert.equal(Object.hasOwn(uploadedBody, forbidden), false);
+  }
+  const candidate = runtime.service.getCandidates((employee) => runtime.photos.candidate(employee))[0];
+  assert.match(candidate.photoUrl, /^\/api\/v1\/employee-photos\/emp-1\?v=1&expires=\d+&signature=/);
+  assert.equal(Object.hasOwn(candidate, 'active'), false);
+  const guessedPhoto = await fetch(`${base}/api/v1/employee-photos/emp-1?v=1`);
+  assert.equal(guessedPhoto.status, 404);
+  const tamperedPhoto = await fetch(`${base}${candidate.photoUrl.replace(/signature=[^&]+/, 'signature=invalid')}`);
+  assert.equal(tamperedPhoto.status, 404);
+  const signedPhoto = await fetch(`${base}${candidate.photoUrl}`);
+  assert.equal(signedPhoto.status, 200);
+  assert.equal(signedPhoto.headers.get('content-type'), 'image/webp');
+  const removed = await fetch(`${base}/api/v1/management/employee-photos/emp-1`, {
+    method: 'DELETE',
+    headers: { Authorization: 'Bearer admin' },
+  });
+  assert.equal(removed.status, 200);
+
+  const managerSession = await fetch(`${base}/api/v1/management/session`, {
+    method: 'POST',
+    headers: { Authorization: 'Bearer manager' },
+  });
+  assert.equal(managerSession.status, 204);
+  assert.match(managerSession.headers.get('set-cookie'), /__session=session-manager/);
+  const voterSession = await fetch(`${base}/api/v1/management/session`, {
+    method: 'POST',
+    headers: { Authorization: 'Bearer voter' },
+  });
+  assert.equal(voterSession.status, 403);
+});
+
+test('management page itself rejects unauthenticated, voting, employee, and wrong-site access', async (t) => {
+  const firebaseAuth = {
+    async verifyIdToken() { throw new Error('not used'); },
+    async verifySessionCookie(token) {
+      const claims = {
+        manager: { uid: 'm1', siteId: 'molard', role: 'manager' },
+        admin: { uid: 'a1', siteId: 'molard', role: 'admin' },
+        employee: { uid: 'e1', siteId: 'molard', role: 'employee' },
+        'wrong-site': { uid: 'm2', siteId: 'other', role: 'manager' },
+      };
+      if (!claims[token]) throw new Error('invalid session, including voting grants');
+      return claims[token];
+    },
+  };
+  const runtime = createDirectoryRuntime({
+    env: { EMPLOYEE_DIRECTORY_SITE_ID: 'molard' },
+    firebaseDb: null,
+    firebaseAuth,
+  });
+  const app = express();
+  for (const route of ['/gestion-photos-collaborateurs', '/gestion-photos-collaborateurs.html']) {
+    app.get(route, runtime.authorizeManagerPage, (_req, res) => res.send('PRIVATE_PHOTO_MANAGEMENT'));
+  }
+  mountPublicFiles(app, root);
+  const server = app.listen(0, '127.0.0.1');
+  t.after(() => server.close());
+  await new Promise((resolve) => server.once('listening', resolve));
+  const base = `http://127.0.0.1:${server.address().port}`;
+
+  for (const route of ['/gestion-photos-collaborateurs', '/gestion-photos-collaborateurs.html']) {
+    const anonymous = await fetch(`${base}${route}`);
+    assert.equal(anonymous.status, 401, 'knowing either URL must not grant access');
+  }
+  for (const bypass of [
+    '/%67estion-photos-collaborateurs.html',
+    '/gestion-photos-collaborateurs%2ehtml',
+    '//gestion-photos-collaborateurs.html',
+    '/public/../gestion-photos-collaborateurs.html',
+  ]) {
+    const denied = await fetch(`${base}${bypass}`);
+    assert.notEqual(denied.status, 200);
+    assert.equal((await denied.text()).includes('PRIVATE_PHOTO_MANAGEMENT'), false);
+  }
+  for (const session of ['voting-grant', 'employee', 'wrong-site']) {
+    const denied = await fetch(`${base}/gestion-photos-collaborateurs`, {
+      headers: { Cookie: `__session=${session}` },
+    });
+    assert.equal(denied.status, session === 'voting-grant' ? 401 : 403);
+    assert.equal((await denied.text()).includes('PRIVATE_PHOTO_MANAGEMENT'), false);
+  }
+  for (const session of ['manager', 'admin']) {
+    const allowed = await fetch(`${base}/gestion-photos-collaborateurs`, {
+      headers: { Cookie: `__session=${session}` },
+    });
+    assert.equal(allowed.status, 200);
+    assert.equal(await allowed.text(), 'PRIVATE_PHOTO_MANAGEMENT');
+  }
+});
+
+test('photo errors expose stable codes without image bytes', () => {
+  const error = new PhotoError('MALFORMED_IMAGE');
+  assert.equal(error.code, 'MALFORMED_IMAGE');
+  assert.equal(JSON.stringify(error).includes('image bytes'), false);
+});
+
+test('Firebase Admin accepts common configured bucket reference forms safely', () => {
+  assert.equal(normalizeStorageBucket('gs://example.firebasestorage.app'), 'example.firebasestorage.app');
+  assert.equal(normalizeStorageBucket('https://storage.googleapis.com/example.appspot.com/path'), 'example.appspot.com');
+  assert.equal(normalizeStorageBucket('https://firebasestorage.googleapis.com/v0/b/example.appspot.com/o/file'), 'example.appspot.com');
+});

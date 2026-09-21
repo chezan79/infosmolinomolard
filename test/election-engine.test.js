@@ -144,6 +144,9 @@ test('authorization is scoped, expires, and omits voter from own candidate group
   const result = await service.candidates(verified.authorization);
   assert.equal(result.candidates.SERVICE.some((c) => c.employeeId === 'service-1'), false);
   assert.equal(JSON.stringify(result).includes('verifier'), false);
+  for (const candidate of [...result.candidates.CUISINE, ...result.candidates.SERVICE]) {
+    assert.deepEqual(Object.keys(candidate).sort(), ['displayName', 'employeeId', 'jobTitle', 'photoUrl']);
+  }
   const grant = [...store.grants.values()][0];
   grant.expiresAtMs = 0;
   await assert.rejects(service.candidates(verified.authorization), (error) => error.code === 'INVALID_AUTHORIZATION');
