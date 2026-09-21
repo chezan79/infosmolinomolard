@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Vote privé du Collaborateur du mois — Pizzeria Molino Molard">
+  <title>Collaborateur du mois · Molino Molard</title>
+  <link rel="stylesheet" href="collaborateur-du-mois.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="masthead">
+      <a class="brand" href="index.html" aria-label="Pizzeria Molino Molard">
+        <span class="brand-mark" aria-hidden="true">M</span>
+        <span class="brand-copy"><strong>Molino Molard</strong><span data-i18n="brandSub">Espace équipe</span></span>
+      </a>
+      <label>
+        <span class="hidden" data-i18n="languageLabel">Langue</span>
+        <select class="locale" id="locale" aria-label="Langue">
+          <option value="fr">Français</option><option value="it">Italiano</option><option value="en">English</option>
+        </select>
+      </label>
+    </header>
+    <section class="hero" aria-labelledby="page-title">
+      <div class="eyebrow" data-i18n="eyebrow">Un vote, deux voix</div>
+      <h1 id="page-title" data-i18n="title">Collaborateur du mois</h1>
+      <p class="lede" data-i18n="lede">Choisissez une personne en cuisine et une personne au service. Votre regard compte, et vos réponses restent confidentielles.</p>
+    </section>
+    <div class="progress" id="progress" aria-label="Progression">
+      <div class="progress-step active" data-step="1" data-i18n="stepIdentity">1 · Identification</div>
+      <div class="progress-step" data-step="2" data-i18n="stepChoices">2 · Vos choix</div>
+      <div class="progress-step" data-step="3" data-i18n="stepReview">3 · Vérification</div>
+    </div>
+    <div id="app" aria-live="polite"></div>
+    <p class="footer-note" data-i18n="privacy">Aucun résultat ni choix individuel ne sera affiché. Merci de voter avec attention.</p>
+  </main>
+  <script src="collaborateur-du-mois.js"></script>
+</body>
+</html>

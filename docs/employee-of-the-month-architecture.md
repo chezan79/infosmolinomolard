@@ -1,6 +1,6 @@
 # Collaborateur du mois — Technical architecture
 
-Status: the secure monthly backend is implemented. The final voting and management interfaces, notifications, and publication remain separate work.
+Status: the secure monthly backend and public mobile voting interface are implemented. The management interfaces, notifications, and publication remain separate work.
 
 ## Implemented operations (September 2026)
 
@@ -27,7 +27,7 @@ Validation commands:
 - `npm test` — directory regressions plus lifecycle, eligibility, authorization, payload, concurrency, privacy, tenant/configuration, sealing, and tie behavior.
 - `npm run test:firestore-rules` — emulator proof that browser reads/writes to directory and election trees are denied.
 
-Recommended next work is the already-planned employee-facing voting interface and protected management participation/results experience.
+The public employee flow is available at `/collaborateur-du-mois`. Recommended next work is the protected management participation/results experience and production election configuration.
 
 ## 1. Decision summary
 

@@ -47,6 +47,11 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+app.get('/collaborateur-du-mois', (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.sendFile(path.join(__dirname, 'collaborateur-du-mois.html'));
+});
+
 // API per salvare planning su Firebase
 app.post('/api/save-planning', async (req, res) => {
   try {
