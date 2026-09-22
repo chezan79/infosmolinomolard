@@ -2,7 +2,7 @@
 const express = require('express');
 const path = require('path');
 const { mountPublicFiles } = require('./public-files');
-const XLSX = require('xlsx');
+const { createPlanningWorkbook, safeFilename } = require('./planning-export');
 const { initializeFirebase, getAuth } = require('./firebase-server-config');
 const { mountFirebaseClientConfig } = require('./firebase-client-config-route');
 const { createDirectoryRuntime } = require('./employee-directory');
@@ -97,8 +97,8 @@ app.post('/api/save-planning', async (req, res) => {
       timestamp: new Date().toISOString()
     });
     
-  } catch (error) {
-    console.error('Errore nel salvare il planning:', error);
+  } catch {
+    console.error('planning_save_failed');
     res.status(500).json({ error: 'Errore nel salvare il planning su Firebase' });
   }
 });
@@ -122,42 +122,28 @@ app.get('/api/get-planning/:week/:department', async (req, res) => {
       department: department
     });
     
-  } catch (error) {
-    console.error('Errore nel recuperare il planning:', error);
+  } catch {
+    console.error('planning_load_failed');
     res.status(500).json({ error: 'Errore nel recuperare i dati da Firebase' });
   }
 });
 
 // API per esportare dati in Excel
-app.post('/api/export-excel', (req, res) => {
+app.post('/api/export-excel', async (req, res) => {
   try {
     const { data, filename } = req.body;
-    
-    // Crea un nuovo workbook
-    const workbook = XLSX.utils.book_new();
-    
-    // Converte i dati in worksheet
-    const worksheet = XLSX.utils.json_to_sheet(data);
-    
-    // Aggiunge il worksheet al workbook
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Planning');
-    
-    // Genera il file Excel in buffer
-    const excelBuffer = XLSX.write(workbook, { 
-      type: 'buffer', 
-      bookType: 'xlsx' 
-    });
+    const excelBuffer = await createPlanningWorkbook(data);
     
     // Imposta gli headers per il download
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename || 'planning'}.xlsx"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${safeFilename(filename)}.xlsx"`);
     
     // Invia il file
     res.send(excelBuffer);
     
-  } catch (error) {
-    console.error('Errore nell\'esportazione Excel:', error);
-    res.status(500).json({ error: 'Errore nell\'esportazione del file Excel' });
+  } catch {
+    console.error('planning_export_failed');
+    res.status(400).json({ error: 'Errore nell\'esportazione del file Excel' });
   }
 });
 
@@ -186,8 +172,8 @@ app.post('/api/process-planning', (req, res) => {
       totalPersons: filteredData.length
     });
     
-  } catch (error) {
-    console.error('Errore nel processare i dati:', error);
+  } catch {
+    console.error('planning_process_failed');
     res.status(500).json({ error: 'Errore nel processamento dei dati' });
   }
 });
@@ -197,8 +183,7 @@ app.post('/api/download-google-sheets', async (req, res) => {
   try {
     const { sheetUrl, sheetName } = req.body;
     
-    console.log(`📊 RICHIESTA GOOGLE SHEETS: URL=${sheetUrl}, Foglio=${sheetName}`);
-    console.log(`🔍 URL completo ricevuto: ${sheetUrl}`);
+    console.log('google_sheets_download_started');
     
     if (!sheetUrl) {
       return res.status(400).json({ error: 'URL Google Sheets richiesto' });
@@ -206,7 +191,7 @@ app.post('/api/download-google-sheets', async (req, res) => {
 
     // Verifica se l'URL contiene 'spreadsheets'
     if (!sheetUrl.includes('spreadsheets')) {
-      console.error('❌ ERRORE: URL non sembra essere un Google Sheets');
+      console.error('google_sheets_url_rejected');
       return res.status(400).json({ 
         error: 'URL deve essere di un Google Sheets (contenere "spreadsheets")',
         receivedUrl: sheetUrl
@@ -216,11 +201,10 @@ app.post('/api/download-google-sheets', async (req, res) => {
     // Estrai l'ID del foglio dall'URL con controlli migliorati
     const sheetId = extractSheetIdFromUrl(sheetUrl);
     if (!sheetId) {
-      console.error('❌ ERRORE: URL Google Sheets non valido:', sheetUrl);
+      console.error('google_sheets_url_rejected');
       return res.status(400).json({ error: 'URL Google Sheets non valido' });
     }
 
-    console.log(`🔑 Sheet ID estratto: ${sheetId}`);
 
     // URL per accedere ai dati del foglio in formato CSV
     let csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
@@ -229,8 +213,6 @@ app.post('/api/download-google-sheets', async (req, res) => {
     if (sheetName) {
       const gid = getSheetGidByName(sheetName);
       csvUrl += `&gid=${gid}`;
-      console.log(`📋 Accedendo al foglio "${sheetName}" con GID ${gid}`);
-      console.log(`🌐 URL finale: ${csvUrl}`);
     }
     
     // Aggiungi headers per migliorare la compatibilità
@@ -243,16 +225,15 @@ app.post('/api/download-google-sheets', async (req, res) => {
       }
     });
     
-    console.log(`📡 Risposta Google: Status ${response.status} - ${response.statusText}`);
+    console.log(`google_sheets_response status=${response.status}`);
     
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`❌ Errore Google Sheets (${response.status}):`, errorText);
+      await response.text();
+      console.error(`google_sheets_upstream_failed status=${response.status}`);
       throw new Error(`Errore ${response.status}: ${response.statusText}. Verifica che il foglio sia pubblico e accessibile.`);
     }
 
     const csvText = await response.text();
-    console.log(`📄 CSV ricevuto (primi 200 caratteri):`, csvText.substring(0, 200));
     
     if (!csvText || csvText.trim() === '') {
       throw new Error('Il foglio Google è vuoto o non accessibile');
@@ -260,8 +241,7 @@ app.post('/api/download-google-sheets', async (req, res) => {
 
     const jsonData = parseCSVToJSON(csvText);
     
-    console.log(`✅ SUCCESSO: ${jsonData.length} righe processate per il foglio "${sheetName || 'default'}"`);
-    console.log(`📊 Prime 2 righe per debug:`, jsonData.slice(0, 2));
+    console.log(`google_sheets_download_completed rows=${jsonData.length}`);
     
     res.json({
       success: true,
@@ -275,15 +255,10 @@ app.post('/api/download-google-sheets', async (req, res) => {
       }
     });
     
-  } catch (error) {
-    console.error('❌ ERRORE FINALE nel download da Google Sheets:', error);
+  } catch {
+    console.error('google_sheets_download_failed');
     res.status(500).json({ 
-      error: 'Errore nel scaricare i dati: ' + error.message + 
-             '. Verifica che il foglio Google sia pubblico e accessibile.',
-      debug: {
-        originalUrl: req.body.sheetUrl,
-        sheetName: req.body.sheetName
-      }
+      error: 'Errore nel scaricare i dati. Verifica che il foglio Google sia pubblico e accessibile.'
     });
   }
 });
@@ -338,20 +313,17 @@ function extractSheetIdFromUrl(url) {
 // Funzione per convertire CSV in JSON con gestione migliorata
 function parseCSVToJSON(csvText) {
   try {
-    console.log(`📄 Inizio parsing CSV (lunghezza: ${csvText.length})`);
+    console.log(`csv_parse_started bytes=${csvText.length}`);
     
     const lines = csvText.split('\n').filter(line => line.trim());
     if (lines.length === 0) {
-      console.log('⚠️ CSV vuoto dopo filtraggio');
+      console.log('csv_parse_empty');
       return [];
     }
     
-    console.log(`📊 Trovate ${lines.length} righe non vuote`);
-    console.log(`📋 Prima riga (header): ${lines[0]}`);
     
     // Prima riga contiene le intestazioni con gestione migliorata delle virgolette
     const headers = parseCSVLine(lines[0]);
-    console.log(`🏷️ Headers estratti:`, headers);
     
     const result = [];
     
@@ -370,11 +342,11 @@ function parseCSVToJSON(csvText) {
       }
     }
     
-    console.log(`✅ Parsing completato: ${result.length} righe valide`);
+    console.log(`csv_parse_completed rows=${result.length}`);
     return result;
     
-  } catch (error) {
-    console.error('❌ Errore nel parsing CSV:', error);
+  } catch {
+    console.error('csv_parse_failed');
     return [];
   }
 }
@@ -408,7 +380,7 @@ app.post('/api/sync-sheets-to-firebase', async (req, res) => {
     const { sheetsData, week, department } = req.body;
     
     // Qui implementerai la logica per salvare i dati da Google Sheets a Firebase
-    console.log('Sincronizzazione dati da Sheets a Firebase...');
+    console.log('planning_sync_started');
     
     res.json({
       success: true,
@@ -416,8 +388,8 @@ app.post('/api/sync-sheets-to-firebase', async (req, res) => {
       recordsProcessed: sheetsData.length
     });
     
-  } catch (error) {
-    console.error('Errore nella sincronizzazione:', error);
+  } catch {
+    console.error('planning_sync_failed');
     res.status(500).json({ error: 'Errore nella sincronizzazione con Firebase' });
   }
 });
@@ -454,10 +426,10 @@ app.post('/api/training/enroll', async (req, res) => {
     // Salva in Firebase se disponibile, altrimenti in memoria
     if (firebaseDb) {
       await firebaseDb.collection('enrollments').doc(enrollmentId).set(enrollmentData);
-      console.log('✅ Iscrizione salvata su Firebase:', enrollmentData);
+      console.log('training_enrollment_saved storage=firebase');
     } else {
       enrollmentsDB.set(enrollmentId, enrollmentData);
-      console.log('⚠️ Iscrizione salvata in memoria (Firebase non configurato):', enrollmentData);
+      console.log('training_enrollment_saved storage=memory');
     }
     
     res.json({
@@ -466,8 +438,8 @@ app.post('/api/training/enroll', async (req, res) => {
       enrollment: enrollmentData
     });
     
-  } catch (error) {
-    console.error('Errore nell\'iscrizione:', error);
+  } catch {
+    console.error('training_enrollment_failed');
     res.status(500).json({ error: 'Errore nell\'iscrizione alla formazione' });
   }
 });
@@ -487,12 +459,12 @@ app.get('/api/training/enrollments/:userId', async (req, res) => {
         userEnrollments.push(doc.data());
       });
       
-      console.log(`📚 Recuperate ${userEnrollments.length} iscrizioni da Firebase per utente:`, userId);
+      console.log(`training_enrollments_loaded storage=firebase count=${userEnrollments.length}`);
     } else {
       userEnrollments = Array.from(enrollmentsDB.values())
         .filter(e => e.userId === userId);
       
-      console.log(`📚 Recuperate ${userEnrollments.length} iscrizioni dalla memoria per utente:`, userId);
+      console.log(`training_enrollments_loaded storage=memory count=${userEnrollments.length}`);
     }
     
     res.json({
@@ -500,8 +472,8 @@ app.get('/api/training/enrollments/:userId', async (req, res) => {
       data: userEnrollments
     });
     
-  } catch (error) {
-    console.error('Errore nel recuperare le iscrizioni:', error);
+  } catch {
+    console.error('training_enrollments_load_failed');
     res.status(500).json({ error: 'Errore nel recuperare le iscrizioni' });
   }
 });
@@ -516,10 +488,10 @@ app.get('/api/training/enrollments/all', async (req, res) => {
       snapshot.forEach(doc => {
         allEnrollments.push(doc.data());
       });
-      console.log(`📊 Admin: recuperate ${allEnrollments.length} iscrizioni totali da Firebase`);
+      console.log(`training_enrollments_admin_loaded storage=firebase count=${allEnrollments.length}`);
     } else {
       allEnrollments = Array.from(enrollmentsDB.values());
-      console.log(`📊 Admin: recuperate ${allEnrollments.length} iscrizioni totali dalla memoria`);
+      console.log(`training_enrollments_admin_loaded storage=memory count=${allEnrollments.length}`);
     }
     
     res.json({
@@ -527,8 +499,8 @@ app.get('/api/training/enrollments/all', async (req, res) => {
       data: allEnrollments
     });
     
-  } catch (error) {
-    console.error('Errore nel recuperare le iscrizioni:', error);
+  } catch {
+    console.error('training_enrollments_admin_load_failed');
     res.status(500).json({ error: 'Errore nel recuperare le iscrizioni' });
   }
 });
@@ -549,7 +521,7 @@ app.put('/api/training/progress/:enrollmentId', async (req, res) => {
     enrollment.lastUpdated = new Date().toISOString();
     enrollmentsDB.set(enrollmentId, enrollment);
     
-    console.log(`📈 Progresso aggiornato per ${enrollmentId}:`, progress);
+    console.log('training_progress_updated');
     
     res.json({
       success: true,
@@ -557,8 +529,8 @@ app.put('/api/training/progress/:enrollmentId', async (req, res) => {
       enrollment
     });
     
-  } catch (error) {
-    console.error('Errore nell\'aggiornare il progresso:', error);
+  } catch {
+    console.error('training_progress_update_failed');
     res.status(500).json({ error: 'Errore nell\'aggiornare il progresso' });
   }
 });
@@ -579,7 +551,7 @@ app.post('/api/training/complete/:enrollmentId', async (req, res) => {
     enrollment.completionDate = new Date().toISOString();
     enrollmentsDB.set(enrollmentId, enrollment);
     
-    console.log(`🎉 Formazione completata:`, enrollment);
+    console.log('training_completed');
     
     res.json({
       success: true,
@@ -587,8 +559,8 @@ app.post('/api/training/complete/:enrollmentId', async (req, res) => {
       enrollment
     });
     
-  } catch (error) {
-    console.error('Errore nel completare la formazione:', error);
+  } catch {
+    console.error('training_completion_failed');
     res.status(500).json({ error: 'Errore nel completare la formazione' });
   }
 });
@@ -618,8 +590,8 @@ app.get('/api/training/available', async (req, res) => {
       data: trainings
     });
     
-  } catch (error) {
-    console.error('Errore nel recuperare le formazioni:', error);
+  } catch {
+    console.error('trainings_load_failed');
     res.status(500).json({ error: 'Errore nel recuperare le formazioni' });
   }
 });

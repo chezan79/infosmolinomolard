@@ -11,15 +11,21 @@
   },
   "dependencies": {
     "@firebase/rules-unit-testing": "^5.0.2",
-    "cors": "^2.8.5",
-    "express": "^4.18.2",
-    "firebase": "^12.4.0",
-    "firebase-admin": "^13.5.0",
-    "google-auth-library": "^10.5.0",
-    "jspdf": "^3.0.3",
-    "jspdf-autotable": "^5.0.2",
+    "cors": "^2.8.6",
+    "exceljs": "^4.4.0",
+    "express": "^4.22.3",
+    "firebase": "^12.19.0",
+    "firebase-admin": "^13.10.0",
+    "google-auth-library": "^10.9.1",
     "sharp": "^0.35.4",
-    "ws": "^8.21.3",
-    "xlsx": "^0.18.5"
+    "ws": "^8.21.3"
+  },
+  "overrides": {
+    "form-data": "2.5.6",
+    "google-gax": {
+      "@grpc/grpc-js": "1.14.5"
+    },
+    "protobufjs": "7.6.5",
+    "websocket-driver": "0.7.5"
   }
 }
