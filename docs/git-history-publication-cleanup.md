@@ -50,11 +50,22 @@ The following exact local or remote-tracking refs still retain the original arch
 - `refs/remotes/origin/HEAD` and `refs/remotes/origin/main` → `6915b14b5e7bc3ea1edb556ade14fa797f74e9db`
 - `refs/replit/agent-ledger` → `270006db4278f95ec66a68e75c40b88b1e6ac2f1`
 
-These refs are not the publication candidate and must not be pushed to a new public repository. `refs/original/refs/heads/main` points to `9fd23134db62a5e6d7575e6e3b1fb2408936bdd1`, the result of the second rewrite. It does not contain the archive, memory files, or `screenshots/`, but it still contains the historical `attached_assets/` employee screenshots and is therefore not publishable.
+These refs are not the publication candidate and must not be pushed. After the Task #44 targeted rewrite, `refs/original/refs/heads/main` points to `b982880fab3438790bd912cb1adcf7a294623234`, the completed Task #41 branch before the internal readiness document was removed. It is not the publication candidate.
 
 ## Current-tree protection
 
 `InfosMolard.zip` is absent from the current tree. `/InfosMolard.zip` is ignored at the repository root so the duplicate archive cannot be recommitted accidentally without an explicit override.
+
+## Task #44 targeted cleanup
+
+Before the targeted rewrite:
+
+- local `main`: `b982880fab3438790bd912cb1adcf7a294623234`
+- live and remote-tracking `origin/main`: `6915b14b5e7bc3ea1edb556ade14fa797f74e9db`
+- recoverable local backup: `refs/backup/task-44-before-readiness-cleanup`
+- affected path: `docs/live-vote-readiness.md`
+
+The targeted rewrite processed the 136-commit Task #41 publication branch and removed only `docs/live-vote-readiness.md`. The rewritten `main` initially pointed to `bc8be6e5ac5520ea88f87be92a9f7914df98802d`. A direct tree comparison with the verified Task #44 backup showed only that file deletion. No remote ref was changed and nothing was pushed.
 
 ## Publication rule
 
@@ -73,6 +84,7 @@ The final publishable `main` history contains none of these paths:
 - `.agents/memory/`
 - `screenshots/`
 - `attached_assets/`
+- `docs/live-vote-readiness.md`
 - archive, log, diagnostics, or credential filenames
 
 History-wide pattern scans found environment-variable names only in implementation, tests, and operational documentation; no configured secret values, private keys, service-account files, bearer tokens, ID tokens, session values, or credential files were found. The only credential-like match is the known Firebase web API identifier in `public/office.html`; it is intentionally client-visible and is not a Firebase Admin credential. The static scanner also flags placeholder strings in `firebase-config.js`. The privacy/data-flow scanner reports no findings.

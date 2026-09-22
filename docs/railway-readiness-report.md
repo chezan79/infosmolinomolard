@@ -16,7 +16,7 @@ The local publishable `main` history was rewritten after a verified local backup
 
 - Resolved: `IMG_5197.jpg` is an intentional public photo of the restaurant's ceiling lighting, not a personal portrait. It remains required by the homepage banner and social metadata. The same image blob has been public since its introduction, contains no people or location metadata, and did not require history removal.
 - Resolved on local `main`: the unused duplicate source archive `InfosMolard.zip` was removed from the current tree and every commit in the rewritten publishable history. A root ignore rule prevents it from being recommitted.
-- Review required: `docs/live-vote-readiness.md` contains workforce/election population counts and operational state.
+- Resolved on local `main`: the internal live-vote readiness document and its workforce/election aggregates were removed from the current tree and every commit in the publishable history.
 - Review required: operational/security documentation discloses internal routes and architecture.
 - Review required: `public/office.html` contains a Firebase web API identifier. It is not an Admin secret, but Firebase restrictions must treat it as public.
 - No tracked `.env`, private key, service-account JSON, bearer token, database dump, log, screenshot, diagnostics directory, or agent memory file was found.
@@ -29,7 +29,7 @@ The original history remains available only through local backup/original refs a
 - Firebase rules have not been deployed by this task.
 - Existing `.replit` workflow configuration remains development-only and is not part of Railway runtime.
 - A supervised production-configuration smoke test behind the real Railway proxy/custom domain remains required.
-- The two repository-history publication blockers found by this report are resolved on rewritten local `main`; the remaining configuration and review items still require approval before deployment.
+- The repository-history publication blockers found by this report are resolved on rewritten local `main`; the remaining configuration and review items still require approval before deployment.
 
 ## Verification
 
