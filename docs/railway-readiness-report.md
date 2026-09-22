@@ -12,16 +12,16 @@ Firestore election records (grants, throttling, participation, ballots, audits, 
 
 ## Repository publication review
 
-Reviewed all 12 commits ahead of `origin/main` and tracked content without pushing or rewriting history.
+The local publishable `main` history was rewritten after a verified local backup was created. No remote ref was changed and nothing was pushed.
 
-- Blocker: `IMG_5197.jpg` is a tracked personal portrait and requires removal from the entire publishable Git history or explicit publication approval.
-- Blocker: `InfosMolard.zip` is a tracked duplicate source/archive and should be removed from the entire publishable Git history before a public push.
+- Resolved: `IMG_5197.jpg` is an intentional public photo of the restaurant's ceiling lighting, not a personal portrait. It remains required by the homepage banner and social metadata. The same image blob has been public since its introduction, contains no people or location metadata, and did not require history removal.
+- Resolved on local `main`: the unused duplicate source archive `InfosMolard.zip` was removed from the current tree and every commit in the rewritten publishable history. A root ignore rule prevents it from being recommitted.
 - Review required: `docs/live-vote-readiness.md` contains workforce/election population counts and operational state.
 - Review required: operational/security documentation discloses internal routes and architecture.
 - Review required: `public/office.html` contains a Firebase web API identifier. It is not an Admin secret, but Firebase restrictions must treat it as public.
 - No tracked `.env`, private key, service-account JSON, bearer token, database dump, log, screenshot, diagnostics directory, or agent memory file was found.
 
-Deleting files only in the current commit would not remove them from the 12-commit history, so no history rewrite was performed.
+The original history remains available only through local backup/original refs and the untouched remote-tracking `origin/main`. Those refs must not be pushed to a new public repository. The rewritten local `main` is the publication candidate.
 
 ## Remaining Replit dependencies and approval blockers
 
@@ -29,7 +29,7 @@ Deleting files only in the current commit would not remove them from the 12-comm
 - Firebase rules have not been deployed by this task.
 - Existing `.replit` workflow configuration remains development-only and is not part of Railway runtime.
 - A supervised production-configuration smoke test behind the real Railway proxy/custom domain remains required.
-- The repository-history publication blockers above must be resolved before pushing to a public GitHub repository.
+- The two repository-history publication blockers found by this report are resolved on rewritten local `main`; the remaining configuration and review items still require approval before deployment.
 
 ## Verification
 
