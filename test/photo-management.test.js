@@ -5,6 +5,7 @@ const test = require('node:test');
 const sharp = require('sharp');
 const express = require('express');
 const { createDirectoryRuntime } = require('../employee-directory');
+const { requireSameOrigin } = require('../employee-directory/auth');
 const { normalizeStorageBucket } = require('../firebase-server-config');
 const { normalizeDirectory } = require('../employee-directory/contract');
 const {
@@ -163,7 +164,8 @@ test('management UI is localized, responsive and contains protected photo action
   const login = fs.readFileSync(path.join(root, 'gestion-photos-login.js'), 'utf8');
   const homepage = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
   for (const locale of ['fr:', 'it:', 'en:']) assert.ok(js.includes(locale));
-  for (const action of ["method:'PUT'", "method:'DELETE'", 'getIdToken']) assert.ok(js.includes(action));
+  for (const action of ["method:'PUT'", "method:'DELETE'", "credentials:'same-origin'"]) assert.ok(js.includes(action));
+  assert.doesNotMatch(js, /firebase-auth|accounts:lookup|getIdToken|Authorization/);
   assert.match(login, /signInWithEmailAndPassword/);
   assert.match(login, /configurationUnavailable/);
   assert.match(login, /if \(!state\.auth\)/);
@@ -177,7 +179,7 @@ test('management UI is localized, responsive and contains protected photo action
   assert.match(js, /gestion-photos-login\.html\?error=session/);
   assert.match(administration, /📷/);
   assert.match(administration, /Photos collaborateurs/);
-  assert.match(administrationJs, /signOut/);
+  assert.doesNotMatch(administrationJs, /firebase-auth|signOut|getAuth/);
   assert.match(homepage, /🔐 Administration/);
   assert.doesNotMatch(homepage, /Andrea|Capriotti|firebase|uid|password/i);
 });
@@ -229,6 +231,7 @@ test('administration APIs require the sole configured Molard UID and never expos
       return { uid: 'voter-1', siteId: 'molard', role: 'employee' };
     },
     async verifySessionCookie(token) {
+      if (!token.startsWith('session-')) throw new Error('Not a Firebase session cookie');
       const value = token.replace(/^session-/, '');
       return this.verifyIdToken(value);
     },
@@ -258,14 +261,31 @@ test('administration APIs require the sole configured Molard UID and never expos
   await new Promise((resolve) => server.once('listening', resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
 
-  for (const token of [null, 'voter', 'manager', 'generic-admin', 'wrong-site', 'voting-grant', 'SAL-1001']) {
+  for (const token of [null, 'session-voter', 'session-manager', 'session-generic-admin', 'session-wrong-site', 'session-voting-grant', 'SAL-1001']) {
     const response = await fetch(`${base}/api/v1/management/employee-photos`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      headers: token ? { Cookie: `__session=${token}` } : {},
     });
-    assert.equal(response.status, token === null || token === 'voting-grant' ? 401 : 403);
+    assert.equal(response.status, token === null || token === 'session-voting-grant' || token === 'SAL-1001' ? 401 : 403);
   }
-  const list = await fetch(`${base}/api/v1/management/employee-photos`, {
+  const administratorSession = await fetch(`${base}/api/v1/management/session`, {
+    method: 'POST',
     headers: { Authorization: 'Bearer authorized' },
+  });
+  assert.equal(administratorSession.status, 204);
+  const setCookie = administratorSession.headers.get('set-cookie');
+  assert.match(setCookie, /__session=session-authorized/);
+  assert.match(setCookie, /HttpOnly/i);
+  assert.match(setCookie, /Secure/i);
+  assert.match(setCookie, /SameSite=Strict/i);
+  assert.match(setCookie, /Path=\//i);
+  assert.doesNotMatch(setCookie, /Domain=/i);
+  const sessionHeaders = { Cookie: '__session=session-authorized' };
+  const malformedCookie = await fetch(`${base}/api/v1/management/employee-photos`, {
+    headers: { Cookie: '__session=%' },
+  });
+  assert.equal(malformedCookie.status, 401);
+  const list = await fetch(`${base}/api/v1/management/employee-photos`, {
+    headers: sessionHeaders,
   });
   const body = await list.json();
   assert.equal(list.status, 200);
@@ -277,7 +297,7 @@ test('administration APIs require the sole configured Molard UID and never expos
   const image = await sharp({ create: { width: 24, height: 24, channels: 3, background: 'purple' } }).png().toBuffer();
   const uploaded = await fetch(`${base}/api/v1/management/employee-photos/emp-1`, {
     method: 'PUT',
-    headers: { Authorization: 'Bearer authorized', 'Content-Type': 'image/png' },
+    headers: { ...sessionHeaders, Origin: base, 'Content-Type': 'image/png' },
     body: image,
   });
   assert.equal(uploaded.status, 200);
@@ -297,16 +317,24 @@ test('administration APIs require the sole configured Molard UID and never expos
   assert.equal(signedPhoto.headers.get('content-type'), 'image/webp');
   const removed = await fetch(`${base}/api/v1/management/employee-photos/emp-1`, {
     method: 'DELETE',
-    headers: { Authorization: 'Bearer authorized' },
+    headers: { ...sessionHeaders, Origin: base },
   });
   assert.equal(removed.status, 200);
+  assert.equal((await fetch(`${base}/api/v1/management/employee-photos`, {
+    headers: sessionHeaders,
+  })).status, 200, 'server must remain available after malformed cookie input');
 
-  const administratorSession = await fetch(`${base}/api/v1/management/session`, {
-    method: 'POST',
-    headers: { Authorization: 'Bearer authorized' },
+  const crossOrigin = await fetch(`${base}/api/v1/management/employee-photos/emp-1`, {
+    method: 'DELETE',
+    headers: { ...sessionHeaders, Origin: 'https://attacker.example' },
   });
-  assert.equal(administratorSession.status, 204);
-  assert.match(administratorSession.headers.get('set-cookie'), /__session=session-authorized/);
+  assert.equal(crossOrigin.status, 403);
+  const missingOrigin = await fetch(`${base}/api/v1/management/employee-photos/emp-1`, {
+    method: 'DELETE',
+    headers: sessionHeaders,
+  });
+  assert.equal(missingOrigin.status, 403);
+
   for (const deniedToken of ['voter', 'manager', 'generic-admin', 'wrong-site']) {
     const deniedSession = await fetch(`${base}/api/v1/management/session`, {
       method: 'POST',
@@ -314,6 +342,30 @@ test('administration APIs require the sole configured Molard UID and never expos
     });
     assert.equal(deniedSession.status, 403);
   }
+  const logout = await fetch(`${base}/api/v1/management/session`, {
+    method: 'DELETE',
+    headers: { ...sessionHeaders, Origin: base },
+  });
+  assert.equal(logout.status, 204);
+  assert.match(logout.headers.get('set-cookie'), /__session=;/);
+  assert.equal((await fetch(`${base}/api/v1/management/employee-photos`)).status, 401);
+});
+
+test('same-origin guard accepts the external Preview origin behind an HTTPS proxy', () => {
+  const headers = new Map([
+    ['host', 'preview.example.test'],
+    ['origin', 'https://preview.example.test'],
+    ['x-forwarded-proto', 'https'],
+  ]);
+  const req = {
+    protocol: 'http',
+    get(name) { return headers.get(name.toLowerCase()); },
+  };
+  let nextCalled = false;
+  requireSameOrigin(req, {
+    status() { assert.fail('matching proxied origin must not be rejected'); },
+  }, () => { nextCalled = true; });
+  assert.equal(nextCalled, true);
 });
 
 test('private Administration pages redirect every identity except the configured Molard UID', async (t) => {

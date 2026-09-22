@@ -1,5 +1,5 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js';
-import { getAuth, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js';
+import { getAuth, inMemoryPersistence, setPersistence, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js';
 
 const copy = {
   fr:{area:'Administration',private:'Accès privé',title:'Connexion Administration',email:'E-mail',password:'Mot de passe',connect:'Se connecter',error:'Identifiants invalides ou accès insuffisant.',session:'Votre session a expiré ou a été révoquée. Reconnectez-vous.',config:'La connexion Administration est temporairement indisponible. Réessayez plus tard.'},
@@ -72,6 +72,7 @@ async function initialize() {
       }
     }
     state.auth = getAuth(initializeApp(config));
+    await setPersistence(state.auth, inMemoryPersistence);
   } catch {
     state.auth = null;
     state.configurationUnavailable = true;

@@ -7,7 +7,13 @@ function cookieValue(req, name) {
   const cookies = String(req.get('cookie') || '').split(';');
   for (const cookie of cookies) {
     const [key, ...parts] = cookie.trim().split('=');
-    if (key === name) return decodeURIComponent(parts.join('='));
+    if (key === name) {
+      try {
+        return decodeURIComponent(parts.join('='));
+      } catch {
+        return '';
+      }
+    }
   }
   return '';
 }
@@ -34,6 +40,40 @@ function createAdministrationAuthorization({ firebaseAuth, siteId, administrator
   };
 }
 
+function createAdministrationSessionAuthorization({ firebaseAuth, siteId, administratorUid }) {
+  return async function authorizeAdministrationSession(req, res, next) {
+    const sessionCookie = cookieValue(req, '__session');
+    if (!sessionCookie) return res.status(401).json({ error: 'AUTH_REQUIRED' });
+    try {
+      const decoded = await firebaseAuth.verifySessionCookie(sessionCookie, true);
+      if (!hasAdministrationAccess(decoded, siteId, administratorUid)) {
+        return res.status(403).json({ error: 'FORBIDDEN' });
+      }
+      req.administrator = { uid: decoded.uid, siteId: decoded.siteId };
+      return next();
+    } catch {
+      res.clearCookie('__session', { httpOnly: true, secure: true, sameSite: 'strict', path: '/' });
+      return res.status(401).json({ error: 'INVALID_SESSION' });
+    }
+  };
+}
+
+function requireSameOrigin(req, res, next) {
+  const origin = req.get('origin');
+  if (!origin) return res.status(403).json({ error: 'ORIGIN_REQUIRED' });
+  try {
+    const parsed = new URL(origin);
+    const forwardedProtocol = String(req.get('x-forwarded-proto') || '').split(',')[0].trim();
+    const expectedProtocol = forwardedProtocol || req.protocol;
+    if (parsed.host !== req.get('host') || parsed.protocol !== `${expectedProtocol}:`) {
+      return res.status(403).json({ error: 'ORIGIN_FORBIDDEN' });
+    }
+  } catch {
+    return res.status(403).json({ error: 'ORIGIN_FORBIDDEN' });
+  }
+  return next();
+}
+
 function createAdministrationPageAuthorization({ firebaseAuth, siteId, administratorUid, loginPath = '/gestion-photos-login.html' }) {
   return async function authorizeAdministrationPage(req, res, next) {
     const sessionCookie = cookieValue(req, '__session');
@@ -56,6 +96,8 @@ module.exports = {
   bearerToken,
   cookieValue,
   createAdministrationAuthorization,
+  createAdministrationSessionAuthorization,
   createAdministrationPageAuthorization,
   hasAdministrationAccess,
+  requireSameOrigin,
 };

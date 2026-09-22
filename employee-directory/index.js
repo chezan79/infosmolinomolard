@@ -1,7 +1,9 @@
 const {
   bearerToken,
   createAdministrationAuthorization,
+  createAdministrationSessionAuthorization,
   createAdministrationPageAuthorization,
+  requireSameOrigin,
 } = require('./auth');
 const { FirestoreDirectoryStore } = require('./firestore-store');
 const { GoogleSheetsDirectorySource } = require('./google-sheets-source');
@@ -90,6 +92,11 @@ function createDirectoryRuntime({ env, firebaseDb, firebaseAuth, firebaseBucket,
       siteId,
       administratorUid,
     });
+    const authorizeAdministratorSession = createAdministrationSessionAuthorization({
+      firebaseAuth,
+      siteId,
+      administratorUid,
+    });
     app.post('/api/v1/management/session', authorizeAdministrator, async (req, res) => {
       try {
         const sessionCookie = await firebaseAuth.createSessionCookie(bearerToken(req), {
@@ -108,16 +115,16 @@ function createDirectoryRuntime({ env, firebaseDb, firebaseAuth, firebaseBucket,
         return res.status(401).json({ error: 'INVALID_AUTH' });
       }
     });
-    app.delete('/api/v1/management/session', (_req, res) => {
+    app.delete('/api/v1/management/session', requireSameOrigin, (_req, res) => {
       res.clearCookie('__session', { httpOnly: true, secure: true, sameSite: 'strict', path: '/' });
       res.set('Cache-Control', 'no-store');
       return res.status(204).end();
     });
-    app.get('/api/v1/management/employee-directory/status', authorizeAdministrator, (_req, res) => {
+    app.get('/api/v1/management/employee-directory/status', authorizeAdministratorSession, (_req, res) => {
       res.set('Cache-Control', 'no-store');
       return res.json(service.getStatus());
     });
-    app.post('/api/v1/management/employee-directory/refresh', authorizeAdministrator, async (_req, res) => {
+    app.post('/api/v1/management/employee-directory/refresh', requireSameOrigin, authorizeAdministratorSession, async (_req, res) => {
       try {
         const status = await service.refresh();
         res.set('Cache-Control', 'no-store');
@@ -127,14 +134,14 @@ function createDirectoryRuntime({ env, firebaseDb, firebaseAuth, firebaseBucket,
         return res.status(503).json({ error: code, status: service.getStatus() });
       }
     });
-    app.get('/api/v1/management/employee-photos', authorizeAdministrator, (_req, res) => {
+    app.get('/api/v1/management/employee-photos', authorizeAdministratorSession, (_req, res) => {
       res.set('Cache-Control', 'no-store');
       try { return res.json(photos.list()); } catch (error) {
         return res.status(error.status || 503).json({ error: error.code || 'PHOTO_SERVICE_UNAVAILABLE' });
       }
     });
     const imageBody = require('express').raw({ type: () => true, limit: MAX_UPLOAD_BYTES });
-    app.put('/api/v1/management/employee-photos/:employeeId', authorizeAdministrator, imageBody, async (req, res) => {
+    app.put('/api/v1/management/employee-photos/:employeeId', requireSameOrigin, authorizeAdministratorSession, imageBody, async (req, res) => {
       res.set('Cache-Control', 'no-store');
       try {
         return res.json(await photos.upload(req.params.employeeId, req.body, req.get('content-type') || ''));
@@ -143,7 +150,7 @@ function createDirectoryRuntime({ env, firebaseDb, firebaseAuth, firebaseBucket,
         return res.status(known ? error.status : 503).json({ error: known ? error.code : 'PHOTO_SERVICE_UNAVAILABLE' });
       }
     });
-    app.delete('/api/v1/management/employee-photos/:employeeId', authorizeAdministrator, async (req, res) => {
+    app.delete('/api/v1/management/employee-photos/:employeeId', requireSameOrigin, authorizeAdministratorSession, async (req, res) => {
       res.set('Cache-Control', 'no-store');
       try { return res.json(await photos.remove(req.params.employeeId)); } catch (error) {
         const known = error instanceof PhotoError;

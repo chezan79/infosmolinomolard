@@ -308,7 +308,7 @@ test('does not configure Google publication without Firestore persistence', () =
 test('full directory is not public and administration status enforces sole identity authorization', async (t) => {
   const normalized = normalizeDirectory(validRows(), OPTIONS);
   const firebaseAuth = {
-    async verifyIdToken(token) {
+    async verifySessionCookie(token) {
       if (token === 'allowed') return { uid: 'u1', siteId: 'molard', role: 'employee' };
       return { uid: 'u2', siteId: 'other', role: 'manager' };
     },
@@ -338,11 +338,11 @@ test('full directory is not public and administration status enforces sole ident
   assert.equal(candidatesResponse.status, 404);
 
   const denied = await fetch(`${base}/api/v1/management/employee-directory/status`, {
-    headers: { Authorization: 'Bearer denied' },
+    headers: { Cookie: '__session=denied' },
   });
   assert.equal(denied.status, 403);
   const allowed = await fetch(`${base}/api/v1/management/employee-directory/status`, {
-    headers: { Authorization: 'Bearer allowed' },
+    headers: { Cookie: '__session=allowed' },
   });
   assert.equal(allowed.status, 200);
   assert.equal(JSON.stringify(await allowed.json()).includes('verifier'), false);
