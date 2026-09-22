@@ -8,7 +8,9 @@ const html = fs.readFileSync(path.join(root, 'collaborateur-du-mois.html'), 'utf
 const css = fs.readFileSync(path.join(root, 'collaborateur-du-mois.css'), 'utf8');
 const js = fs.readFileSync(path.join(root, 'collaborateur-du-mois.js'), 'utf8');
 const server = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
+const publicFiles = fs.readFileSync(path.join(root, 'public-files.js'), 'utf8');
 const homepage = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+const homepageNavigation = fs.readFileSync(path.join(root, 'homepage-navigation.js'), 'utf8');
 
 test('stable extensionless voting route serves a no-store static page', () => {
   assert.match(server, /app\.get\('\/collaborateur-du-mois'/);
@@ -77,4 +79,21 @@ test('mobile accessibility and homepage regression protections remain in place',
   assert.match(js, /\.focus\(\)/);
   assert.match(homepage, /id="Navigation"/);
   assert.match(homepage, /competition-mois\.html/);
+});
+
+test('homepage permanently links to voting with localized public navigation copy', () => {
+  assert.match(
+    homepage,
+    /href="\/collaborateur-du-mois"[\s\S]*data-i18n="employeeOfTheMonth"[\s\S]*Collaborateur du mois/,
+  );
+  assert.match(publicFiles, /'homepage-navigation\.js'/);
+  assert.match(homepage, /href="competition-mois\.html"[\s\S]*🏆 Compétition du mois/);
+  for (const label of [
+    'Collaborateur du mois',
+    'Collaboratore del mese',
+    'Employee of the Month',
+  ]) {
+    assert.ok((homepage + homepageNavigation).includes(label), `missing ${label}`);
+  }
+  assert.doesNotMatch(homepageNavigation, /Date|firebase|auth|election|fetch|Salaire-ID/i);
 });

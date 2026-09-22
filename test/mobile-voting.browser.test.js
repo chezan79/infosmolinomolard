@@ -100,6 +100,33 @@ async function openPage(browserPort, url) {
   };
 }
 
+test('homepage voting card stays visible and responsive without client-side election gating', async (t) => {
+  const api = express();
+  api.use(express.static(root));
+  api.get('/collaborateur-du-mois', (_req, res) => {
+    res.sendFile(path.join(root, 'collaborateur-du-mois.html'));
+  });
+  const server = api.listen(0, '127.0.0.1');
+  await new Promise((resolve) => server.once('listening', resolve));
+  t.after(() => server.close());
+
+  const browser = await startBrowser();
+  t.after(() => browser.child.kill('SIGKILL'));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const page = await openPage(browser.port, `${base}/`);
+  t.after(() => page.close());
+
+  const selector = 'a.navigation-card[href="/collaborateur-du-mois"]';
+  await waitFor(() => page.evaluate(`Boolean(document.querySelector('${selector}'))`));
+  assert.equal(await page.evaluate(`getComputedStyle(document.querySelector('${selector}')).display`), 'flex');
+  assert.equal(await page.evaluate(`
+    ['Collaborateur du mois', 'Collaboratore del mese', 'Employee of the Month']
+      .some((label) => document.querySelector('${selector}').textContent.includes(label))
+  `), true);
+  assert.equal(await page.evaluate('Boolean(document.querySelector(\'a[href="competition-mois.html"]\'))'), true);
+  assert.equal(await page.evaluate('document.documentElement.scrollWidth <= window.innerWidth'), true);
+});
+
 test('mobile browser completes the private atomic voting flow', async (t) => {
   const scenario = {
     election: { code: 'ELECTION_STATE', state: 'OPEN', categories: ['CUISINE', 'SERVICE'] },

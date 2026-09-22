@@ -8,6 +8,7 @@ const PUBLIC_ROOT_SCRIPTS = new Set([
   'firebase-config.js',
   'gestion-photos-collaborateurs.js',
   'gestion-photos-login.js',
+  'homepage-navigation.js',
   'administration.js',
 ]);
 
