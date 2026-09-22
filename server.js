@@ -7,9 +7,26 @@ const { initializeFirebase, getAuth } = require('./firebase-server-config');
 const { mountFirebaseClientConfig } = require('./firebase-client-config-route');
 const { createDirectoryRuntime } = require('./employee-directory');
 const { createElectionRuntime } = require('./election-engine');
+const { validateProductionConfig } = require('./production-config');
 
 const app = express();
-const PORT = 5000;
+const runtimeConfig = validateProductionConfig(process.env);
+app.set('trust proxy', runtimeConfig.trustProxyHops);
+
+app.get('/healthz', (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  return res.status(200).json({ status: 'ok' });
+});
+
+if (runtimeConfig.production) {
+  app.use((req, res, next) => {
+    if (req.get('host') !== new URL(runtimeConfig.canonicalOrigin).host ||
+        req.protocol !== 'https') {
+      return res.status(421).json({ error: 'CANONICAL_ORIGIN_REQUIRED' });
+    }
+    return next();
+  });
+}
 
 // Inizializza Firebase se la configurazione è disponibile
 let firebaseDb = null;
@@ -22,9 +39,11 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT) {
     firebaseBucket = bucket;
     firebaseAuth = getAuth();
   } catch (error) {
+    if (runtimeConfig.production) throw new Error('Firebase Admin initialization failed');
     console.warn('Firebase Admin initialization failed; server-managed durable features are unavailable');
   }
 } else {
+  if (runtimeConfig.production) throw new Error('Firebase Admin configuration is required');
   console.warn('Firebase Admin is not configured; server-managed durable features are unavailable');
 }
 
@@ -69,6 +88,36 @@ app.get('/api/v1/operations/election-readiness', (_req, res) => {
   res.set('Cache-Control', 'no-store');
   const report = electionRuntime.readiness();
   return res.status(report.ready ? 200 : 503).json(report);
+});
+
+app.get('/readyz', (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const election = electionRuntime.readiness();
+  const ready = election.ready && employeeDirectory.administrationConfigured &&
+    (!runtimeConfig.production || Boolean(firebaseBucket));
+  return res.status(ready ? 200 : 503).json({
+    status: ready ? 'ready' : 'unavailable',
+    checks: {
+      administration: employeeDirectory.administrationConfigured,
+      durableStorage: Boolean(firebaseBucket),
+      election: election.ready,
+    },
+  });
+});
+
+const unsafeLegacyPrefixes = [
+  '/api/save-planning',
+  '/api/get-planning/',
+  '/api/process-planning',
+  '/api/download-google-sheets',
+  '/api/sync-sheets-to-firebase',
+  '/api/training/',
+];
+app.use((req, res, next) => {
+  if (runtimeConfig.production && unsafeLegacyPrefixes.some((prefix) => req.path.startsWith(prefix))) {
+    return res.status(404).json({ error: 'NOT_FOUND' });
+  }
+  return next();
 });
 
 // Route per la home page
@@ -597,12 +646,23 @@ app.get('/api/training/available', async (req, res) => {
 });
 
 // Avvia il server dopo aver caricato l'ultima directory valida disponibile.
-employeeDirectory.start()
-  .catch(() => console.warn('Employee directory unavailable at startup'))
-  .finally(() => {
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`Server avviato su http://0.0.0.0:${PORT}`);
-      console.log('Firebase integration ready!');
-      console.log('Training system API ready!');
-    });
+async function startServer() {
+  try {
+    await employeeDirectory.start();
+  } catch (error) {
+    if (runtimeConfig.production) throw error;
+    console.warn('Employee directory unavailable at startup');
+  }
+  return app.listen(runtimeConfig.port, runtimeConfig.host, () => {
+    console.log(`Server avviato su ${runtimeConfig.host}:${runtimeConfig.port}`);
+    console.log('Firebase integration ready!');
+    console.log('Training system API ready!');
   });
+}
+
+startServer().catch(() => {
+  console.error('Production startup failed');
+  process.exitCode = 1;
+});
+
+module.exports = { app, runtimeConfig, startServer };

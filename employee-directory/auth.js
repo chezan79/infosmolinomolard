@@ -63,9 +63,7 @@ function requireSameOrigin(req, res, next) {
   if (!origin) return res.status(403).json({ error: 'ORIGIN_REQUIRED' });
   try {
     const parsed = new URL(origin);
-    const forwardedProtocol = String(req.get('x-forwarded-proto') || '').split(',')[0].trim();
-    const expectedProtocol = forwardedProtocol || req.protocol;
-    if (parsed.host !== req.get('host') || parsed.protocol !== `${expectedProtocol}:`) {
+    if (parsed.host !== req.get('host') || parsed.protocol !== `${req.protocol}:`) {
       return res.status(403).json({ error: 'ORIGIN_FORBIDDEN' });
     }
   } catch {

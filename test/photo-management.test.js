@@ -351,14 +351,14 @@ test('administration APIs require the sole configured Molard UID and never expos
   assert.equal((await fetch(`${base}/api/v1/management/employee-photos`)).status, 401);
 });
 
-test('same-origin guard accepts the external Preview origin behind an HTTPS proxy', () => {
+test('same-origin guard uses the protocol resolved by the trusted Express proxy', () => {
   const headers = new Map([
     ['host', 'preview.example.test'],
     ['origin', 'https://preview.example.test'],
     ['x-forwarded-proto', 'https'],
   ]);
   const req = {
-    protocol: 'http',
+    protocol: 'https',
     get(name) { return headers.get(name.toLowerCase()); },
   };
   let nextCalled = false;
@@ -366,6 +366,32 @@ test('same-origin guard accepts the external Preview origin behind an HTTPS prox
     status() { assert.fail('matching proxied origin must not be rejected'); },
   }, () => { nextCalled = true; });
   assert.equal(nextCalled, true);
+});
+
+test('same-origin guard rejects untrusted protocol and host mismatches', () => {
+  for (const [origin, protocol] of [
+    ['https://other.example.test', 'https'],
+    ['https://preview.example.test', 'http'],
+  ]) {
+    const req = {
+      protocol,
+      get(name) {
+        return {
+          host: 'preview.example.test',
+          origin,
+          'x-forwarded-proto': 'https',
+        }[name.toLowerCase()];
+      },
+    };
+    let statusCode;
+    requireSameOrigin(req, {
+      status(code) {
+        statusCode = code;
+        return { json() {} };
+      },
+    }, () => assert.fail('mismatched origin must not be accepted'));
+    assert.equal(statusCode, 403);
+  }
 });
 
 test('private Administration pages redirect every identity except the configured Molard UID', async (t) => {

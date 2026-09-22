@@ -58,7 +58,6 @@ function createElectionRuntime({ env, firebaseDb, directoryService, electionServ
     }
   };
   function mount(app) {
-    app.set('trust proxy', Number.parseInt(env.ELECTION_TRUST_PROXY_HOPS, 10) || 1);
     const parseJson = express.json({ limit: '16kb' });
     const electionJson = (req, res, next) => parseJson(req, res, (error) => {
       if (!error) return next();
@@ -83,7 +82,7 @@ function createElectionRuntime({ env, firebaseDb, directoryService, electionServ
       electionAuthorization: typeof env.ELECTION_GRANT_SECRET === 'string' && env.ELECTION_GRANT_SECRET.length >= 32,
       trustedProxy: Number.isInteger(Number.parseInt(env.ELECTION_TRUST_PROXY_HOPS, 10)) &&
         Number.parseInt(env.ELECTION_TRUST_PROXY_HOPS, 10) > 0,
-      developmentIsolation: dataEnvironment === 'development',
+      dataEnvironment: ['development', 'production'].includes(dataEnvironment),
       validDirectorySnapshot: Boolean(directory.lastSuccessfulRefreshAt),
     };
     return {

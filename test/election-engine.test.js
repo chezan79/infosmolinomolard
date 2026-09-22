@@ -234,6 +234,37 @@ test('runtime readiness names missing configuration without exposing secret valu
   assert.equal(JSON.stringify(report).includes('secret'), false);
 });
 
+test('production readiness accepts only the explicit durable production namespace', () => {
+  const reference = {
+    collection() { return reference; },
+    doc() { return reference; },
+  };
+  const runtime = createElectionRuntime({
+    env: {
+      EMPLOYEE_DIRECTORY_SITE_ID: 'molard',
+      EMPLOYEE_DIRECTORY_SHEET_ID: 'sheet',
+      EMPLOYEE_DIRECTORY_PEPPER: 'p'.repeat(32),
+      ELECTION_GRANT_SECRET: 'g'.repeat(32),
+      ELECTION_TIME_ZONE: 'Europe/Zurich',
+      ELECTION_TRUST_PROXY_HOPS: '1',
+      ELECTION_DATA_ENVIRONMENT: 'production',
+    },
+    firebaseDb: { collection: () => reference },
+    directoryService: {
+      getStatus: () => ({
+        configured: true,
+        sourceHealth: 'healthy',
+        lastSuccessfulRefreshAt: '2026-09-01T00:00:00.000Z',
+      }),
+    },
+  });
+  const report = runtime.readiness();
+  assert.equal(report.ready, true);
+  assert.equal(report.dataEnvironment, 'production');
+  assert.equal(report.checks.dataEnvironment, true);
+  assert.equal(Object.hasOwn(report.checks, 'developmentIsolation'), false);
+});
+
 test('snapshotted eligibility survives later directory deactivation and removal', async () => {
   const { service } = serviceAt('2026-09-25T12:00:00Z');
   await service.current();

@@ -22,8 +22,10 @@ function initializeFirebase() {
     if (!admin.apps.length) {
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
-        databaseURL: process.env.FIREBASE_DATABASE_URL || "https://tuo-progetto.firebaseio.com",
-        storageBucket: normalizeStorageBucket(process.env.storageBucket || process.env.FIREBASE_STORAGE_BUCKET)
+        ...(process.env.FIREBASE_DATABASE_URL ? { databaseURL: process.env.FIREBASE_DATABASE_URL } : {}),
+        storageBucket: normalizeStorageBucket(
+          process.env.FIREBASE_STORAGE_BUCKET || process.env.storageBucket
+        )
       });
     }
     
