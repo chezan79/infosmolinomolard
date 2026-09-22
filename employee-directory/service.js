@@ -1,4 +1,5 @@
 const { getCandidates, normalizeDirectory, validatePersistedSnapshot } = require('./contract');
+const { buildPublicOrganization } = require('./organization');
 
 class EmployeeDirectoryService {
   constructor({ source, store, siteId, pepper, allowedPhotoOrigins = [], now = () => new Date() }) {
@@ -106,6 +107,17 @@ class EmployeeDirectoryService {
     return {
       ...this.snapshot,
       employees: this.snapshot.employees.map((employee) => ({ ...employee })),
+    };
+  }
+
+  getPublicOrganization() {
+    return buildPublicOrganization(this.snapshot, this.resolvePhotoUrl)?.publicResponse || null;
+  }
+
+  getOrganizationReport() {
+    return buildPublicOrganization(this.snapshot, this.resolvePhotoUrl)?.report || {
+      mappedTitles: [],
+      unmappedTitles: [],
     };
   }
 

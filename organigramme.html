@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Organigramme — Pizzeria Molino Molard</title>
+    <link rel="stylesheet" href="organigramme.css" />
+  </head>
+  <body class="organization-page">
+    <header class="organization-banner">
+      <h1>PIZZERIA MOLINO MOLARD</h1>
+      <p>Organigramme</p>
+    </header>
+    <main>
+      <a class="back-link" href="index.html">← Retour à l’accueil</a>
+      <section class="organization-panel" aria-labelledby="organization-title">
+        <div class="organization-heading">
+          <p class="eyebrow">Notre équipe</p>
+          <h2 id="organization-title">Organigramme</h2>
+          <p>Découvrez les collaborateurs actifs de Molino Molard.</p>
+        </div>
+        <p id="organization-status" class="organization-status" role="status">Chargement de l’équipe…</p>
+        <div id="organization-chart" class="organization-chart" hidden>
+          <section class="management-level" aria-labelledby="manager-title">
+            <h3 id="manager-title">Gérant</h3>
+            <div id="level-manager" class="people-grid"></div>
+          </section>
+          <div class="organization-branches">
+            <section class="organization-branch service-branch" aria-labelledby="service-title">
+              <h3 id="service-title">Service</h3>
+              <div id="service-levels" class="branch-levels"></div>
+            </section>
+            <section class="organization-branch cuisine-branch" aria-labelledby="cuisine-title">
+              <h3 id="cuisine-title">Cuisine</h3>
+              <div id="cuisine-levels" class="branch-levels"></div>
+            </section>
+          </div>
+        </div>
+      </section>
+    </main>
+    <footer>
+      <p>&copy; 2026 Pizzeria Molino Molard</p>
+    </footer>
+    <script src="organigramme.js"></script>
+  </body>
+</html>

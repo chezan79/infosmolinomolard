@@ -73,6 +73,15 @@ function createDirectoryRuntime({ env, firebaseDb, firebaseAuth, firebaseBucket,
   }
 
   function mount(app) {
+    app.get('/api/v1/public/organization', (_req, res) => {
+      res.set('Cache-Control', 'no-store');
+      const organization = service.getPublicOrganization();
+      if (!organization) {
+        return res.status(503).json({ error: 'DIRECTORY_UNAVAILABLE' });
+      }
+      return res.json(organization);
+    });
+
     app.get('/api/v1/employee-photos/:employeeId', async (req, res) => {
       try {
         const bytes = await photos.read(req.params.employeeId, req.query);

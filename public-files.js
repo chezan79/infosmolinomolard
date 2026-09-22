@@ -9,6 +9,7 @@ const PUBLIC_ROOT_SCRIPTS = new Set([
   'gestion-photos-collaborateurs.js',
   'gestion-photos-login.js',
   'homepage-navigation.js',
+  'organigramme.js',
   'administration.js',
 ]);
 
