@@ -372,6 +372,8 @@ test('same-origin guard rejects untrusted protocol and host mismatches', () => {
   for (const [origin, protocol] of [
     ['https://other.example.test', 'https'],
     ['https://preview.example.test', 'http'],
+    [undefined, 'https'],
+    ['not-an-origin', 'https'],
   ]) {
     const req = {
       protocol,

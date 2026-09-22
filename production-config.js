@@ -25,6 +25,9 @@ const REQUIRED_PRODUCTION_VARIABLES = [
   'storageBucket',
 ];
 
+const APPROVED_RAILWAY_CANONICAL_ORIGIN =
+  'https://infosmolinomolard-production.up.railway.app';
+
 function parsePort(value, fallback = 5000) {
   const port = value === undefined || value === '' ? fallback : Number(value);
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
@@ -36,13 +39,16 @@ function parsePort(value, fallback = 5000) {
 function parseCanonicalOrigin(value) {
   let origin;
   try {
-    const parsed = new URL(String(value || ''));
+    const exactValue = String(value || '');
+    const parsed = new URL(exactValue);
     if (parsed.protocol !== 'https:' || parsed.username || parsed.password ||
         parsed.pathname !== '/' || parsed.search || parsed.hash) {
       throw new Error();
     }
+    const railwayHostname = parsed.hostname.endsWith('.railway.app') ||
+      parsed.hostname.endsWith('.railway.app.');
     if (['localhost', '127.0.0.1', '::1'].includes(parsed.hostname) ||
-        parsed.hostname.endsWith('.railway.app')) {
+        (railwayHostname && exactValue !== APPROVED_RAILWAY_CANONICAL_ORIGIN)) {
       throw new Error();
     }
     origin = parsed.origin;
@@ -106,6 +112,7 @@ function validateProductionConfig(env) {
 }
 
 module.exports = {
+  APPROVED_RAILWAY_CANONICAL_ORIGIN,
   DEVELOPMENT_ONLY_VARIABLES,
   REQUIRED_PRODUCTION_VARIABLES,
   parseCanonicalOrigin,

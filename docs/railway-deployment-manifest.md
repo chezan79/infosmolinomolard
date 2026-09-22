@@ -19,7 +19,7 @@
 |---|---|---|
 | `NODE_ENV` | required non-secret | `production` |
 | `PORT` | Railway-provided non-secret | Valid TCP port |
-| `APP_CANONICAL_ORIGIN` | required non-secret | Exact HTTPS custom origin; no path; temporary Railway domains forbidden |
+| `APP_CANONICAL_ORIGIN` | required non-secret | Exactly `https://infosmolinomolard-production.up.railway.app`; no other Railway hostname, scheme, port, path, query, fragment, credentials, or wildcard-style value is approved |
 | `ELECTION_DATA_ENVIRONMENT` | required non-secret | Exactly `production` |
 | `ELECTION_TIME_ZONE` | required non-secret | Exactly `Europe/Zurich` |
 | `ELECTION_TRUST_PROXY_HOPS` | required non-secret | Exactly `1` for the approved topology |
@@ -45,3 +45,5 @@
 | `STORAGE_BUCKET`, `UPLOAD_PASSWORD` | obsolete Functions-only | Forbidden as Railway application configuration |
 
 The production election namespace is `electionSites/molard/dataEnvironments/production`. September 2026 must begin as a clean namespace. This preparation performs no production read, write, migration, deletion, election opening, or ballot creation.
+
+`APP_CANONICAL_ORIGIN` remains authoritative for the production host and protocol checks and for same-origin protected mutations. Railway forwards through exactly one approved proxy hop. This exception does not enable CORS or a Railway hostname wildcard, and it does not change secure, HTTP-only, SameSite=Strict session cookies, CSRF checks, or administrator authorization.

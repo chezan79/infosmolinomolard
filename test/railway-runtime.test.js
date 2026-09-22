@@ -6,6 +6,7 @@ const path = require('node:path');
 const { spawn, spawnSync } = require('node:child_process');
 const test = require('node:test');
 const {
+  APPROVED_RAILWAY_CANONICAL_ORIGIN,
   parseCanonicalOrigin,
   parsePort,
   validateProductionConfig,
@@ -61,6 +62,42 @@ test('production configuration rejects missing, development, emulator, and tempo
   assert.throws(() => parseCanonicalOrigin('http://infos.example.ch'), /HTTPS/);
 });
 
+test('production configuration accepts only the exact approved Railway origin', () => {
+  assert.equal(
+    parseCanonicalOrigin(APPROVED_RAILWAY_CANONICAL_ORIGIN),
+    APPROVED_RAILWAY_CANONICAL_ORIGIN,
+  );
+  assert.equal(
+    validateProductionConfig(productionEnv({
+      APP_CANONICAL_ORIGIN: APPROVED_RAILWAY_CANONICAL_ORIGIN,
+    })).canonicalOrigin,
+    APPROVED_RAILWAY_CANONICAL_ORIGIN,
+  );
+
+  for (const rejected of [
+    'http://infosmolinomolard-production.up.railway.app',
+    'https://other-production.up.railway.app',
+    'https://infosmolinomolard-production.up.railway.app.',
+    'https://*.up.railway.app',
+    'https://infosmolinomolard-production.up.railway.app:444',
+    'https://infosmolinomolard-production.up.railway.app:443',
+    'https://infosmolinomolard-production.up.railway.app/path',
+    'https://infosmolinomolard-production.up.railway.app?query=1',
+    'https://infosmolinomolard-production.up.railway.app#fragment',
+    'https://user@infosmolinomolard-production.up.railway.app',
+    ' https://infosmolinomolard-production.up.railway.app',
+    'https://localhost',
+    'https://127.0.0.1',
+    'not-an-origin',
+  ]) {
+    assert.throws(
+      () => parseCanonicalOrigin(rejected),
+      /exact HTTPS custom origin/,
+      rejected,
+    );
+  }
+});
+
 test('deployment manifest declares Node, build, start, and liveness contract', () => {
   const manifest = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
   const lock = JSON.parse(fs.readFileSync(path.join(root, 'package-lock.json'), 'utf8'));
@@ -79,6 +116,12 @@ test('deployment manifest declares Node, build, start, and liveness contract', (
     fs.readFileSync(path.join(root, 'package-lock.json'), 'utf8'),
     /package-firewall\.replit\.internal|"resolved":/,
   );
+  const deploymentManifest = fs.readFileSync(
+    path.join(root, 'docs', 'railway-deployment-manifest.md'),
+    'utf8',
+  );
+  assert.match(deploymentManifest, new RegExp(APPROVED_RAILWAY_CANONICAL_ORIGIN));
+  assert.doesNotMatch(deploymentManifest, /\*\.railway\.app|wildcard allowance/i);
 });
 
 test('liveness payload is minimal and unsafe legacy routes are production-disabled', () => {
