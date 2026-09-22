@@ -34,6 +34,18 @@ Source code, tests, and architecture documentation necessarily contain election-
 
 Repository: `chezan79/infosmolinomolard`
 
+### Workspace Git authentication
+
+Git HTTPS authentication is configured without placing a credential in the repository or its Git configuration:
+
+- The repository-scoped GitHub token is stored only in the Replit Secret named `GIT_URL`.
+- A user-level helper at `~/.local/bin/git-credential-replit-github` reads that secret at runtime and is mode `0700`.
+- The helper command is configured in the user-level Git configuration only for `https://github.com`.
+- The tracked repository and project files contain no token or private key.
+- `origin` remains the clean URL `https://github.com/chezan79/infosmolinomolard`.
+
+An authenticated `git ls-remote --symref origin HEAD refs/heads/main` succeeded on 2026-09-22. The exact protected push command below also succeeded with `--dry-run`, confirming write authorization and the explicit lease without changing the remote.
+
 At Task #44 preflight:
 
 - remote-tracking `origin/main`: `6915b14b5e7bc3ea1edb556ade14fa797f74e9db`
@@ -69,6 +81,8 @@ Final checks:
 - `public/office.html`: HTTP 200 at its public path with Firebase web configuration present
 - Live GitHub `refs/heads/main`: still `6915b14b5e7bc3ea1edb556ade14fa797f74e9db`
 - Expected force-with-lease value: matches both the live remote and local remote-tracking ref
+- Authenticated Git read: passed through the user-level Replit Secret credential helper
+- Exact force-with-lease push dry run: passed; no remote ref was changed
 - `git diff --check`: passed
 - Remote pushes: none
 - Deployments initiated by this task: none
