@@ -1,5 +1,22 @@
 # Railway production preparation report
 
+## Railway runtime dependency repair
+
+**Root cause:** the lockfile pinned package tarballs to Replit's private `package-firewall.replit.internal` host. Railway follows lockfile tarball locations during `npm ci`, cannot access that private host, and therefore could fail before Express or any other runtime module was installed. Express and the other server packages were already declared as production dependencies; their classification was not the source of the missing-module crash. The manifest separately installed browser/rules test packages in production.
+
+The complete server import graph has five direct production dependencies: `express`, `exceljs`, `firebase-admin`, `google-auth-library`, and `sharp`. `@firebase/rules-unit-testing`, the Firebase browser SDK, and `ws` are now development-only. The unused root `cors` dependency was removed. Compatible security overrides were preserved. The lockfile was regenerated without registry-specific `resolved` fields, so Railway uses its configured public npm registry while integrity hashes and locked versions remain enforced.
+
+Regression coverage rejects private Replit package URLs and registry-specific `resolved` fields, creates a clean temporary copy, runs `npm ci --omit=dev` with `https://registry.npmjs.org/` explicitly configured, verifies every direct runtime package resolves and every development-only package is absent, starts `node server.js` with isolated non-production configuration, and checks:
+
+- `/healthz`: 200
+- `/readyz`: 503 while durable services are intentionally unconfigured
+- `/`: 200
+- `/collaborateur-du-mois`: 200
+- `/administration`: 503 while Administration authentication is intentionally unconfigured
+- server output: no `MODULE_NOT_FOUND` or `Cannot find module`
+
+**Railway conclusion:** FIXED IN THE WORKTREE. A new GitHub commit containing the manifest, lockfile, test, and report changes is required before Railway can receive the repair and redeploy. This task did not push, deploy, configure, or restart Railway.
+
 ## Required and completed changes
 
 Completed: dynamic Railway port and public bind, Node/build/start declaration, minimal liveness, safe readiness, exact custom origin and one-hop proxy validation, production-only election namespace, required durable Firebase/Storage configuration, startup rejection of unsafe configuration, and production disabling of unauthenticated mock/in-memory planning and training APIs.
@@ -34,8 +51,11 @@ The original history remains available only through local backup/original refs a
 ## Verification
 
 - `npm run build`: passed.
-- `npm test`: passed, 73/73 tests. This includes unit, browser, multilingual, directory, voting/privacy, Administration, photo, storage-contract, security, and Railway production-configuration coverage.
-- `HOME=/tmp/molino-home npm run test:firestore-rules`: passed, 3/3 emulator tests.
+- `npm test`: passed, 74/74 tests. This includes unit, browser, multilingual, directory, voting/privacy, Administration, photo, storage-contract, security, Railway production-configuration, and isolated production-pruned installation coverage.
+- `HOME=/tmp/molino-task51-home npm run test:firestore-rules`: passed, 3/3 emulator tests.
+- Clean `npm ci --omit=dev`: passed in an isolated temporary copy with the public npm registry explicitly configured; Express and all other server runtime dependencies resolved without development packages.
+- Lockfile registry portability: passed; no Replit-private host or registry-specific `resolved` field remains.
+- Production-pruned route smoke test: passed for liveness, intentionally unavailable readiness, homepage, employee-voting page, and protected Administration routing.
 - Production startup with required variables omitted: exited non-zero before listening, as required.
 - `npm ls --all`: passed with no invalid dependency relationships.
 - `npm audit --omit=dev`: no critical or high findings; nine moderate transitive/direct findings remain in Google/Firebase/Excel dependency trees. Do not force incompatible major-version overrides.
@@ -44,4 +64,4 @@ The original history remains available only through local backup/original refs a
 
 No production data was accessed or modified.
 
-NOT READY FOR GITHUB + RAILWAY SETUP
+RUNTIME DEPENDENCY REPAIR COMPLETE; NEW GITHUB COMMIT REQUIRED FOR RAILWAY REDEPLOY

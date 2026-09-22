@@ -14,14 +14,15 @@
     "test:firestore-rules": "firebase emulators:exec --only firestore,storage \"node --test test/firestore-rules.emulator.js\""
   },
   "dependencies": {
-    "@firebase/rules-unit-testing": "^5.0.2",
-    "cors": "^2.8.6",
     "exceljs": "^4.4.0",
     "express": "^4.22.3",
-    "firebase": "^12.19.0",
     "firebase-admin": "^13.10.0",
     "google-auth-library": "^10.9.1",
-    "sharp": "^0.35.4",
+    "sharp": "^0.35.4"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
+    "firebase": "^12.19.0",
     "ws": "^8.21.3"
   },
   "overrides": {

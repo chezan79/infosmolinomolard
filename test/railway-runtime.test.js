@@ -1,6 +1,9 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const http = require('node:http');
+const os = require('node:os');
 const path = require('node:path');
+const { spawn, spawnSync } = require('node:child_process');
 const test = require('node:test');
 const {
   parseCanonicalOrigin,
@@ -60,11 +63,22 @@ test('production configuration rejects missing, development, emulator, and tempo
 
 test('deployment manifest declares Node, build, start, and liveness contract', () => {
   const manifest = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+  const lock = JSON.parse(fs.readFileSync(path.join(root, 'package-lock.json'), 'utf8'));
   const railway = JSON.parse(fs.readFileSync(path.join(root, 'railway.json'), 'utf8'));
+  const runtimePackages = ['exceljs', 'express', 'firebase-admin', 'google-auth-library', 'sharp'];
+  const developmentPackages = ['@firebase/rules-unit-testing', 'firebase', 'ws'];
   assert.equal(manifest.engines.node, '20.x');
   assert.equal(manifest.scripts.start, 'node server.js');
   assert.equal(railway.build.buildCommand, 'npm run build');
   assert.equal(railway.deploy.healthcheckPath, '/healthz');
+  assert.deepEqual(Object.keys(manifest.dependencies).sort(), runtimePackages);
+  assert.deepEqual(Object.keys(manifest.devDependencies).sort(), developmentPackages);
+  assert.deepEqual(lock.packages[''].dependencies, manifest.dependencies);
+  assert.deepEqual(lock.packages[''].devDependencies, manifest.devDependencies);
+  assert.doesNotMatch(
+    fs.readFileSync(path.join(root, 'package-lock.json'), 'utf8'),
+    /package-firewall\.replit\.internal|"resolved":/,
+  );
 });
 
 test('liveness payload is minimal and unsafe legacy routes are production-disabled', () => {
@@ -73,4 +87,92 @@ test('liveness payload is minimal and unsafe legacy routes are production-disabl
   assert.match(source, /json\(\{ status: 'ok' \}\)/);
   assert.match(source, /runtimeConfig\.production && unsafeLegacyPrefixes/);
   assert.doesNotMatch(source.match(/app\.get\('\/healthz'[\s\S]*?\n\}\);/)[0], /firebase|employee|election|secret/i);
+});
+
+function request(port, requestPath) {
+  return new Promise((resolve, reject) => {
+    const request = http.get({ host: '127.0.0.1', port, path: requestPath }, (response) => {
+      response.resume();
+      response.on('end', () => resolve(response));
+    });
+    request.on('error', reject);
+  });
+}
+
+async function waitForServer(port, child) {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    if (child.exitCode !== null) throw new Error(`Production-pruned server exited with code ${child.exitCode}`);
+    try {
+      await request(port, '/healthz');
+      return;
+    } catch {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+  }
+  throw new Error('Production-pruned server did not become ready');
+}
+
+test('production-pruned install starts and serves the Railway route contract', { timeout: 120000 }, async (t) => {
+  const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'molard-production-install-'));
+  t.after(() => fs.rmSync(temporaryRoot, { recursive: true, force: true }));
+  fs.cpSync(root, temporaryRoot, {
+    recursive: true,
+    filter: (source) => {
+      const relative = path.relative(root, source);
+      return !relative.startsWith('.git') &&
+        !relative.startsWith('node_modules') &&
+        !relative.startsWith('.agents') &&
+        !relative.startsWith('.local');
+    },
+  });
+
+  const install = spawnSync('npm', ['ci', '--omit=dev', '--ignore-scripts=false'], {
+    cwd: temporaryRoot,
+    env: {
+      ...process.env,
+      npm_config_registry: 'https://registry.npmjs.org/',
+      npm_config_replace_registry_host: 'always',
+    },
+    encoding: 'utf8',
+    timeout: 90000,
+  });
+  assert.equal(install.status, 0, install.stderr || install.stdout);
+
+  for (const packageName of ['exceljs', 'express', 'firebase-admin', 'google-auth-library', 'sharp']) {
+    assert.doesNotThrow(() => require.resolve(packageName, { paths: [temporaryRoot] }));
+  }
+  for (const packageName of ['@firebase/rules-unit-testing', 'firebase', 'ws']) {
+    assert.throws(() => require.resolve(packageName, { paths: [temporaryRoot] }), { code: 'MODULE_NOT_FOUND' });
+  }
+
+  const probe = http.createServer();
+  await new Promise((resolve) => probe.listen(0, '127.0.0.1', resolve));
+  const { port } = probe.address();
+  await new Promise((resolve) => probe.close(resolve));
+
+  const child = spawn(process.execPath, ['server.js'], {
+    cwd: temporaryRoot,
+    env: { ...process.env, NODE_ENV: 'test', PORT: String(port), FIREBASE_SERVICE_ACCOUNT: '' },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let output = '';
+  child.stdout.on('data', (chunk) => { output += chunk; });
+  child.stderr.on('data', (chunk) => { output += chunk; });
+  t.after(() => {
+    if (child.exitCode === null) child.kill('SIGTERM');
+  });
+
+  await waitForServer(port, child);
+  const expectations = [
+    ['/healthz', 200],
+    ['/readyz', 503],
+    ['/', 200],
+    ['/collaborateur-du-mois', 200],
+    ['/administration', 503],
+  ];
+  for (const [requestPath, status] of expectations) {
+    const response = await request(port, requestPath);
+    assert.equal(response.statusCode, status, requestPath);
+  }
+  assert.doesNotMatch(output, /MODULE_NOT_FOUND|Cannot find module/);
 });
