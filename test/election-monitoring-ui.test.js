@@ -12,13 +12,17 @@ const root = path.join(__dirname, '..');
 const html = fs.readFileSync(path.join(root, 'private-pages/suivi-du-vote.html'), 'utf8');
 const script = fs.readFileSync(path.join(root, 'suivi-du-vote.js'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'suivi-du-vote.css'), 'utf8');
-const sample = {
+// Exact Phase 3 response observed in authenticated Preview; no Phase 4 field.
+const phase3 = {
   month: '2026-09',
   status: 'OPEN',
   window: { opensAt: '2026-09-24T22:00:00.000Z', closesAt: '2026-09-30T22:00:00.000Z' },
   eligibleVoters: 49,
   participation: { count: 1, remaining: 48, percentage: 2.04 },
   systemHealth: { participationRecords: 1, anonymousBallots: 1, consistency: 'OK' },
+};
+const sample = {
+  ...phase3,
   individual: { status: 'AVAILABLE', voters: Array.from({ length: 49 }, (_, index) => ({
     name: `Collaborateur ${index}`, department: 'Cuisine', hasVoted: index === 0,
   })) },
@@ -68,6 +72,24 @@ function response(body, status = 200) {
 async function settle() {
   await new Promise((resolve) => setImmediate(resolve));
 }
+
+test('exact Phase 3 Preview response keeps aggregates and sealed results, with only roster unavailable', async () => {
+  const { nodes } = fixture(async () => response(phase3));
+  await settle();
+  assert.equal(nodes.dashboard.hidden, false);
+  assert.match(nodes.month.textContent, /septembre 2026/i);
+  assert.equal(nodes['election-status'].textContent, 'Vote ouvert');
+  for (const [id, expected] of Object.entries({
+    eligible: '49', voted: '1', remaining: '48', percentage: '2,04 %',
+    records: '1', ballots: '1', consistency: 'Système cohérent',
+    'progress-count': '1 / 49', 'progress-label': '2,04 %',
+  })) assert.equal(nodes[id].textContent, expected, id);
+  assert.equal(nodes['results-state'].textContent, '🔒 Résultats masqués');
+  assert.equal(nodes['voter-unavailable'].hidden, false);
+  assert.equal(nodes['voter-controls'].hidden, true);
+  assert.equal(nodes['voter-list'].children.length, 0);
+  assert.equal(nodes['voter-summary'].textContent, '');
+});
 
 test('aggregate fields drive month, window, four KPIs, accessible progress, consistency and sealed results', async () => {
   const { nodes, requests } = fixture(async () => response({
@@ -157,12 +179,23 @@ test('individual-unavailable preserves aggregate KPIs and clears a previously vi
   assert.equal(nodes['voter-list'].children.length, 49);
 });
 
-test('partial roster is rejected instead of displayed as a complete list', async () => {
-  const { nodes } = fixture(async () => response({ ...sample,
-    individual: { status: 'AVAILABLE', voters: sample.individual.voters.slice(1) } }));
-  await settle();
-  assert.equal(nodes.dashboard.hidden, true);
-  assert.equal(nodes['voter-list'].children.length, 0);
+test('incomplete or malformed roster falls back without concealing valid aggregates', async () => {
+  for (const individual of [
+    { status: 'AVAILABLE', voters: sample.individual.voters.slice(1) },
+    { status: 'AVAILABLE', voters: sample.individual.voters.map((voter, index) =>
+      index === 0 ? { ...voter, hasVoted: 'true' } : voter) },
+    { status: 'UNAVAILABLE', voters: sample.individual.voters },
+    { status: 'AVAILABLE', voters: 'invalid' },
+    null,
+  ]) {
+    const { nodes } = fixture(async () => response({ ...phase3, individual }));
+    await settle();
+    assert.equal(nodes.dashboard.hidden, false);
+    assert.equal(nodes.eligible.textContent, '49');
+    assert.equal(nodes['voter-unavailable'].hidden, false);
+    assert.equal(nodes['voter-controls'].hidden, true);
+    assert.equal(nodes['voter-list'].children.length, 0);
+  }
 });
 
 test('loading, refresh, failure and retry never convert unknown data to zero or retain stale counts', async () => {

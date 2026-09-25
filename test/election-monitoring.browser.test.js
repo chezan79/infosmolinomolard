@@ -46,9 +46,9 @@ test('protected Administration navigation and dashboard work in desktop and mobi
       window: { opensAt: '2026-09-24T22:00:00.000Z', closesAt: '2026-09-30T22:00:00.000Z' },
       eligibleVoters: 49, participation: { count: 1, remaining: 48, percentage: 2.04 },
       systemHealth: { participationRecords: 1, anonymousBallots: 1, consistency: 'OK' },
-      individual: individualAvailable ? { status: 'AVAILABLE', voters: Array.from({ length: 49 }, (_, index) => ({
+      ...(individualAvailable ? { individual: { status: 'AVAILABLE', voters: Array.from({ length: 49 }, (_, index) => ({
         name: `Collaborateur ${index}`, department: 'Cuisine', hasVoted: index === 0,
-      })) } : { status: 'UNAVAILABLE' },
+      })) } } : {}),
       privateVote: 'NEVER_DISPLAY_THIS',
     });
   });
@@ -118,6 +118,10 @@ test('protected Administration navigation and dashboard work in desktop and mobi
     await evaluate('document.querySelector("#refresh").click()');
     await waitFor(() => evaluate('!document.querySelector("#refresh").disabled && !document.querySelector("#voter-unavailable").hidden'));
     assert.equal(await evaluate('document.querySelector("#voted").textContent'), '1');
+    assert.equal(await evaluate('document.querySelector("#eligible").textContent'), '49');
+    assert.equal(await evaluate('document.querySelector("#progress-count").textContent'), '1 / 49');
+    assert.equal(await evaluate('document.querySelector("#consistency").textContent'), 'Système cohérent');
+    assert.equal(await evaluate('document.querySelector("#results-state").textContent.includes("Résultats masqués")'), true);
     assert.equal(await evaluate('document.querySelectorAll("#voter-list li").length'), 0);
     assert.equal(await evaluate('document.querySelector("#voter-controls").hidden'), true);
     individualAvailable = true;

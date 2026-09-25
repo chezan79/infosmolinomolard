@@ -23,8 +23,7 @@ function dateValue(value) {
 function approved(data) {
   if (!data || typeof data !== 'object' || !/^\d{4}-(0[1-9]|1[0-2])$/.test(data.month) ||
       !Object.hasOwn(statusLabels, data.status) ||
-      !data.window || !data.participation || !data.systemHealth || !data.individual ||
-      !['AVAILABLE', 'UNAVAILABLE'].includes(data.individual.status)) return null;
+      !data.window || !data.participation || !data.systemHealth) return null;
   const opens = dateValue(data.window.opensAt);
   const closes = dateValue(data.window.closesAt);
   if (!opens || !closes || opens >= closes ||
@@ -33,14 +32,14 @@ function approved(data) {
       !Number.isFinite(data.participation.percentage) || data.participation.percentage < 0 ||
       !validCount(data.systemHealth.participationRecords) ||
       !validCount(data.systemHealth.anonymousBallots) ||
-       !['OK', 'ANOMALY'].includes(data.systemHealth.consistency) ||
-       (data.individual.status === 'UNAVAILABLE' && Object.hasOwn(data.individual, 'voters')) ||
-       (data.individual.status === 'AVAILABLE' &&
-        (!Array.isArray(data.individual.voters) ||
-        data.individual.voters.length !== data.eligibleVoters ||
-        data.individual.voters.some((voter) => !voter || typeof voter.name !== 'string' ||
-         !voter.name.trim() || typeof voter.department !== 'string' || !voter.department.trim() ||
-          typeof voter.hasVoted !== 'boolean')))) return null;
+      !['OK', 'ANOMALY'].includes(data.systemHealth.consistency)) return null;
+  const individual = data.individual;
+  const validRoster = individual && typeof individual === 'object' &&
+    individual.status === 'AVAILABLE' && Array.isArray(individual.voters) &&
+    individual.voters.length === data.eligibleVoters &&
+    individual.voters.every((voter) => voter && typeof voter.name === 'string' &&
+      voter.name.trim() && typeof voter.department === 'string' && voter.department.trim() &&
+      typeof voter.hasVoted === 'boolean');
   return {
     month: data.month,
     status: data.status,
@@ -52,8 +51,8 @@ function approved(data) {
     records: data.systemHealth.participationRecords,
     ballots: data.systemHealth.anonymousBallots,
     consistency: data.systemHealth.consistency,
-    voters: data.individual.status === 'AVAILABLE'
-      ? data.individual.voters.map(({ name, department, hasVoted }) => ({ name, department, hasVoted }))
+    voters: validRoster
+      ? individual.voters.map(({ name, department, hasVoted }) => ({ name, department, hasVoted }))
       : null,
   };
 }
