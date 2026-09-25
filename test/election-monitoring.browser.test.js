@@ -45,6 +45,9 @@ test('protected Administration navigation and dashboard work in desktop and mobi
       window: { opensAt: '2026-09-24T22:00:00.000Z', closesAt: '2026-09-30T22:00:00.000Z' },
       eligibleVoters: 49, participation: { count: 1, remaining: 48, percentage: 2.04 },
       systemHealth: { participationRecords: 1, anonymousBallots: 1, consistency: 'OK' },
+      voters: Array.from({ length: 49 }, (_, index) => ({
+        name: `Collaborateur ${index}`, department: 'Cuisine', hasVoted: index === 0,
+      })),
       privateVote: 'NEVER_DISPLAY_THIS',
     });
   });
@@ -100,6 +103,15 @@ test('protected Administration navigation and dashboard work in desktop and mobi
     await evaluate('document.querySelector(".administration-card[href=\\"/suivi-du-vote\\"]").click()');
     await waitFor(() => evaluate('document.querySelector("#dashboard") && !document.querySelector("#dashboard").hidden'));
     assert.equal(await evaluate('document.querySelector("#eligible").textContent'), '49');
+    assert.equal(await evaluate('document.querySelectorAll("#voter-list li").length'), 49);
+    assert.equal(await evaluate('document.querySelector("#filter-voted").textContent'), 'A voté (1)');
+    await evaluate('document.querySelector("#filter-voted").click()');
+    assert.equal(await evaluate('document.querySelectorAll("#voter-list li").length'), 1);
+    await evaluate('document.querySelector("#filter-pending").click()');
+    assert.equal(await evaluate('document.querySelectorAll("#voter-list li").length'), 48);
+    await evaluate('document.querySelector("#voter-search").value = "collaborateur 2"; document.querySelector("#voter-search").dispatchEvent(new Event("input"))');
+    assert.equal(await evaluate('document.querySelectorAll("#voter-list li").length'), 11);
+    assert.equal(await evaluate('document.querySelector("#filter-pending").textContent'), 'À voter (48)');
     assert.equal(await evaluate('document.querySelector("#consistency").textContent'), 'Système cohérent');
     assert.equal(await evaluate('document.body.innerText.includes("NEVER_DISPLAY_THIS")'), false);
     assert.equal(await evaluate('document.documentElement.scrollWidth <= window.innerWidth'), true);

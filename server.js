@@ -63,7 +63,7 @@ const electionRuntime = createElectionRuntime({
 electionRuntime.mount(app);
 app.use(express.json());
 employeeDirectory.mount(app);
-mountElectionMonitoring(app, { env: process.env, firebaseDb, firebaseAuth });
+mountElectionMonitoring(app, { env: process.env, firebaseDb, firebaseAuth, directoryService: employeeDirectory.service });
 mountFirebaseClientConfig(app, process.env);
 
 app.get(

@@ -19,15 +19,20 @@ const sample = {
   eligibleVoters: 49,
   participation: { count: 1, remaining: 48, percentage: 2.04 },
   systemHealth: { participationRecords: 1, anonymousBallots: 1, consistency: 'OK' },
+  voters: Array.from({ length: 49 }, (_, index) => ({
+    name: `Collaborateur ${index}`, department: 'Cuisine', hasVoted: index === 0,
+  })),
 };
 
 function element() {
   return {
-    hidden: false, disabled: false, textContent: '', className: '', style: {},
+    hidden: false, disabled: false, textContent: '', className: '', style: {}, value: '', children: [],
     attributes: {},
     setAttribute(name, value) { this.attributes[name] = value; },
     removeAttribute(name) { delete this.attributes[name]; },
     addEventListener(name, handler) { this[name] = handler; },
+    append(...children) { this.children.push(...children); },
+    replaceChildren(...children) { this.children = children; },
   };
 }
 
@@ -44,12 +49,16 @@ function fixture(fetchImpl) {
     return fetchImpl(...args);
   };
   vm.runInNewContext(script, {
-    document: { getElementById: (id) => nodes[id] },
+    document: { getElementById: (id) => nodes[id], createElement: element },
     fetch,
     location: { replace: (url) => redirects.push(url) },
     Intl, Date, Number, Object, String,
   }, { filename: 'suivi-du-vote.js' });
   return { nodes, requests, redirects };
+}
+function listText(nodes) {
+  const text = (node) => [node.textContent, ...node.children.map(text)].join(' ');
+  return text(nodes['voter-list']);
 }
 
 function response(body, status = 200) {
@@ -87,8 +96,10 @@ test('aggregate fields drive month, window, four KPIs, accessible progress, cons
     [['/api/v1/management/election-monitoring', 'GET', 'same-origin', 'no-store']]);
   const rendered = Object.values(nodes).map((node) => node.textContent).join(' ');
   for (const privateValue of ['private-', 'SAL-SECRET', 'ranking', 'comment', 'selection', 'voterId']) {
-    assert.equal(rendered.includes(privateValue), false, privateValue);
+    assert.equal((rendered + listText(nodes)).includes(privateValue), false, privateValue);
   }
+  assert.equal(nodes['filter-all'].textContent, 'Tous (49)');
+  assert.match(listText(nodes), /Collaborateur 0 Cuisine A voté/);
 });
 
 test('upcoming and closed states retain result secrecy and use API window, not hardcoded month', async () => {
@@ -136,15 +147,63 @@ test('loading, refresh, failure and retry never convert unknown data to zero or 
   pending.shift()(response({ error: 'MONITORING_UNAVAILABLE' }, 503));
   await settle();
   assert.equal(nodes.dashboard.hidden, true);
+  assert.equal(nodes['voter-list'].children.length, 0);
+  assert.equal(nodes.voted.textContent, '');
   assert.match(nodes['message-text'].textContent, /momentanément indisponibles/);
   assert.equal(nodes.retry.hidden, false);
   nodes.retry.click();
-  pending.shift()(response({ ...sample, participation: { count: 2, remaining: 47, percentage: 4.08 } }));
+  pending.shift()(response({ ...sample, participation: { count: 2, remaining: 47, percentage: 4.08 },
+    voters: sample.voters.map((voter, index) => ({ ...voter, hasVoted: index < 2 })) }));
   await settle();
   assert.equal(nodes.dashboard.hidden, false);
   assert.equal(nodes.voted.textContent, '2');
+  assert.equal(nodes['filter-voted'].textContent, 'A voté (2)');
   assert.equal(requests.length, 3);
   assert.ok(requests.every(([, options]) => options.method === 'GET'));
+});
+
+test('French sorting, accent-insensitive search and combined filters remain local', async () => {
+  const data = { ...sample, eligibleVoters: 3, participation: { count: 1, remaining: 2, percentage: 33.33 },
+    voters: [
+      { name: 'Zoé', department: 'Service', hasVoted: false },
+      { name: 'Émile', department: 'Cuisine', hasVoted: true },
+      { name: 'Alice', department: 'Plonge', hasVoted: false },
+    ] };
+  const { nodes, requests } = fixture(async () => response(data));
+  await settle();
+  assert.deepEqual(nodes['voter-list'].children.map((item) => item.children[0].children[0].textContent),
+    ['Alice', 'Émile', 'Zoé']);
+  nodes['filter-pending'].click();
+  assert.equal(nodes['filter-pending'].attributes['aria-pressed'], 'true');
+  assert.equal(nodes['voter-list'].children.length, 2);
+  nodes['voter-search'].value = 'EMILE';
+  nodes['voter-search'].input();
+  assert.equal(nodes['voter-list'].children.length, 0);
+  nodes['filter-voted'].click();
+  assert.equal(nodes['voter-list'].children.length, 1);
+  assert.match(listText(nodes), /Émile Cuisine A voté/);
+  assert.equal(nodes['filter-all'].textContent, 'Tous (3)');
+  assert.equal(nodes['filter-voted'].textContent, 'A voté (1)');
+  assert.equal(nodes['filter-pending'].textContent, 'À voter (2)');
+  assert.equal(requests.length, 1);
+});
+
+test('malicious voter fields render as text, while extraneous private fields are ignored', async () => {
+  const data = { ...sample, eligibleVoters: 1,
+    participation: { count: 0, remaining: 1, percentage: 0 },
+    voters: [{ name: '<img src=x onerror=alert(1)>', department: 'Cuisine',
+      hasVoted: false, verifier: 'secret-verifier', employeeId: 'secret-employee', comments: 'secret-comment' }] };
+  const { nodes } = fixture(async () => response(data));
+  await settle();
+  assert.equal(nodes['voter-list'].children[0].children[0].children[0].textContent, '<img src=x onerror=alert(1)>');
+  assert.equal(listText(nodes).includes('secret-'), false);
+});
+
+test('client flags identified participation disagreements even if server erroneously reports OK', async () => {
+  const { nodes } = fixture(async () => response({ ...sample,
+    voters: sample.voters.map((voter) => ({ ...voter, hasVoted: false })) }));
+  await settle();
+  assert.equal(nodes.consistency.textContent, 'Anomalie détectée');
 });
 
 test('missing election is distinct from unavailable and does not generate zero totals', async () => {
@@ -166,6 +225,7 @@ test('authentication redirects by existing session and access-denied paths witho
     await settle();
     assert.deepEqual(redirects, [target]);
     assert.equal(nodes.dashboard.hidden, true);
+    assert.equal(nodes['voter-list'].children.length, 0);
   }
 });
 
@@ -202,6 +262,8 @@ test('page markup and CSS support mobile, tablet, keyboard and read-only navigat
   assert.match(html, /href="\/administration"/);
   assert.match(html, /role="progressbar"/);
   assert.match(html, /<button id="refresh"/);
+  assert.match(html, /Participation des collaborateurs/);
+  assert.match(html, /Rechercher un collaborateur/);
   assert.match(css, /max-width:800px/);
   assert.match(css, /max-width:600px/);
   assert.match(css, /minmax\(0,1fr\)/);
