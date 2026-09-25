@@ -8,6 +8,7 @@ const { mountFirebaseClientConfig } = require('./firebase-client-config-route');
 const { createDirectoryRuntime } = require('./employee-directory');
 const { createElectionRuntime } = require('./election-engine');
 const { mountElectionMonitoring } = require('./election-engine/monitoring');
+const { mountAdministrationMonitoringPage } = require('./administration-monitoring-page');
 const { validateProductionConfig } = require('./production-config');
 
 const app = express();
@@ -73,6 +74,8 @@ app.get(
     res.sendFile(path.join(__dirname, 'private-pages', 'administration.html'));
   },
 );
+
+mountAdministrationMonitoringPage(app, employeeDirectory.authorizeAdministrationPage, __dirname);
 
 app.get(
   ['/gestion-photos-collaborateurs', '/gestion-photos-collaborateurs.html'],

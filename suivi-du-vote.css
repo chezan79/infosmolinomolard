@@ -1,0 +1,43 @@
+.back-link{color:var(--accent);font-weight:700;text-decoration:underline;text-underline-offset:4px}
+.administration-action{margin-top:8px;color:var(--accent)!important;font-weight:750}
+.monitoring-hero{max-width:690px}
+.monitoring-section{margin-top:26px}
+.monitoring-section>h2{margin:0 0 14px}
+.notice{max-width:650px}
+.notice p{margin-top:0}
+[hidden]{display:none!important}
+.section-heading{display:flex;align-items:start;justify-content:space-between;gap:16px}
+.section-heading h2{margin:0}
+.section-heading .eyebrow{margin:0 0 6px}
+.refresh-status{min-height:1.5em;color:var(--muted);margin:4px 0 8px}
+.election-meta{display:grid;grid-template-columns:1fr 1fr 1.5fr;gap:20px;border-top:1px solid var(--line);padding-top:18px}
+.election-meta p{margin:0;min-width:0}
+.election-meta strong,.meta-label{display:block}
+.meta-label{color:var(--muted);font-size:.85rem;margin-bottom:5px}
+.state-badge{display:inline-block!important;background:#e5efe6;color:var(--ok);border-radius:100px;padding:5px 12px}
+.state-badge.upcoming,.state-badge.closed{background:#f5eadb;color:#73462b}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.kpi{box-shadow:none;display:flex;flex-direction:column-reverse;justify-content:space-between;min-height:132px;gap:8px}
+.kpi span{color:var(--muted);font-weight:650}
+.kpi strong{font:700 clamp(1.9rem,4vw,2.7rem) Georgia,serif;overflow-wrap:anywhere}
+.progress-card{margin-top:12px;box-shadow:none}
+.progress-copy{display:flex;justify-content:space-between;gap:12px;margin-bottom:12px}
+.progress-track{height:14px;background:#eee5d9;border-radius:100px;overflow:hidden}
+.progress-track span{display:block;height:100%;width:0;background:var(--accent);border-radius:100px;transition:width .25s}
+.progress-label{color:var(--muted);margin:8px 0 0}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:stretch}
+.detail-grid .card{box-shadow:none;min-width:0}
+.detail-grid h2{margin:0 0 12px}
+.detail-grid .eyebrow{margin:0 0 4px}
+.detail-grid p{color:var(--muted)}
+.health-counts{margin:20px 0;border-top:1px solid var(--line)}
+.health-counts div,.health-state{display:flex;justify-content:space-between;gap:14px;padding:10px 0;margin:0;border-bottom:1px solid var(--line)}
+.health-counts dd{font-weight:750;margin:0}
+.health-state{align-items:center}
+.health-state strong{color:var(--ok)}
+.health-state strong.anomaly{color:var(--danger)}
+.results-state{font-weight:750;color:var(--ink)!important}
+@media(max-width:800px){.kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.detail-grid{grid-template-columns:1fr}}
+@media(max-width:600px){.masthead{align-items:start}.back-link{max-width:145px;text-align:right}.election-meta{grid-template-columns:1fr;gap:12px}.section-heading{flex-wrap:wrap}.section-heading .button{width:100%}.kpi{min-height:112px}}
+@media(max-width:360px){.kpi-grid{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){.progress-track span{transition:none}}

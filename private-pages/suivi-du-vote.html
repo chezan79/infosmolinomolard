@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Suivi du vote · Molino Molard</title>
+  <link rel="stylesheet" href="/gestion-photos-collaborateurs.css">
+  <link rel="stylesheet" href="/suivi-du-vote.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="masthead">
+      <a class="brand" href="/administration"><span class="brand-mark">M</span><span><strong>Molino Molard</strong><small>Administration</small></span></a>
+      <a class="back-link" href="/administration">← Retour à l’administration</a>
+    </header>
+    <section class="hero monitoring-hero">
+      <p class="eyebrow">Collaborateur du mois</p>
+      <h1>Suivi du vote</h1>
+      <p>Participation et bon fonctionnement du vote, sans révéler les choix des électeurs.</p>
+    </section>
+
+    <div id="loading" class="card notice" role="status">Chargement des données de suivi…</div>
+    <div id="message" class="card notice" role="status" hidden>
+      <p id="message-text"></p>
+      <button id="retry" class="button" type="button" hidden>Réessayer</button>
+    </div>
+
+    <div id="dashboard" hidden>
+      <section class="card overview" aria-labelledby="overview-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Élection en cours de suivi</p>
+            <h2 id="overview-title">Collaborateur du mois</h2>
+          </div>
+          <button id="refresh" class="button secondary" type="button">Actualiser</button>
+        </div>
+        <p id="refresh-status" class="refresh-status" role="status" aria-live="polite"></p>
+        <div class="election-meta">
+          <p><span class="meta-label">Mois</span><strong id="month"></strong></p>
+          <p><span class="meta-label">Statut</span><strong id="election-status" class="state-badge"></strong></p>
+          <p><span class="meta-label">Période de vote</span><strong id="window"></strong></p>
+        </div>
+      </section>
+
+      <section aria-labelledby="participation-title" class="monitoring-section">
+        <h2 id="participation-title">Participation</h2>
+        <div class="kpi-grid">
+          <div class="card kpi"><span>Électeurs</span><strong id="eligible"></strong></div>
+          <div class="card kpi"><span>Ont voté</span><strong id="voted"></strong></div>
+          <div class="card kpi"><span>Restent à voter</span><strong id="remaining"></strong></div>
+          <div class="card kpi"><span>Participation</span><strong id="percentage"></strong></div>
+        </div>
+        <div class="card progress-card">
+          <div class="progress-copy"><strong>Participation</strong><span id="progress-count"></span></div>
+          <div id="progress" class="progress-track" role="progressbar" aria-label="Participation" aria-valuemin="0" aria-valuemax="100"><span id="progress-fill"></span></div>
+          <p id="progress-label" class="progress-label"></p>
+        </div>
+      </section>
+
+      <div class="detail-grid monitoring-section">
+        <section class="card" aria-labelledby="health-title">
+          <p class="eyebrow">Vérification</p>
+          <h2 id="health-title">Contrôle du système</h2>
+          <p>Le nombre de participations est comparé au nombre de bulletins anonymes afin de vérifier le bon fonctionnement du système.</p>
+          <dl class="health-counts">
+            <div><dt>Participations enregistrées</dt><dd id="records"></dd></div>
+            <div><dt>Bulletins anonymes</dt><dd id="ballots"></dd></div>
+          </dl>
+          <p class="health-state"><span>Cohérence</span><strong id="consistency"></strong></p>
+        </section>
+        <section class="card results-card" aria-labelledby="results-title">
+          <p class="eyebrow">Confidentialité</p>
+          <h2 id="results-title">Résultats</h2>
+          <p id="results-state" class="results-state"></p>
+          <p id="results-explanation"></p>
+        </section>
+      </div>
+    </div>
+  </main>
+  <script type="module" src="/suivi-du-vote.js"></script>
+</body>
+</html>
