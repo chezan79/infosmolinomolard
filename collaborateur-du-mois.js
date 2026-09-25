@@ -72,7 +72,7 @@
     }
   };
   const browserLocale = String(navigator.language || '').slice(0, 2).toLowerCase();
-  const state = { locale: copy[browserLocale] ? browserLocale : 'fr', election: null, token: null, candidates: { CUISINE: [], SERVICE: [] }, choices: {}, comments: { CUISINE:'', SERVICE:'' }, step: 1, busy: false, screen: 'flow' };
+  const state = { locale: copy[browserLocale] ? browserLocale : 'fr', election: null, token: null, candidates: { CUISINE: [], SERVICE: [] }, choices: {}, comments: { CUISINE:'', SERVICE:'' }, searches: { CUISINE:'', SERVICE:'' }, step: 1, busy: false, screen: 'flow' };
   const app = document.getElementById('app'), locale = document.getElementById('locale');
   const t = key => (copy[state.locale] && copy[state.locale][key]) || copy.fr[key] || key;
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -135,7 +135,7 @@
     const selected = state.choices[category] === candidate.employeeId;
     const fallback = initials(candidate.displayName);
     const photo = candidate.photoUrl ? `<img class="avatar" src="${esc(candidate.photoUrl)}" alt="" onerror="this.hidden=true;this.nextElementSibling.hidden=false">` : '';
-    return `<button type="button" class="candidate ${selected ? 'selected':''}" data-candidate="${esc(candidate.employeeId)}" data-category="${category}" aria-pressed="${selected}">${photo}<span class="avatar avatar-fallback" aria-hidden="true" ${photo ? 'hidden' : ''}>${esc(fallback)}</span><span class="candidate-info"><strong>${esc(candidate.displayName)}</strong><span>${esc(candidate.jobTitle || candidate.department || '')}</span></span><span class="check" aria-hidden="true">${selected ? '✓' : ''}</span></button>`;
+    return `<button type="button" class="candidate ${selected ? 'selected':''}" data-candidate="${esc(candidate.employeeId)}" data-category="${category}" aria-pressed="${selected}"><span class="check" aria-hidden="true">${selected ? '✓' : ''}</span><span class="avatar-slot">${photo}<span class="avatar avatar-fallback" aria-hidden="true" ${photo ? 'hidden' : ''}>${esc(fallback)}</span></span><span class="candidate-info"><strong>${esc(candidate.displayName)}</strong><span>${esc(candidate.jobTitle || candidate.department || '')}</span></span></button>`;
   }
   function renderChoices() {
     app.innerHTML = `<section class="card view" aria-labelledby="choices-title"><h2 id="choices-title">${t('choose')}</h2><p class="hint">${t('commentHint')}</p><div id="category-panels"></div><div class="status" id="choice-status" role="alert"></div><div class="actions"><button class="button secondary" id="back-identity" type="button">${t('back')}</button><button class="button primary" id="to-review" type="button">${t('next')}</button></div></section>`;
@@ -144,18 +144,18 @@
     document.getElementById('to-review').addEventListener('click', () => { if (validChoices()) { state.step = 3; render(); focusHeading(); } });
   }
   function renderCategory(category) {
-    const panel = document.createElement('fieldset'); panel.className = 'field'; panel.innerHTML = `<legend><h3>${t(category === 'CUISINE' ? 'categoryCuisine' : 'categoryService')}</h3></legend><label class="hidden" for="search-${category}">${t('search')}</label><input class="search" id="search-${category}" placeholder="${t('search')}" type="search"><div class="candidate-grid" id="grid-${category}"></div><label for="comment-${category}">${t('commentLabel')}</label><textarea id="comment-${category}" maxlength="${COMMENT_MAX}" minlength="${COMMENT_MIN}" placeholder="${t('commentHint')}">${esc(state.comments[category])}</textarea><div class="counter" id="counter-${category}">0 / ${COMMENT_MAX}</div>`;
+    const panel = document.createElement('fieldset'); panel.className = 'field'; panel.innerHTML = `<legend><h3>${t(category === 'CUISINE' ? 'categoryCuisine' : 'categoryService')}</h3></legend><label class="hidden" for="search-${category}">${t('search')}</label><input class="search" id="search-${category}" placeholder="${t('search')}" type="search" value="${esc(state.searches[category])}"><div class="candidate-grid" id="grid-${category}"></div><label for="comment-${category}">${t('commentLabel')}</label><textarea id="comment-${category}" maxlength="${COMMENT_MAX}" minlength="${COMMENT_MIN}" placeholder="${t('commentHint')}">${esc(state.comments[category])}</textarea><div class="counter" id="counter-${category}">0 / ${COMMENT_MAX}</div>`;
     document.getElementById('category-panels').appendChild(panel);
     const update = () => { state.comments[category] = document.getElementById(`comment-${category}`).value; document.getElementById(`counter-${category}`).textContent = `${state.comments[category].length} / ${COMMENT_MAX}`; };
     document.getElementById(`comment-${category}`).addEventListener('input', update);
-    document.getElementById(`search-${category}`).addEventListener('input', e => drawCandidates(category, e.target.value));
-    drawCandidates(category, '');
+    document.getElementById(`search-${category}`).addEventListener('input', e => { state.searches[category] = e.target.value; drawCandidates(category, e.target.value); });
+    drawCandidates(category, state.searches[category]);
   }
   function drawCandidates(category, query) {
-    const needle = normalize(query), list = (state.candidates[category] || []).filter(c => normalize(`${c.displayName} ${c.jobTitle}`).includes(needle));
+    const needle = normalize(query), list = (state.candidates[category] || []).filter(c => normalize(`${c.displayName} ${c.jobTitle || c.department || ''}`).includes(needle)).sort((a, b) => a.displayName.localeCompare(b.displayName, state.locale, { sensitivity:'accent' }));
     const all = state.candidates[category] || [];
     const grid = document.getElementById(`grid-${category}`); grid.innerHTML = list.length ? list.map(c => candidateCard(c, category)).join('') : `<p class="hint">${t(all.length ? 'noMatch' : 'noCandidates')}</p>`;
-    grid.querySelectorAll('.candidate').forEach(button => button.addEventListener('click', () => { state.choices[category] = button.dataset.candidate; drawCandidates(category, document.getElementById(`search-${category}`).value); }));
+    grid.querySelectorAll('.candidate').forEach(button => button.addEventListener('click', () => { state.choices[category] = button.dataset.candidate; drawCandidates(category, document.getElementById(`search-${category}`).value); Array.from(grid.querySelectorAll('.candidate')).find(candidate => candidate.dataset.candidate === state.choices[category])?.focus(); }));
   }
   function validChoices() {
     const status = document.getElementById('choice-status');

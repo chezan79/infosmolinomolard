@@ -89,6 +89,14 @@ async function openPage(browserPort, url) {
   await waitFor(() => evaluate('document.readyState === "complete"'));
   return {
     evaluate,
+    setViewport: async (width, height = 844) => {
+      await call('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: width < 600 });
+    },
+    pressEnter: async () => {
+      await call('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 });
+      await call('Input.dispatchKeyEvent', { type: 'char', text: '\r', unmodifiedText: '\r', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
+      await call('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
+    },
     close: async () => {
       try {
         await fetch(`http://127.0.0.1:${browserPort}/json/close/${target.id}`);
@@ -118,7 +126,7 @@ test('homepage voting card stays visible and responsive without client-side elec
 
   const selector = 'a.navigation-card[href="/collaborateur-du-mois"]';
   await waitFor(() => page.evaluate(`Boolean(document.querySelector('${selector}'))`));
-  assert.equal(await page.evaluate(`getComputedStyle(document.querySelector('${selector}')).display`), 'flex');
+  await waitFor(() => page.evaluate(`getComputedStyle(document.querySelector('${selector}')).display === 'flex'`));
   assert.equal(await page.evaluate(`
     ['Collaborateur du mois', 'Collaboratore del mese', 'Employee of the Month']
       .some((label) => document.querySelector('${selector}').textContent.includes(label))
@@ -155,10 +163,12 @@ test('mobile browser completes the private atomic voting flow', async (t) => {
     candidates: {
       CUISINE: [
         { employeeId: 'chef-1', displayName: 'Élodie Martin', jobTitle: 'Cheffe', department: 'Cuisine', votingGroup: 'CUISINE', photoUrl: '/missing-photo.jpg' },
+        { employeeId: 'chef-3', displayName: 'Zoë NomExtrêmementLongSansEspacesPourVérifierLaLisibilitéDesCandidats', jobTitle: 'Sous-cheffe', department: 'Cuisine', votingGroup: 'CUISINE', photoUrl: '' },
         { employeeId: 'chef-2', displayName: 'Anna Rossi', jobTitle: 'Pizzaiola', department: 'Pizzeria', votingGroup: 'CUISINE', photoUrl: '/assets/avatar-neutral.svg' },
       ],
       SERVICE: [
         { employeeId: 'service-1', displayName: 'Marco Bianchi', jobTitle: 'Chef de rang', department: 'Service', votingGroup: 'SERVICE', photoUrl: '/assets/avatar-neutral.svg' },
+        { employeeId: 'service-2', displayName: 'André Dupont', jobTitle: '', department: 'Accueil', votingGroup: 'SERVICE', photoUrl: '' },
       ],
     },
   }));
@@ -190,18 +200,95 @@ test('mobile browser completes the private atomic voting flow', async (t) => {
   assert.equal(await page.evaluate('document.body.innerText.includes("SAL-PRIVATE")'), false);
   assert.equal(await page.evaluate('location.href.includes("SAL-PRIVATE")'), false);
   assert.deepEqual(await page.evaluate('[localStorage.length, sessionStorage.length]'), [0, 0]);
+  assert.deepEqual(await page.evaluate(`
+    ['CUISINE','SERVICE'].map(category => Array.from(document.querySelectorAll('#grid-' + category + ' .candidate'), b => b.dataset.candidate))
+  `), [['chef-2', 'chef-1', 'chef-3'], ['service-2', 'service-1']]);
+  await waitFor(() => page.evaluate('document.querySelector("[data-candidate=chef-1] img")?.hidden === true'));
+  assert.equal(await page.evaluate(`
+    ['chef-1','chef-2','chef-3','service-2'].every(id => {
+      const row = document.querySelector('[data-candidate="' + id + '"]');
+      const slot = row.querySelector('.avatar-slot');
+      const fallback = slot.querySelector('.avatar-fallback');
+      return row.children.length === 3 && row.children[0].classList.contains('check') &&
+        row.children[1] === slot && row.children[2].classList.contains('candidate-info') &&
+        slot.getBoundingClientRect().width === 48 &&
+        (id === 'chef-1' || id === 'chef-3' || id === 'service-2' ? !fallback.hidden && getComputedStyle(fallback).display !== 'none' : fallback.hidden && getComputedStyle(fallback).display === 'none');
+    })
+  `), true);
+  for (const width of [390, 768, 1280, 320]) {
+    await page.setViewport(width);
+    assert.equal(await page.evaluate(`
+      (() => {
+        const rows = [...document.querySelectorAll('.candidate')];
+        const margin = 1;
+        const positions = rows.map(row => {
+          const [check, slot, info] = row.children;
+          const r = row.getBoundingClientRect(), a = check.getBoundingClientRect(), b = slot.getBoundingClientRect(), c = info.getBoundingClientRect();
+          return { row: r, check: a, slot: b, info: c };
+        });
+        return document.documentElement.scrollWidth <= innerWidth &&
+          rows.every(row => row.clientWidth <= row.parentElement.clientWidth && row.offsetHeight >= 72) &&
+          positions.every(({row, check, slot, info}) =>
+            check.left < slot.left && slot.right <= info.left &&
+            check.left >= row.left && info.right <= row.right + margin &&
+            Math.abs(check.top + check.height / 2 - slot.top - slot.height / 2) < margin &&
+            Math.abs(info.top + info.height / 2 - slot.top - slot.height / 2) < margin
+          );
+      })()
+    `), true, `candidate layout at ${width}px`);
+    assert.equal(await page.evaluate(`
+      [...document.querySelectorAll('.candidate')].every(row => {
+        row.scrollIntoView({ block: 'center' });
+        const r = row.getBoundingClientRect();
+        return [4, r.width / 2, r.width - 4].every(offset =>
+          document.elementFromPoint(r.left + offset, r.top + r.height / 2)?.closest('.candidate') === row);
+      })
+    `), true, `whole candidate row is reachable at ${width}px`);
+  }
+  await page.setViewport(390);
 
   await page.evaluate(`
     const search = document.getElementById('search-CUISINE');
-    search.value = 'elodie';
+    search.value = 'cheffe';
     search.dispatchEvent(new Event('input', { bubbles: true }));
   `);
-  assert.equal(await page.evaluate('document.querySelectorAll("#grid-CUISINE .candidate").length'), 1);
-  assert.equal(await page.evaluate('document.querySelector("#grid-CUISINE .candidate").textContent.includes("Élodie")'), true);
-  await waitFor(() => page.evaluate('document.querySelector("#grid-CUISINE img")?.hidden === true'));
+  assert.deepEqual(await page.evaluate('Array.from(document.querySelectorAll("#grid-CUISINE .candidate"), b => b.dataset.candidate)'), ['chef-1', 'chef-3']);
+  await page.evaluate(`
+    document.getElementById('search-SERVICE').value = 'accueil';
+    document.getElementById('search-SERVICE').dispatchEvent(new Event('input', { bubbles: true }));
+  `);
+  assert.deepEqual(await page.evaluate('Array.from(document.querySelectorAll("#grid-SERVICE .candidate"), b => b.dataset.candidate)'), ['service-2']);
+  await page.evaluate(`
+    document.getElementById('search-SERVICE').value = '';
+    document.getElementById('search-SERVICE').dispatchEvent(new Event('input', { bubbles: true }));
+  `);
+  await page.evaluate(`
+    document.getElementById('search-CUISINE').value = 'elodie';
+    document.getElementById('search-CUISINE').dispatchEvent(new Event('input', { bubbles: true }));
+    document.querySelector('[data-candidate="chef-1"]').focus();
+  `);
+  assert.equal(await page.evaluate('document.activeElement.dataset.candidate'), 'chef-1');
+  await page.pressEnter();
+  await waitFor(() => page.evaluate('document.querySelector("[data-candidate=chef-1]").getAttribute("aria-pressed") === "true"'));
+  assert.equal(await page.evaluate('document.activeElement.dataset.candidate'), 'chef-1');
+  await page.evaluate(`
+    document.getElementById('search-CUISINE').value = '';
+    document.getElementById('search-CUISINE').dispatchEvent(new Event('input', { bubbles: true }));
+  `);
+  assert.equal(await page.evaluate('document.querySelector("[data-candidate=chef-1]").getAttribute("aria-pressed")'), 'true');
+  await page.evaluate(`
+    document.getElementById('search-CUISINE').value = 'elodie';
+    document.getElementById('search-CUISINE').dispatchEvent(new Event('input', { bubbles: true }));
+    document.getElementById('locale').value = 'it';
+    document.getElementById('locale').dispatchEvent(new Event('change', { bubbles: true }));
+  `);
+  assert.equal(await page.evaluate('document.getElementById("search-CUISINE").value === "elodie" && document.querySelector("[data-candidate=chef-1]").getAttribute("aria-pressed") === "true"'), true);
+  await page.evaluate(`
+    document.getElementById('locale').value = 'fr';
+    document.getElementById('locale').dispatchEvent(new Event('change', { bubbles: true }));
+  `);
 
   await page.evaluate(`
-    document.querySelector('[data-candidate="chef-1"]').click();
     document.querySelector('[data-candidate="service-1"]').click();
     document.getElementById('to-review').click();
   `);
@@ -219,6 +306,13 @@ test('mobile browser completes the private atomic voting flow', async (t) => {
   assert.equal(await page.evaluate('document.body.innerText.includes("Cheffe") && document.body.innerText.includes("Chef de rang")'), true);
   assert.equal(await page.evaluate('document.querySelectorAll(".review-person .avatar").length >= 2'), true);
   assert.equal(await page.evaluate('document.body.innerText.includes("définitif")'), true);
+  await page.evaluate(`document.getElementById('back-choices').click()`);
+  assert.equal(await page.evaluate(`
+    document.getElementById('search-CUISINE').value === 'elodie' &&
+    document.querySelector('[data-candidate="chef-1"]').getAttribute('aria-pressed') === 'true' &&
+    document.querySelector('[data-candidate="service-1"]').getAttribute('aria-pressed') === 'true'
+  `), true);
+  await page.evaluate(`document.getElementById('to-review').click()`);
 
   await page.evaluate(`document.getElementById('submit').click(); document.getElementById('submit').click();`);
   await waitFor(() => page.evaluate('document.body.innerText.includes("Votre vote a bien été enregistré.")'));
