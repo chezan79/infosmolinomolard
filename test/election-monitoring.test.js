@@ -18,7 +18,14 @@ const employees = Array.from({ length: 49 }, (_, index) => ({
   employeeId: `employee-${index}`, displayName: `Collaborateur ${index}`,
   department: 'Cuisine', votingGroup: 'CUISINE', siteId: 'molard',
 }));
-const directoryService = { getElectionSnapshot: () => ({ siteId: 'molard', employees }) };
+// Sanitized shape observed in the September snapshot: 49 eligible entries within 53 directory rows.
+const directoryService = { getElectionSnapshot: () => ({ siteId: 'molard', employees: [
+  ...employees,
+  ...Array.from({ length: 4 }, (_, index) => ({
+    employeeId: `other-${index}`, displayName: `Autre ${index}`,
+    department: 'Service', votingGroup: 'SERVICE', siteId: 'molard',
+  })),
+] }) };
 
 function fakeDb(records = {}) {
   const calls = [];
@@ -30,7 +37,7 @@ function fakeDb(records = {}) {
     collection(name) { return collection(name); },
     async getAll(ref, options) {
       calls.push(['getAll', ref.path, options.fieldMask]);
-      if (records.failRead) throw new Error('Firestore unavailable');
+      if (records.failRead || (records.failVoterRead && options.fieldMask.includes('voters'))) throw new Error('Firestore unavailable');
       const value = records[ref.path];
       return [{
         exists: Boolean(value),
@@ -143,23 +150,25 @@ test('admin receives only the approved aggregates and no-store headers', async (
   assert.equal(response.status, 200);
   assert.equal(response.headers.get('cache-control'), 'no-store');
   const body = await response.json();
-  assert.deepEqual({ ...body, voters: undefined }, {
+  assert.deepEqual({ ...body, individual: undefined }, {
     month: window.monthKey,
     status: 'OPEN',
     window: { opensAt: window.opensAt, closesAt: window.closesAt },
     eligibleVoters: 49,
     participation: { count: 1, remaining: 48, percentage: 2.04 },
     systemHealth: { participationRecords: 1, anonymousBallots: 1, consistency: 'OK' },
-    voters: undefined,
+    individual: undefined,
   });
-  assert.equal(body.voters.length, 49);
-  assert.deepEqual(body.voters[0], { name: 'Collaborateur 0', department: 'Cuisine', hasVoted: true });
-  assert.deepEqual(body.voters[1], { name: 'Collaborateur 1', department: 'Cuisine', hasVoted: false });
-  assert.deepEqual(db.calls.map(([operation]) => operation), ['getAll', 'count', 'count', 'select']);
+  assert.equal(body.individual.status, 'AVAILABLE');
+  assert.equal(body.individual.voters.length, 49);
+  assert.deepEqual(body.individual.voters[0], { name: 'Collaborateur 0', department: 'Cuisine', hasVoted: true });
+  assert.deepEqual(body.individual.voters[1], { name: 'Collaborateur 1', department: 'Cuisine', hasVoted: false });
+  assert.deepEqual(db.calls.map(([operation]) => operation), ['getAll', 'count', 'count', 'getAll', 'select']);
   assert.deepEqual(db.calls[0][2].sort(), [
     'siteId', 'dataEnvironment', 'monthKey', 'timeZone',
-    'opensAt', 'closesAt', 'eligibleVoterCount', 'voters',
+    'opensAt', 'closesAt', 'eligibleVoterCount',
   ].sort());
+  assert.deepEqual(db.calls[3][2], ['voters']);
   for (const prohibited of ['private', 'verifier', 'grant', 'ballotId', 'comments', 'candidate',
     'results', 'ranking', 'salaireId', 'employee-0', 'private-verifier']) {
     assert.equal(JSON.stringify(body).toLowerCase().includes(prohibited.toLowerCase()), false, prohibited);
@@ -207,7 +216,7 @@ test('independent aggregate counts signal anomalies without repair or result rea
       participationRecords: 1, anonymousBallots: 0, consistency: 'ANOMALY',
     });
   }
-  assert.equal(db.calls.length, 12);
+  assert.equal(db.calls.length, 15);
   assert.equal(db.calls.some(([, path]) => path.includes('resultInternals')), false);
 });
 
@@ -242,7 +251,7 @@ test('the monitoring service fails closed for corrupted, mismatched, or unavaila
     await assert.rejects(service.read(), (error) => error.code === 'ELECTION_DATA_INVALID');
     assert.equal(db.calls.length, 1);
   }
-  for (const flag of ['failRead', 'failCount', 'failSelect']) {
+  for (const flag of ['failRead', 'failCount']) {
     const db = seededDb();
     db.records[flag] = true;
     const { get } = await appFixture(t, db);
@@ -269,7 +278,7 @@ test('development and production paths remain isolated', async () => {
   const result = await productionReader.read();
   assert.equal(result.month, window.monthKey);
   assert.equal(db.calls[0][1], electionPath('development'));
-  assert.equal(db.calls[1][1], production);
+  assert.equal(db.calls.find(([operation, path]) => operation === 'getAll' && path === production)?.[1], production);
 });
 
 test('missing binding or admin configuration fails closed without reading the election', async (t) => {
@@ -312,18 +321,18 @@ test('zero eligible voters and upcoming windows are handled without ballot data'
   await assert.rejects(read('2026-10-01T12:00:00.000Z'), (error) => error.code === 'ELECTION_NOT_FOUND');
 });
 
-test('unknown participation identifiers and aggregate disagreements produce anomalies without writes', async () => {
+test('unknown participation identifiers do not fabricate names or change aggregate consistency', async () => {
   for (const db of [seededDb(1, 1, []), seededDb(1, 1, ['unknown-id'])]) {
     const result = await createElectionMonitoringService({
       db, directoryService, siteId: 'molard', dataEnvironment: 'development', timeZone: 'Europe/Zurich', now,
     }).read();
-    assert.equal(result.systemHealth.consistency, 'ANOMALY');
-    assert.equal(result.voters.filter((voter) => voter.hasVoted).length, 0);
+    assert.equal(result.systemHealth.consistency, 'OK');
+    assert.deepEqual(result.individual, { status: 'UNAVAILABLE' });
     assert.deepEqual(db.calls.filter(([, path]) => path.endsWith('/ballots')).map(([op]) => op), ['count']);
   }
 });
 
-test('missing, duplicate or changed directory names fail closed instead of inventing pending voters', async (t) => {
+test('missing, duplicate or changed directory names preserve aggregates without inventing pending voters', async (t) => {
   for (const altered of [
     null,
     { siteId: 'molard', employees: employees.slice(1) },
@@ -334,8 +343,26 @@ test('missing, duplicate or changed directory names fail closed instead of inven
     const db = seededDb();
     const { get } = await appFixture(t, db, { getElectionSnapshot: () => altered });
     const response = await get('admin');
-    assert.equal(response.status, 503);
-    assert.equal(Object.hasOwn(await response.json(), 'voters'), false);
-    assert.equal(db.calls.length, 1);
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.deepEqual(body.individual, { status: 'UNAVAILABLE' });
+    assert.equal(body.systemHealth.consistency, 'OK');
+    assert.deepEqual(body.participation, { count: 0, remaining: 49, percentage: 0 });
+    assert.equal(db.calls.filter(([op]) => op === 'count').length, 2);
+  }
+});
+
+test('optional voter or participation-ID read failure preserves current aggregate and no ballot payload reads', async (t) => {
+  for (const flag of ['failVoterRead', 'failSelect']) {
+    const db = seededDb(1, 1);
+    db.records[flag] = true;
+    const { get } = await appFixture(t, db);
+    const response = await get('admin');
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.deepEqual(body.participation, { count: 1, remaining: 48, percentage: 2.04 });
+    assert.deepEqual(body.systemHealth, { participationRecords: 1, anonymousBallots: 1, consistency: 'OK' });
+    assert.deepEqual(body.individual, { status: 'UNAVAILABLE' });
+    assert.equal(db.calls.some(([op, path]) => path.endsWith('/ballots') && op !== 'count'), false);
   }
 });

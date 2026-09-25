@@ -38,6 +38,7 @@ test('protected Administration navigation and dashboard work in desktop and mobi
     res.sendFile(path.join(root, 'private-pages/administration.html')));
   mountAdministrationMonitoringPage(app, authorize, root);
   let reads = 0;
+  let individualAvailable = true;
   app.get('/api/v1/management/election-monitoring', authorize, (_req, res) => {
     reads += 1;
     res.json({
@@ -45,9 +46,9 @@ test('protected Administration navigation and dashboard work in desktop and mobi
       window: { opensAt: '2026-09-24T22:00:00.000Z', closesAt: '2026-09-30T22:00:00.000Z' },
       eligibleVoters: 49, participation: { count: 1, remaining: 48, percentage: 2.04 },
       systemHealth: { participationRecords: 1, anonymousBallots: 1, consistency: 'OK' },
-      voters: Array.from({ length: 49 }, (_, index) => ({
+      individual: individualAvailable ? { status: 'AVAILABLE', voters: Array.from({ length: 49 }, (_, index) => ({
         name: `Collaborateur ${index}`, department: 'Cuisine', hasVoted: index === 0,
-      })),
+      })) } : { status: 'UNAVAILABLE' },
       privateVote: 'NEVER_DISPLAY_THIS',
     });
   });
@@ -113,6 +114,16 @@ test('protected Administration navigation and dashboard work in desktop and mobi
     assert.equal(await evaluate('document.querySelectorAll("#voter-list li").length'), 11);
     assert.equal(await evaluate('document.querySelector("#filter-pending").textContent'), 'À voter (48)');
     assert.equal(await evaluate('document.querySelector("#consistency").textContent'), 'Système cohérent');
+    individualAvailable = false;
+    await evaluate('document.querySelector("#refresh").click()');
+    await waitFor(() => evaluate('!document.querySelector("#refresh").disabled && !document.querySelector("#voter-unavailable").hidden'));
+    assert.equal(await evaluate('document.querySelector("#voted").textContent'), '1');
+    assert.equal(await evaluate('document.querySelectorAll("#voter-list li").length'), 0);
+    assert.equal(await evaluate('document.querySelector("#voter-controls").hidden'), true);
+    individualAvailable = true;
+    await evaluate('document.querySelector("#filter-all").click(); document.querySelector("#voter-search").value = ""; document.querySelector("#voter-search").dispatchEvent(new Event("input"))');
+    await evaluate('document.querySelector("#refresh").click()');
+    await waitFor(() => evaluate('document.querySelectorAll("#voter-list li").length === 49'));
     assert.equal(await evaluate('document.body.innerText.includes("NEVER_DISPLAY_THIS")'), false);
     assert.equal(await evaluate('document.documentElement.scrollWidth <= window.innerWidth'), true);
     assert.equal(await evaluate('getComputedStyle(document.querySelector("#progress")).height !== "0px"'), true);
@@ -120,9 +131,9 @@ test('protected Administration navigation and dashboard work in desktop and mobi
     const screenshot = await call('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true });
     fs.writeFileSync(`/tmp/phase3-${label}.png`, Buffer.from(screenshot.result.data, 'base64'));
     await evaluate('document.querySelector("#refresh").click()');
-    await waitFor(() => reads >= (label === 'desktop' ? 2 : 4));
+    await waitFor(() => reads >= (label === 'desktop' ? 4 : 8));
   };
   await inspect(1280, 900, 'desktop');
   await inspect(390, 844, 'mobile');
-  assert.equal(reads, 4, 'one initial GET and one refresh GET at each width');
+  assert.equal(reads, 8, 'one initial GET and three refresh GETs at each width');
 });

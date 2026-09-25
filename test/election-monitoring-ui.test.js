@@ -19,9 +19,9 @@ const sample = {
   eligibleVoters: 49,
   participation: { count: 1, remaining: 48, percentage: 2.04 },
   systemHealth: { participationRecords: 1, anonymousBallots: 1, consistency: 'OK' },
-  voters: Array.from({ length: 49 }, (_, index) => ({
+  individual: { status: 'AVAILABLE', voters: Array.from({ length: 49 }, (_, index) => ({
     name: `Collaborateur ${index}`, department: 'Cuisine', hasVoted: index === 0,
-  })),
+  })) },
 };
 
 function element() {
@@ -129,6 +129,42 @@ test('anomalies are explicit, including mismatched counts despite reported OK', 
   }
 });
 
+test('individual-unavailable preserves aggregate KPIs and clears a previously visible roster on refresh', async () => {
+  const pending = [];
+  const { nodes } = fixture(() => new Promise((resolve) => pending.push(resolve)));
+  pending.shift()(response(sample));
+  await settle();
+  assert.equal(nodes['voter-list'].children.length, 49);
+  nodes.refresh.click();
+  assert.equal(nodes['voter-list'].children.length, 0);
+  assert.equal(nodes['voter-controls'].hidden, true);
+  pending.shift()(response({ ...sample, individual: { status: 'UNAVAILABLE' } }));
+  await settle();
+  assert.equal(nodes.dashboard.hidden, false);
+  assert.equal(nodes['voter-unavailable'].hidden, false);
+  assert.match(html, /Le suivi individuel est momentanément indisponible/);
+  assert.equal(nodes['voter-list'].children.length, 0);
+  assert.equal(nodes['voter-summary'].textContent, '');
+  assert.equal(nodes['voter-controls'].hidden, true);
+  assert.equal(nodes.voted.textContent, '1');
+  assert.equal(nodes.remaining.textContent, '48');
+  assert.equal(nodes.consistency.textContent, 'Système cohérent');
+  assert.equal(nodes['results-state'].textContent, '🔒 Résultats masqués');
+  nodes.refresh.click();
+  pending.shift()(response(sample));
+  await settle();
+  assert.equal(nodes['voter-unavailable'].hidden, true);
+  assert.equal(nodes['voter-list'].children.length, 49);
+});
+
+test('partial roster is rejected instead of displayed as a complete list', async () => {
+  const { nodes } = fixture(async () => response({ ...sample,
+    individual: { status: 'AVAILABLE', voters: sample.individual.voters.slice(1) } }));
+  await settle();
+  assert.equal(nodes.dashboard.hidden, true);
+  assert.equal(nodes['voter-list'].children.length, 0);
+});
+
 test('loading, refresh, failure and retry never convert unknown data to zero or retain stale counts', async () => {
   const pending = [];
   const { nodes, requests } = fixture(() => new Promise((resolve) => pending.push(resolve)));
@@ -153,7 +189,7 @@ test('loading, refresh, failure and retry never convert unknown data to zero or 
   assert.equal(nodes.retry.hidden, false);
   nodes.retry.click();
   pending.shift()(response({ ...sample, participation: { count: 2, remaining: 47, percentage: 4.08 },
-    voters: sample.voters.map((voter, index) => ({ ...voter, hasVoted: index < 2 })) }));
+    individual: { status: 'AVAILABLE', voters: sample.individual.voters.map((voter, index) => ({ ...voter, hasVoted: index < 2 })) } }));
   await settle();
   assert.equal(nodes.dashboard.hidden, false);
   assert.equal(nodes.voted.textContent, '2');
@@ -164,11 +200,11 @@ test('loading, refresh, failure and retry never convert unknown data to zero or 
 
 test('French sorting, accent-insensitive search and combined filters remain local', async () => {
   const data = { ...sample, eligibleVoters: 3, participation: { count: 1, remaining: 2, percentage: 33.33 },
-    voters: [
+    individual: { status: 'AVAILABLE', voters: [
       { name: 'Zoé', department: 'Service', hasVoted: false },
       { name: 'Émile', department: 'Cuisine', hasVoted: true },
       { name: 'Alice', department: 'Plonge', hasVoted: false },
-    ] };
+    ] } };
   const { nodes, requests } = fixture(async () => response(data));
   await settle();
   assert.deepEqual(nodes['voter-list'].children.map((item) => item.children[0].children[0].textContent),
@@ -191,8 +227,8 @@ test('French sorting, accent-insensitive search and combined filters remain loca
 test('malicious voter fields render as text, while extraneous private fields are ignored', async () => {
   const data = { ...sample, eligibleVoters: 1,
     participation: { count: 0, remaining: 1, percentage: 0 },
-    voters: [{ name: '<img src=x onerror=alert(1)>', department: 'Cuisine',
-      hasVoted: false, verifier: 'secret-verifier', employeeId: 'secret-employee', comments: 'secret-comment' }] };
+    individual: { status: 'AVAILABLE', voters: [{ name: '<img src=x onerror=alert(1)>', department: 'Cuisine',
+      hasVoted: false, verifier: 'secret-verifier', employeeId: 'secret-employee', comments: 'secret-comment' }] } };
   const { nodes } = fixture(async () => response(data));
   await settle();
   assert.equal(nodes['voter-list'].children[0].children[0].children[0].textContent, '<img src=x onerror=alert(1)>');
@@ -201,7 +237,7 @@ test('malicious voter fields render as text, while extraneous private fields are
 
 test('client flags identified participation disagreements even if server erroneously reports OK', async () => {
   const { nodes } = fixture(async () => response({ ...sample,
-    voters: sample.voters.map((voter) => ({ ...voter, hasVoted: false })) }));
+    individual: { status: 'AVAILABLE', voters: sample.individual.voters.map((voter) => ({ ...voter, hasVoted: false })) } }));
   await settle();
   assert.equal(nodes.consistency.textContent, 'Anomalie détectée');
 });

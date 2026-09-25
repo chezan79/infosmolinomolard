@@ -11,11 +11,55 @@ class MonitoringError extends Error {
 
 const ELECTION_FIELDS = [
   'siteId', 'dataEnvironment', 'monthKey', 'timeZone',
-  'opensAt', 'closesAt', 'eligibleVoterCount', 'voters',
+  'opensAt', 'closesAt', 'eligibleVoterCount',
 ];
 
 function validCount(value) {
   return Number.isSafeInteger(value) && value >= 0;
+}
+
+async function resolveIndividuals(db, ref, directoryService, siteId, eligible, submitted) {
+  const unavailable = { status: 'UNAVAILABLE' };
+  try {
+    // Project the voter map only for the optional named view.
+    const [snapshot] = await db.getAll(ref, { fieldMask: ['voters'] });
+    const entries = snapshot.data()?.voters;
+    if (!entries || typeof entries !== 'object' || Array.isArray(entries) ||
+        Object.keys(entries).length !== eligible) return unavailable;
+    const directory = directoryService?.getElectionSnapshot();
+    if (!directory || directory.siteId !== siteId || !Array.isArray(directory.employees)) return unavailable;
+    const employees = new Map();
+    for (const employee of directory.employees) {
+      if (!employee || employee.siteId !== siteId || !employee.employeeId ||
+          employees.has(employee.employeeId)) return unavailable;
+      employees.set(employee.employeeId, employee);
+    }
+    const names = new Set();
+    const voters = [];
+    for (const [employeeId, voter] of Object.entries(entries)) {
+      const employee = employees.get(employeeId);
+      const name = typeof employee?.displayName === 'string' ? employee.displayName.trim() : '';
+      const department = employee?.department;
+      const normalized = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+      if (!voter || voter.employeeId !== employeeId || !['CUISINE', 'SERVICE'].includes(voter.votingGroup) ||
+          !name || !['Cuisine', 'Pizzeria', 'Plonge', 'Service'].includes(department) ||
+          employee.votingGroup !== voter.votingGroup || names.has(normalized)) return unavailable;
+      names.add(normalized);
+      voters.push({ employeeId, name, department });
+    }
+    // Document references only; no payload and never a ballot document.
+    const participation = await ref.collection('participation').select().get();
+    if (!Array.isArray(participation.docs)) return unavailable;
+    const ids = new Set(participation.docs.map((doc) => doc.id));
+    if (ids.size !== submitted || ids.size !== participation.docs.length ||
+        [...ids].some((id) => !Object.hasOwn(entries, id))) return unavailable;
+    return { status: 'AVAILABLE', voters: voters.map(({ employeeId, name, department }) => ({
+      name, department, hasVoted: ids.has(employeeId),
+    })) };
+  } catch {
+    // A failed optional read must not hide independently verified aggregates.
+    return unavailable;
+  }
 }
 
 function createElectionMonitoringService({ db, directoryService, siteId, dataEnvironment, timeZone, now = () => new Date() }) {
@@ -30,7 +74,7 @@ function createElectionMonitoringService({ db, directoryService, siteId, dataEnv
       const ref = db.collection('electionSites').doc(siteId)
         .collection('dataEnvironments').doc(dataEnvironment)
         .collection('elections').doc(window.monthKey);
-      // Voters are needed server-side; never load candidates, grants or individual ballots.
+      // Phase 3 aggregate fields are independent of optional identity resolution.
       const [snapshot] = await db.getAll(ref, { fieldMask: ELECTION_FIELDS });
       if (!snapshot.exists) throw new MonitoringError('ELECTION_NOT_FOUND', 404);
       const election = snapshot.data();
@@ -38,53 +82,20 @@ function createElectionMonitoringService({ db, directoryService, siteId, dataEnv
           election.dataEnvironment !== dataEnvironment ||
           election.monthKey !== window.monthKey || election.timeZone !== timeZone ||
           election.opensAt !== window.opensAt || election.closesAt !== window.closesAt ||
-          !validCount(election.eligibleVoterCount) ||
-          !election.voters || typeof election.voters !== 'object' ||
-          Array.isArray(election.voters) ||
-          Object.keys(election.voters).length !== election.eligibleVoterCount) {
+          !validCount(election.eligibleVoterCount)) {
         throw new MonitoringError('ELECTION_DATA_INVALID');
       }
-      const directory = directoryService?.getElectionSnapshot();
-      if (!directory || directory.siteId !== siteId || !Array.isArray(directory.employees)) {
-        throw new MonitoringError('DIRECTORY_UNAVAILABLE');
-      }
-      const employees = new Map();
-      for (const employee of directory.employees) {
-        if (!employee || employee.siteId !== siteId || !employee.employeeId ||
-            employees.has(employee.employeeId)) throw new MonitoringError('DIRECTORY_UNAVAILABLE');
-        employees.set(employee.employeeId, employee);
-      }
-      const names = new Set();
-      const voters = Object.entries(election.voters).map(([employeeId, voter]) => {
-        const employee = employees.get(employeeId);
-        const name = employee?.displayName?.trim();
-        const department = employee?.department;
-        if (!voter || voter.employeeId !== employeeId || !['CUISINE', 'SERVICE'].includes(voter.votingGroup) ||
-            !name || typeof department !== 'string' || !['Cuisine', 'Pizzeria', 'Plonge', 'Service'].includes(department) ||
-            employee.votingGroup !== voter.votingGroup || names.has(name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase())) {
-          throw new MonitoringError('VOTER_MAPPING_UNAVAILABLE');
-        }
-        names.add(name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase());
-        return { employeeId, name, department };
-      });
-      const participationRef = ref.collection('participation');
-      const [participation, ballots, participationIds] = await Promise.all([
-        participationRef.count().get(),
+      const [participation, ballots] = await Promise.all([
+        ref.collection('participation').count().get(),
         ref.collection('ballots').count().get(),
-        participationRef.select().get(), // document references only; no participation payload
       ]);
       const submitted = participation.data().count;
       const ballotCount = ballots.data().count;
-      if (!validCount(submitted) || !validCount(ballotCount) || !Array.isArray(participationIds.docs)) {
+      if (!validCount(submitted) || !validCount(ballotCount)) {
         throw new MonitoringError('MONITORING_UNAVAILABLE');
       }
-      const ids = new Set(participationIds.docs.map((doc) => doc.id));
-      if (ids.size !== participationIds.docs.length) throw new MonitoringError('MONITORING_UNAVAILABLE');
-      const list = voters.map(({ employeeId, name, department }) => ({
-        name, department, hasVoted: ids.has(employeeId),
-      }));
-      const identified = list.filter((voter) => voter.hasVoted).length;
       const eligible = election.eligibleVoterCount;
+      const individual = await resolveIndividuals(db, ref, directoryService, siteId, eligible, submitted);
       return {
         month: window.monthKey,
         status: electionState(election, observedAt),
@@ -98,10 +109,9 @@ function createElectionMonitoringService({ db, directoryService, siteId, dataEnv
         systemHealth: {
           participationRecords: submitted,
           anonymousBallots: ballotCount,
-          consistency: submitted === ballotCount && submitted === identified &&
-            submitted === ids.size && submitted <= eligible ? 'OK' : 'ANOMALY',
+          consistency: submitted === ballotCount && submitted <= eligible ? 'OK' : 'ANOMALY',
         },
-        voters: list,
+        individual,
       };
     },
   };
