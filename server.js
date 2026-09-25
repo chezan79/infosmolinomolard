@@ -7,6 +7,7 @@ const { initializeFirebase, getAuth } = require('./firebase-server-config');
 const { mountFirebaseClientConfig } = require('./firebase-client-config-route');
 const { createDirectoryRuntime } = require('./employee-directory');
 const { createElectionRuntime } = require('./election-engine');
+const { mountElectionMonitoring } = require('./election-engine/monitoring');
 const { validateProductionConfig } = require('./production-config');
 
 const app = express();
@@ -61,6 +62,7 @@ const electionRuntime = createElectionRuntime({
 electionRuntime.mount(app);
 app.use(express.json());
 employeeDirectory.mount(app);
+mountElectionMonitoring(app, { env: process.env, firebaseDb, firebaseAuth });
 mountFirebaseClientConfig(app, process.env);
 
 app.get(
