@@ -38,7 +38,9 @@ outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "node .local/previews/winners-photo-verification.cjs"
+# Preview only: omit the Sheet ID in this child process to prevent directory refresh writes.
+# The portrait-verification fixture stays standalone, outside standard Preview workflows.
+args = "env -u EMPLOYEE_DIRECTORY_SHEET_ID node server.js"
 waitForPort = 5000
 
 [[ports]]
