@@ -10,8 +10,6 @@
   const retryButton = document.getElementById('retry-button');
   const content = document.getElementById('results-content');
   const monthLabel = document.getElementById('month-label');
-  const publishedNote = document.getElementById('published-note');
-  const publishedAt = document.getElementById('published-at');
 
   function validMonth(value) {
     return typeof value === 'string' && /^\d{4}-(0[1-9]|1[0-2])$/.test(value);
@@ -104,6 +102,7 @@
       const fallback = document.createElement('span');
       fallback.className = 'portrait-fallback';
       fallback.textContent = fallbackInitials(person.name);
+      fallback.setAttribute('aria-hidden', 'true');
       portrait.append(fallback);
       if (person.photoUrl) {
         const image = document.createElement('img');
@@ -147,9 +146,6 @@
     renderCategory('service-winners', payload.categories.SERVICE);
     const month = formatMonth(payload.month);
     monthLabel.textContent = `Résultats de ${month}`;
-    publishedNote.textContent = `Derniers résultats publiés · ${month}`;
-    const publishedDate = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long', timeStyle: 'short' }).format(new Date(payload.publishedAt));
-    publishedAt.textContent = `Publication du ${publishedDate}`;
     message.hidden = true;
     loading.hidden = true;
     content.hidden = false;

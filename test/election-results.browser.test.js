@@ -67,9 +67,27 @@ test('public winners and protected lifecycle/recovery work in isolated desktop a
     await waitFor(() => evaluate('document.querySelector("#results-content") && !document.querySelector("#results-content").hidden'));
     assert.equal(await evaluate('document.querySelectorAll(".winner-name").length'), 3);
     assert.equal(await evaluate('document.querySelector("#month-label").textContent.includes("octobre 2026")'), true);
+    assert.equal(await evaluate('document.querySelector("#month-label").tagName'), 'H2');
     assert.equal(await evaluate('document.body.textContent.toLowerCase().includes("ex æquo")'), true);
+    assert.equal(await evaluate('document.querySelectorAll(".category-index").length'), 0);
+    assert.equal(await evaluate('document.querySelector(".published-at, .latest-note, #published-note, #published-at")'), null);
+    assert.equal(await evaluate('document.body.textContent.includes("Publication du")'), false);
+    assert.equal(await evaluate('document.body.textContent.includes("Derniers résultats publiés")'), false);
+    assert.deepEqual(await evaluate(`(() => {
+      const cards = [...document.querySelectorAll(".winner-category")].map((card) => card.getBoundingClientRect());
+      const portraits = [...document.querySelectorAll(".portrait-wrap")].map((portrait) => portrait.getBoundingClientRect());
+      return {
+        equalCategories: Math.abs(cards[0].width - cards[1].width) < 1,
+        portraitsLarge: portraits.every((portrait) => portrait.height >= 200),
+      };
+    })()`), { equalCategories: true, portraitsLarge: true });
     await waitFor(() => evaluate('document.querySelectorAll(".portrait").length === 0'));
     assert.equal(await evaluate('document.querySelector(".portrait-fallback").hidden'), false);
+    assert.equal(await evaluate(`(() => {
+      const box = document.querySelector(".portrait-wrap").getBoundingClientRect();
+      const fallback = document.querySelector(".portrait-fallback").getBoundingClientRect();
+      return Math.abs(box.width - fallback.width) < 1 && Math.abs(box.height - fallback.height) < 1;
+    })()`), true);
     assert.equal(await evaluate('document.documentElement.scrollWidth <= window.innerWidth + 1'), true);
     assert.equal(await evaluate('document.body.textContent.includes("counts")'), false);
   }
