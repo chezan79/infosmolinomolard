@@ -1,0 +1,16 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "oWFLk1yzGKnwyX86TNeIs"
+uri = "file://.local/september-2026-winners-audit.html"
+type = "html"
+title = "September 2026 winners — read-only audit"
+description = "Complete A–J report: verified deployment differences, missing winners rendering, month rollover, calculation/finalization trace, unknown production counts, and recommendations only."
+logical_id = "a73a4586-3428-47fa-8e54-d5de6fe93f71"
+content_hash = "sha256:fcab66db4d71ca6c503f8e05aa60bb6319f0b5a24ac7ddc0f5c1f3b8a777311f"
+size = 43301
+mtime_ms = 1790919990122
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:11915a0a-8e99-421a-b5ef-3353a9053a73/a73a4586-3428-47fa-8e54-d5de6fe93f71/5c2ebbf5-4434-4ac0-bb22-b6674fb73692"
+storage_version_token = "1790920036385438"
+content_type = "text/html"
