@@ -99,7 +99,7 @@ test('protected Administration navigation and dashboard work in desktop and mobi
       width, height, deviceScaleFactor: 1, mobile: width < 600,
     });
     await call('Page.navigate', { url: `${base}/administration` });
-    await waitFor(() => evaluate('document.querySelectorAll(".administration-card").length === 2'));
+    await waitFor(() => evaluate('document.querySelectorAll(".administration-card").length === 3'));
     assert.equal(await evaluate('document.querySelector(".administration-card[href=\\"/suivi-du-vote\\"]")?.textContent.includes("Ouvrir le dashboard")'), true);
     await evaluate('document.querySelector(".administration-card[href=\\"/suivi-du-vote\\"]").click()');
     await waitFor(() => evaluate('document.querySelector("#dashboard") && !document.querySelector("#dashboard").hidden'));

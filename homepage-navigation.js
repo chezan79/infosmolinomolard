@@ -2,9 +2,9 @@
   'use strict';
 
   const copy = {
-    fr: { employeeOfTheMonth: 'Collaborateur du mois' },
-    it: { employeeOfTheMonth: 'Collaboratore del mese' },
-    en: { employeeOfTheMonth: 'Employee of the Month' },
+    fr: { employeeOfTheMonth: 'Collaborateur du mois', monthlyWinners: 'Collaborateurs distingués' },
+    it: { employeeOfTheMonth: 'Collaboratore del mese', monthlyWinners: 'Collaboratori del mese' },
+    en: { employeeOfTheMonth: 'Employee of the Month', monthlyWinners: 'Monthly recognition' },
   };
 
   const browserLocale = String(navigator.language || '').slice(0, 2).toLowerCase();

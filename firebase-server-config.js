@@ -21,6 +21,7 @@ function initializeFirebase() {
     // Inizializza Firebase Admin
     if (!admin.apps.length) {
       admin.initializeApp({
+        projectId: serviceAccount.project_id,
         credential: admin.credential.cert(serviceAccount),
         ...(process.env.FIREBASE_DATABASE_URL ? { databaseURL: process.env.FIREBASE_DATABASE_URL } : {}),
         storageBucket: normalizeStorageBucket(

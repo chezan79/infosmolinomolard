@@ -11,6 +11,9 @@ const { getBytes, ref, uploadBytes } = require('firebase/storage');
 const admin = require('firebase-admin');
 const { FirestoreElectionStore } = require('../election-engine/firestore-store');
 const { electionState } = require('../election-engine/contract');
+const { FirestoreResultsStore } = require('../election-engine/results-store');
+const { ElectionResultsService } = require('../election-engine/results-service');
+const { fixture } = require('./helpers/results-fixture');
 
 let environment;
 
@@ -35,7 +38,47 @@ test('blocks every browser role from employee portrait objects', async () => {
     const object = ref(context.storage(), 'employee-photos/molard/emp-1/portrait.webp');
     await assertFails(uploadBytes(object, Buffer.from('not-an-image'), { contentType: 'image/webp' }));
     await assertFails(getBytes(object));
+    const winner = ref(context.storage(), 'published-winner-photos/molard/production/fixture.webp');
+    await assertFails(uploadBytes(winner, Buffer.from('not-an-image'), { contentType: 'image/webp' }));
+    await assertFails(getBytes(winner));
   }
+});
+
+test('blocks direct browser reads and writes of result snapshots, pointers, operations, and heartbeat', async () => {
+  for (const context of [environment.unauthenticatedContext(),
+    environment.authenticatedContext('admin', { siteId: 'molard', role: 'manager' })]) {
+    for (const suffix of [
+      'elections/2100-10/publication/public',
+      'elections/2100-10/resultInternals/final',
+      'elections/2100-10/resultOperations/state',
+      'publicationState/latest', 'publicationState/worker',
+    ]) {
+      const document = doc(context.firestore(), `electionSites/molard/dataEnvironments/development/${suffix}`);
+      await assertFails(getDoc(document));
+      await assertFails(setDoc(document, { unsafe: true }));
+    }
+  }
+});
+
+test('real isolated Firestore transactions finalize and publish idempotently with concurrent workers', async () => {
+  const f = fixture({ month: '2100-10', now: '2100-11-01T02:00:00Z' });
+  const app = admin.initializeApp({ projectId: 'employee-directory-rules-test' }, 'results-fixture');
+  const db = app.firestore();
+  // The demo/emulator environment is established by the emulator runner, never a live project.
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST);
+  for (const [path, data] of f.db.docs) await db.doc(path).set(data);
+  const binding = { ...f.binding, projectId: 'employee-directory-rules-test' };
+  const store = new FirestoreResultsStore(db, binding);
+  const service = new ElectionResultsService({ store, binding, enabled: true, automationEnabled: true, now: f.now });
+  await Promise.all([service.processMonth(f.month), service.processMonth(f.month)]);
+  const first = await service.latest();
+  assert.equal(first.month, '2100-10');
+  assert.equal(first.categories.CUISINE.winners.length, 2);
+  const publication = await store.publication(f.month).get();
+  const updateTime = publication.updateTime.toMillis();
+  await service.processMonth(f.month, { recovery: true });
+  assert.deepEqual(await service.latest(), first);
+  assert.equal((await store.publication(f.month).get()).updateTime.toMillis(), updateTime);
 });
 
 test.after(async () => {

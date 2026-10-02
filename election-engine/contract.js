@@ -65,6 +65,17 @@ function electionState(election, now) {
   return STATES.CLOSED;
 }
 
+function validateChoices(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input) ||
+      Object.keys(input).sort().join('|') !== CATEGORIES.slice().sort().join('|')) return null;
+  const choices = {};
+  for (const category of CATEGORIES) {
+    if (typeof input[category] !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_-]{1,63}$/.test(input[category])) return null;
+    choices[category] = input[category];
+  }
+  return choices;
+}
+
 function validateBallot(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body) ||
       Object.keys(body).sort().join('|') !== 'choices|comments') return null;
@@ -73,12 +84,13 @@ function validateBallot(body) {
       Object.keys(body.comments).sort().join('|') !== CATEGORIES.slice().sort().join('|')) return null;
   const choices = {};
   const comments = {};
+  const validatedChoices = validateChoices(body.choices);
+  if (!validatedChoices) return null;
   for (const category of CATEGORIES) {
-    if (typeof body.choices[category] !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_-]{1,63}$/.test(body.choices[category])) return null;
     if (typeof body.comments[category] !== 'string') return null;
     const comment = body.comments[category].trim();
     if (comment.length < COMMENT_MIN || comment.length > COMMENT_MAX) return null;
-    choices[category] = body.choices[category];
+    choices[category] = validatedChoices[category];
     comments[category] = comment;
   }
   return { choices, comments };
@@ -102,6 +114,12 @@ function winnersFromCounts(counts) {
   };
 }
 
+function summarizeResults(counts) {
+  return Object.fromEntries(CATEGORIES.map((category) => [
+    category, { counts: counts[category], ...winnersFromCounts(counts[category]) },
+  ]));
+}
+
 function tokenHash(token, secret) {
   return crypto.createHmac('sha256', secret).update(token).digest('base64url');
 }
@@ -109,5 +127,5 @@ function tokenHash(token, secret) {
 module.exports = {
   CATEGORIES, COMMENT_MIN, COMMENT_MAX, DEFAULT_GRANT_TTL_MS, STATES,
   electionState, electionWindow, safeCandidate, tokenHash, validTimeZone,
-  validateBallot, winnersFromCounts,
+  validateBallot, validateChoices, winnersFromCounts, summarizeResults,
 };

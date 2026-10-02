@@ -2,7 +2,7 @@ const crypto = require('node:crypto');
 const { createSalaireVerifier } = require('../employee-directory/contract');
 const {
   CATEGORIES, DEFAULT_GRANT_TTL_MS, electionState, electionWindow,
-  safeCandidate, tokenHash, validTimeZone, validateBallot, winnersFromCounts,
+  safeCandidate, tokenHash, validTimeZone, validateBallot, summarizeResults,
 } = require('./contract');
 const { ElectionError } = require('./firestore-store');
 
@@ -104,9 +104,7 @@ class ElectionService {
   }
 
   summarize(counts) {
-    return Object.fromEntries(CATEGORIES.map((category) => [
-      category, { counts: counts[category], ...winnersFromCounts(counts[category]) },
-    ]));
+    return summarizeResults(counts);
   }
 
   async finalize(monthKey) {

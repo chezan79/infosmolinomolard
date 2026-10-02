@@ -9,6 +9,7 @@ const { createDirectoryRuntime } = require('./employee-directory');
 const { createElectionRuntime } = require('./election-engine');
 const { mountElectionMonitoring } = require('./election-engine/monitoring');
 const { mountAdministrationMonitoringPage } = require('./administration-monitoring-page');
+const { createResultsRuntime } = require('./election-engine/results-runtime');
 const { validateProductionConfig } = require('./production-config');
 
 const app = express();
@@ -65,6 +66,24 @@ app.use(express.json());
 employeeDirectory.mount(app);
 mountElectionMonitoring(app, { env: process.env, firebaseDb, firebaseAuth, directoryService: employeeDirectory.service });
 mountFirebaseClientConfig(app, process.env);
+const resultsRuntime = createResultsRuntime({
+  env: process.env, firebaseDb, firebaseAuth, firebaseBucket, directoryPhotos: employeeDirectory.photos,
+});
+resultsRuntime.mount(app);
+
+app.get('/collaborateurs-du-mois', (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.sendFile(path.join(__dirname, 'collaborateurs-du-mois.html'));
+});
+app.get(['/resultats-du-vote', '/election-results.html'],
+  employeeDirectory.authorizeAdministrationPage, (_req, res) => {
+    res.set('Cache-Control', 'no-store');
+    res.sendFile(path.join(__dirname, 'private-pages', 'election-results.html'));
+  });
+for (const file of ['election-results-admin.js', 'election-results-admin.css']) {
+  app.get(`/private-pages/${file}`, employeeDirectory.authorizeAdministrationPage, (_req, res) =>
+    res.sendFile(path.join(__dirname, 'private-pages', file)));
+}
 
 app.get(
   ['/administration', '/administration.html'],

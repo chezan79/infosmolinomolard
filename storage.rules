@@ -6,5 +6,9 @@ service firebase.storage {
     match /employee-photos/{siteId}/{employeeId}/{fileName} {
       allow read, write: if false;
     }
+    // Immutable winner portraits are exposed only through the allow-listed public API.
+    match /published-winner-photos/{siteId}/{environment}/{fileName} {
+      allow read, write: if false;
+    }
   }
 }
