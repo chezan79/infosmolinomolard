@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import "./_group.css";
 import "./WinnersCelebration.css";
 
@@ -10,27 +10,23 @@ type Person = {
 type Category = {
   id: "cuisine" | "service";
   title: string;
-  caption: string;
   people: Person[];
 };
 
+// Fictional colleagues only: this preview never requests application data.
 const categories: Category[] = [
   {
     id: "cuisine",
     title: "Cuisine",
-    caption: "Le goût du geste juste",
     people: [
       { name: "Camille Dufour", role: "Cheffe de partie" },
-      { name: "Noé Lambert", role: "Commis de cuisine" },
     ],
   },
   {
     id: "service",
     title: "Service",
-    caption: "L’art de recevoir",
     people: [
       { name: "Inès Favre", role: "Cheffe de rang" },
-      { name: "Luca Perrin", role: "Sommelier" },
     ],
   },
 ];
@@ -53,11 +49,7 @@ function Winner({ person, tied }: { person: Person; tied: boolean }) {
 
   return (
     <article className="mm-winner">
-      <div
-        className="mm-portrait"
-        role="img"
-        aria-label={`Portrait illustré de ${person.name}, initiales ${initials}`}
-      >
+      <div className="mm-portrait">
         <span className="mm-portrait-initials" aria-hidden="true">
           {initials}
         </span>
@@ -79,7 +71,6 @@ function CategoryPanel({ category }: { category: Category }) {
           <h2 className="mm-category-title" id={`${category.id}-title`}>
             {category.title}
           </h2>
-          <span className="mm-category-caption">{category.caption}</span>
         </div>
         <div className="mm-empty">
           <strong className="mm-empty-title">Pas de distinction ce mois-ci</strong>
@@ -101,7 +92,6 @@ function CategoryPanel({ category }: { category: Category }) {
         <h2 className="mm-category-title" id={`${category.id}-title`}>
           {category.title}
         </h2>
-        <span className="mm-category-caption">{category.caption}</span>
       </div>
       <div className="mm-winner-list">
         {category.people.map((person) => (
@@ -113,13 +103,11 @@ function CategoryPanel({ category }: { category: Category }) {
 }
 
 export function WinnersCelebration() {
-  const [resultState, setResultState] = useState<ResultState>("loading");
+  const previewState = new URLSearchParams(window.location.search).get("state");
+  const [resultState, setResultState] = useState<ResultState>(
+    previewState === "error" ? "error" : previewState === "loading" ? "loading" : "ready"
+  );
   const [retrying, setRetrying] = useState(false);
-
-  useEffect(() => {
-    const timeout = window.setTimeout(() => setResultState("ready"), 460);
-    return () => window.clearTimeout(timeout);
-  }, []);
 
   const retry = useCallback(() => {
     setRetrying(true);
@@ -134,7 +122,7 @@ export function WinnersCelebration() {
     <main className="mm-winners">
       <div className="mm-shell">
         <header className="mm-masthead">
-          <div className="mm-brand" aria-label="Molino Molard">
+          <a className="mm-brand" href="#" onClick={(event) => event.preventDefault()} aria-label="Molino Molard, accueil">
             <span className="mm-brand-mark" aria-hidden="true">
               M
             </span>
@@ -142,8 +130,8 @@ export function WinnersCelebration() {
               <strong>Molino Molard</strong>
               <small>Maison &amp; équipe</small>
             </span>
-          </div>
-          <span className="mm-masthead-note">Genève · au fil des saisons</span>
+          </a>
+          <a className="mm-header-link" href="#" onClick={(event) => event.preventDefault()}>Espace de vote <span aria-hidden="true">↗</span></a>
         </header>
 
         <section className="mm-intro" aria-labelledby="mm-page-title">
@@ -161,7 +149,7 @@ export function WinnersCelebration() {
             Molino Molard.
           </p>
           <div className="mm-intro-rule">
-            <h2 className="mm-month-heading">Résultats de mai 2025</h2>
+            <h2 className="mm-month-heading">{resultState === "ready" ? "Résultats de octobre 2026" : "Résultats du dernier mois publié"}</h2>
             <span className="mm-rule-mark" aria-hidden="true" />
           </div>
         </section>
@@ -173,11 +161,16 @@ export function WinnersCelebration() {
           aria-busy={resultState === "loading"}
         >
           {resultState === "loading" && (
-            <div className="mm-loading-panel" role="status" aria-label="Chargement des résultats">
-              <span className="mm-skeleton mm-skeleton-heading" />
-              <div className="mm-skeleton-category">
-                <span className="mm-skeleton mm-skeleton-photo" />
-                <span className="mm-skeleton mm-skeleton-copy" />
+            <div className="mm-loading-panel" role="status">
+              <span className="mm-visually-hidden">Chargement des distinctions…</span>
+              <div className="mm-skeleton-grid" aria-hidden="true">
+                {[0, 1].map((key) => (
+                  <div key={key} className="mm-skeleton-category">
+                    <span className="mm-skeleton mm-skeleton-heading" />
+                    <span className="mm-skeleton mm-skeleton-photo" />
+                    <span className="mm-skeleton mm-skeleton-copy" />
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -208,11 +201,11 @@ export function WinnersCelebration() {
 
         <section className="mm-closing" aria-label="Découvrir Molino Molard">
           <p>Une maison, des métiers, une même attention.</p>
-          <span className="mm-closing-note">Molino Molard · Genève</span>
+          <a href="#" onClick={(event) => event.preventDefault()}>Retour à l’accueil <span aria-hidden="true">↗</span></a>
         </section>
         <footer className="mm-footer">
-          <span>Une équipe, une maison.</span>
-          <span>Genève, Suisse</span>
+          <span>Molino Molard · Genève</span>
+          <a href="#" onClick={(event) => event.preventDefault()}>Participer au vote</a>
         </footer>
       </div>
     </main>

@@ -42,11 +42,17 @@ test('public winners and protected lifecycle/recovery work in isolated desktop a
   }
   let publicMode = 'published';
   app.get('/api/v1/public/election-results/latest', async (_req, res, next) => {
+    if (publicMode === 'delayed') await new Promise((resolve) => setTimeout(resolve, 500));
     if (publicMode === 'empty') return res.status(404).json({ code: 'NO_PUBLISHED_RESULT' });
     if (publicMode === 'error') return res.status(503).json({ code: 'RESULTS_UNAVAILABLE' });
     if (publicMode === 'malformed') return res.json({ code: 'PUBLISHED_RESULT', private: 'DO_NOT_RENDER', categories: {} });
     if (publicMode === 'no-winner') return res.json(await empty.service.latest());
     next();
+  });
+  let photoAvailable = false;
+  app.get(`/api/v1/public/winner-photos/${key}`, (_req, res, next) => {
+    if (!photoAvailable) return next();
+    res.type('svg').send('<svg xmlns="http://www.w3.org/2000/svg" width="240" height="280"><rect width="240" height="280" fill="#f1dfce"/><circle cx="120" cy="94" r="42" fill="#b7472a"/><path d="M40 280v-52a80 80 0 0 1 160 0v52" fill="#8d321f"/></svg>');
   });
   let recoveries = 0;
   app.post('/api/v1/management/election-results/:month/recover', (_req, _res, next) => { recoveries += 1; next(); });
@@ -61,14 +67,26 @@ test('public winners and protected lifecycle/recovery work in isolated desktop a
   const base = `http://127.0.0.1:${server.address().port}`;
   const { call, evaluate, errors } = await browserSession(t);
   const writes = f.db.writes.length;
-  for (const [width, height] of [[390, 844], [1440, 960]]) {
+  publicMode = 'delayed';
+  await call('Page.navigate', { url: `${base}/collaborateurs-du-mois` });
+  await waitFor(() => evaluate('document.querySelector("#loading-panel") && !document.querySelector("#loading-panel").hidden'));
+  assert.equal(await evaluate('document.querySelector("#results-region").getAttribute("aria-busy")'), 'true');
+  assert.equal(await evaluate('document.querySelectorAll(".skeleton-grid .skeleton-photo").length'), 2);
+  await waitFor(() => evaluate('!document.querySelector("#results-content").hidden'));
+  assert.equal(await evaluate('getComputedStyle(document.querySelector("#loading-panel")).display'), 'none');
+  publicMode = 'published';
+  for (const [width, height] of [[320, 740], [390, 844], [1440, 960]]) {
     await call('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: width < 600 });
     await call('Page.navigate', { url: `${base}/collaborateurs-du-mois` });
     await waitFor(() => evaluate('document.querySelector("#results-content") && !document.querySelector("#results-content").hidden'));
     assert.equal(await evaluate('document.querySelectorAll(".winner-name").length'), 3);
+    assert.deepEqual(await evaluate('[...document.querySelectorAll(".winner-name")].map(name => name.textContent)'), ['Chef One', 'Chef Two', 'Service One']);
+    assert.deepEqual(await evaluate('[...document.querySelectorAll(".category-heading h2")].map(heading => heading.textContent)'), ['Cuisine', 'Service']);
+    assert.equal(await evaluate('document.querySelector(".closing p").textContent'), 'Une maison, des métiers, une même attention.');
     assert.equal(await evaluate('document.querySelector("#month-label").textContent.includes("octobre 2026")'), true);
     assert.equal(await evaluate('document.querySelector("#month-label").tagName'), 'H2');
     assert.equal(await evaluate('document.body.textContent.toLowerCase().includes("ex æquo")'), true);
+    assert.deepEqual(await evaluate('[...document.querySelectorAll(".winner-role")].map(role => role.textContent)'), ['Chef', 'Service']);
     assert.equal(await evaluate('document.querySelectorAll(".category-index").length'), 0);
     assert.equal(await evaluate('document.querySelector(".published-at, .latest-note, #published-note, #published-at")'), null);
     assert.equal(await evaluate('document.body.textContent.includes("Publication du")'), false);
@@ -83,6 +101,7 @@ test('public winners and protected lifecycle/recovery work in isolated desktop a
     })()`), { equalCategories: true, portraitsLarge: true });
     await waitFor(() => evaluate('document.querySelectorAll(".portrait").length === 0'));
     assert.equal(await evaluate('document.querySelector(".portrait-fallback").hidden'), false);
+    assert.equal(await evaluate('document.querySelector(".portrait-fallback").getAttribute("aria-hidden")'), 'true');
     assert.equal(await evaluate(`(() => {
       const box = document.querySelector(".portrait-wrap").getBoundingClientRect();
       const fallback = document.querySelector(".portrait-fallback").getBoundingClientRect();
@@ -91,6 +110,19 @@ test('public winners and protected lifecycle/recovery work in isolated desktop a
     assert.equal(await evaluate('document.documentElement.scrollWidth <= window.innerWidth + 1'), true);
     assert.equal(await evaluate('document.body.textContent.includes("counts")'), false);
   }
+  photoAvailable = true;
+  await call('Page.navigate', { url: `${base}/collaborateurs-du-mois` });
+  await waitFor(() => evaluate('document.querySelector(".portrait")?.naturalWidth > 0'));
+  assert.equal(await evaluate('document.querySelector(".portrait-fallback").hidden'), true);
+  assert.equal(await evaluate(`(() => {
+    const box = document.querySelector(".portrait-wrap").getBoundingClientRect();
+    const image = document.querySelector(".portrait").getBoundingClientRect();
+    return Math.abs(box.width - image.width) < 1 && Math.abs(box.height - image.height) < 1;
+  })()`), true);
+  await call('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+  assert.equal(await evaluate('parseFloat(getComputedStyle(document.querySelector(".winner-category")).animationDuration) < 0.001'), true);
+  assert.equal(await evaluate('getComputedStyle(document.documentElement).scrollBehavior'), 'auto');
+  await call('Emulation.setEmulatedMedia', { features: [] });
   assert.equal(f.db.writes.length, writes, 'public browser visits must never mutate storage');
   publicMode = 'no-winner';
   await call('Page.navigate', { url: `${base}/collaborateurs-du-mois` });
@@ -101,6 +133,7 @@ test('public winners and protected lifecycle/recovery work in isolated desktop a
     await call('Page.navigate', { url: `${base}/collaborateurs-du-mois` });
     await waitFor(() => evaluate('document.querySelector("#message-panel") && !document.querySelector("#message-panel").hidden'));
     assert.equal(await evaluate('document.querySelector("#results-content").hidden'), true);
+    assert.equal(await evaluate('document.querySelector("#retry-button").hidden'), mode === 'empty');
     assert.equal(await evaluate('document.body.textContent.includes("DO_NOT_RENDER")'), false);
   }
   publicMode = 'published';
