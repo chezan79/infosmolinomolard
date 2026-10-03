@@ -1,4 +1,3 @@
-const { FieldPath } = require('firebase-admin/firestore');
 const { ElectionResultsService } = require('./results-service');
 const { validMonth } = require('./results-contract');
 
@@ -42,7 +41,7 @@ class PreviewResultsStatus {
     if (!this.root) return { ...base, storageStatus: 'DISABLED' };
     try {
       const snapshot = await this.root.collection('elections')
-        .orderBy(FieldPath.documentId(), 'desc').select(...META_FIELDS).limit(60).get();
+        .select(...META_FIELDS).limit(60).get();
       const [worker] = await this.db.getAll(
         this.root.collection('publicationState').doc('worker'), { fieldMask: HEARTBEAT_FIELDS });
       const heartbeat = worker.exists ? worker.data() : null;
