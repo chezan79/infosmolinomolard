@@ -16,9 +16,9 @@
       <a class="back-link" href="/administration">← Retour à l’administration</a>
     </header>
     <section class="hero monitoring-hero">
-      <p class="eyebrow">Processus automatique</p>
+      <p id="results-eyebrow" class="eyebrow">État des résultats</p>
       <h1>Résultats du vote</h1>
-      <p>Suivez la publication mensuelle et relancez le traitement sécurisé si nécessaire. Les personnes distinguées ne sont pas modifiables depuis cet écran.</p>
+      <p id="results-intro">Suivez l’état des périodes et de la publication mensuelle. Les personnes distinguées ne sont pas modifiables depuis cet écran.</p>
     </section>
 
     <div id="loading" class="card notice result-notice" role="status">
@@ -38,7 +38,7 @@
         </div>
         <p id="system-summary" class="system-summary"></p>
         <div class="system-facts">
-          <div class="system-fact"><span>Fonction</span><strong id="enabled-state"></strong></div>
+          <div class="system-fact"><span>Traitement</span><strong id="enabled-state"></strong></div>
           <div class="system-fact"><span>Automatisation</span><strong id="automation-state"></strong></div>
           <div class="system-fact"><span>Stockage</span><strong id="storage-state"></strong></div>
         </div>
@@ -57,10 +57,10 @@
         <div id="months-list" class="months-list"></div>
         <div id="months-empty" class="card empty-months" hidden>
           <strong>Aucune période à afficher</strong>
-          <p>Les périodes apparaîtront ici dès que le traitement les aura enregistrées.</p>
+           <p>Les périodes apparaîtront ici dès que leurs métadonnées seront disponibles.</p>
         </div>
       </section>
-      <p class="privacy-note">Les actions de récupération relancent le pipeline automatique complet. Elles ne permettent pas de modifier les personnes distinguées ni de publier manuellement un résultat.</p>
+      <p id="results-privacy" class="privacy-note">Les actions de récupération relancent le pipeline automatique complet. Elles ne permettent pas de modifier les personnes distinguées ni de publier manuellement un résultat.</p>
     </div>
   </main>
   <script type="module" src="/private-pages/election-results-admin.js"></script>

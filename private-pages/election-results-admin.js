@@ -11,6 +11,7 @@ const refreshStatus = document.getElementById('refresh-status');
 const monthsList = document.getElementById('months-list');
 const monthsEmpty = document.getElementById('months-empty');
 const recoveryInFlight = new Set();
+let recoveryAllowed = false;
 
 const stateLabels = {
   VOTING_UPCOMING: 'Vote à venir',
@@ -79,13 +80,15 @@ function validateMonth(item) {
 
 function validatePayload(data) {
   if (!isObject(data) || typeof data.enabled !== 'boolean' || typeof data.automationEnabled !== 'boolean' ||
+      (data.readOnly !== undefined && typeof data.readOnly !== 'boolean') ||
+      (data.readOnly === true && (data.enabled || data.automationEnabled)) ||
       !['AVAILABLE', 'DISABLED', 'UNAVAILABLE'].includes(data.storageStatus) ||
       !(data.heartbeat === null || (isObject(data.heartbeat) && validIso(data.heartbeat.lastAttemptAt, false) &&
         validIso(data.heartbeat.lastSuccessAt) && typeof data.heartbeat.status === 'string' && data.heartbeat.status.length <= 100)) ||
       !Array.isArray(data.months) || data.months.length > 120) return null;
   const months = data.months.map(validateMonth);
   if (months.some((month) => !month)) return null;
-  return { enabled: data.enabled, automationEnabled: data.automationEnabled, storageStatus: data.storageStatus, heartbeat: data.heartbeat, months };
+  return { enabled: data.enabled, automationEnabled: data.automationEnabled, readOnly: data.readOnly === true, storageStatus: data.storageStatus, heartbeat: data.heartbeat, months };
 }
 
 function formatMonth(value) {
@@ -125,7 +128,7 @@ function showError(title, copy, canRetry = true) {
   retryButton.hidden = !canRetry;
 }
 
-function renderMonth(item, globallyEnabled) {
+function renderMonth(item, globallyEnabled, readOnly) {
   const row = document.createElement('article');
   row.className = 'month-row';
   const month = document.createElement('strong');
@@ -168,7 +171,7 @@ function renderMonth(item, globallyEnabled) {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'button secondary';
-  button.textContent = recoveryInFlight.has(item.month) ? 'Récupération…' : 'Relancer le traitement';
+  button.textContent = readOnly ? 'Indisponible en Preview' : recoveryInFlight.has(item.month) ? 'Récupération…' : 'Relancer le traitement';
   button.disabled = !globallyEnabled || item.held || recoveryInFlight.has(item.month) ||
     !['VOTING_CLOSED', 'RESULT_REQUIRES_VERIFICATION'].includes(item.state);
   button.setAttribute('aria-label', `Relancer le traitement automatique pour ${formatMonth(item.month)}`);
@@ -183,6 +186,15 @@ function render(data) {
   message.hidden = true;
   loading.hidden = true;
   dashboard.hidden = false;
+  recoveryAllowed = data.enabled && !data.readOnly;
+  document.getElementById('results-eyebrow').textContent = data.readOnly ? 'Preview · Lecture seule' : 'Processus automatique';
+  document.getElementById('results-intro').textContent = data.readOnly
+    ? 'Consultez les périodes existantes de l’environnement de développement. Aucun résultat ne peut être traité ou publié depuis Preview.'
+    : 'Suivez la publication mensuelle et relancez le traitement sécurisé si nécessaire. Les personnes distinguées ne sont pas modifiables depuis cet écran.';
+  document.getElementById('system-title').textContent = data.readOnly ? 'État des périodes Preview' : 'Automatisation des résultats';
+  document.getElementById('results-privacy').textContent = data.readOnly
+    ? 'Lecture seule : métadonnées des élections et état des opérations uniquement. Aucun bulletin, choix de candidat, dossier électeur ou contenu de publication n’est consulté. Récupération, finalisation, publication et automatisation indisponibles en Preview.'
+    : 'Les actions de récupération relancent le pipeline automatique complet. Elles ne permettent pas de modifier les personnes distinguées ni de publier manuellement un résultat.';
 
   const enabled = document.getElementById('enabled-state');
   const automation = document.getElementById('automation-state');
@@ -194,7 +206,14 @@ function render(data) {
   setPill(storage, storageLabels[data.storageStatus], data.storageStatus === 'AVAILABLE' ? '' : data.storageStatus === 'DISABLED' ? 'warning' : 'error');
 
   summary.className = 'system-summary';
-  if (!data.enabled) {
+  if (data.readOnly) {
+    summary.textContent = data.storageStatus === 'AVAILABLE'
+      ? 'Preview en lecture seule : les périodes enregistrées sont consultables, indépendamment du traitement désactivé. Aucune récupération ni publication n’est autorisée.'
+      : data.storageStatus === 'UNAVAILABLE'
+        ? 'Preview en lecture seule : le stockage des états est momentanément indisponible. Aucun traitement n’est autorisé.'
+        : 'Preview en lecture seule : la liaison de développement n’est pas vérifiée. Aucun état n’est lu et aucun traitement n’est autorisé.';
+    summary.classList.add(data.storageStatus === 'UNAVAILABLE' ? 'error' : 'warning');
+  } else if (!data.enabled) {
     summary.textContent = 'Le service des résultats est désactivé. Les récupérations manuelles ne sont pas disponibles.';
     summary.classList.add('warning');
   } else if (data.storageStatus === 'UNAVAILABLE') {
@@ -233,10 +252,11 @@ function render(data) {
   const sorted = [...data.months].sort((a, b) => b.month.localeCompare(a.month));
   document.getElementById('month-count').textContent = `${sorted.length} ${sorted.length === 1 ? 'période' : 'périodes'}`;
   monthsEmpty.hidden = sorted.length !== 0;
-  for (const item of sorted) monthsList.append(renderMonth(item, data.enabled));
+  for (const item of sorted) monthsList.append(renderMonth(item, recoveryAllowed, data.readOnly));
 }
 
 async function loadResults() {
+  recoveryAllowed = false;
   loading.hidden = false;
   message.hidden = true;
   dashboard.hidden = true;
@@ -269,7 +289,7 @@ async function loadResults() {
 }
 
 async function recover(month) {
-  if (recoveryInFlight.has(month)) return;
+  if (!recoveryAllowed || recoveryInFlight.has(month)) return;
   recoveryInFlight.add(month);
   refreshStatus.textContent = `Relance du traitement de ${formatMonth(month)}…`;
   await loadResults();

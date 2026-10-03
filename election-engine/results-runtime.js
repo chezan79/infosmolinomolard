@@ -4,6 +4,7 @@ const { FirestoreResultsStore } = require('./results-store');
 const { ElectionResultsService } = require('./results-service');
 const { WinnerPhotos } = require('./results-photos');
 const { ResultError } = require('./results-contract');
+const { previewResultsBinding, PreviewResultsStatus } = require('./preview-results-status');
 
 function resultsBinding(env, firebaseDb) {
   const binding = {
@@ -54,15 +55,20 @@ function createWorkerAuthorization({ audience, subject, email, verifier = new OA
 
 function createResultsRuntime({ env, firebaseDb, firebaseAuth, firebaseBucket, directoryPhotos, now }) {
   const { binding, verified } = resultsBinding(env, firebaseDb);
-  const enabled = verified && env.ELECTION_RESULTS_ENABLED === 'true';
+  const preview = env.NODE_ENV !== 'production';
+  const enabled = !preview && verified && env.ELECTION_RESULTS_ENABLED === 'true';
   const automationEnabled = enabled && env.NODE_ENV === 'production' &&
     env.ELECTION_RESULTS_AUTOMATION_ENABLED === 'true';
-  const store = verified ? new FirestoreResultsStore(firebaseDb, binding) : null;
+  const store = !preview && verified ? new FirestoreResultsStore(firebaseDb, binding) : null;
   const photos = store ? new WinnerPhotos({ bucket: firebaseBucket, directoryPhotos, binding, store }) : null;
   const service = new ElectionResultsService({
     store, binding, enabled, automationEnabled, photos, now,
     septemberRecoveryApproved: env.ELECTION_RESULTS_SEPTEMBER_RECOVERY_APPROVED === 'true',
   });
+  const previewBinding = previewResultsBinding(env, firebaseDb);
+  const statusService = preview ? new PreviewResultsStatus({
+    db: previewBinding.verified ? firebaseDb : null, binding: previewBinding.binding, now,
+  }) : service;
   const siteId = env.EMPLOYEE_DIRECTORY_SITE_ID || '';
   const administratorUid = String(env.MOLARD_ADMIN_FIREBASE_UID || '').trim();
   const authorize = firebaseAuth && siteId && administratorUid
@@ -73,11 +79,11 @@ function createResultsRuntime({ env, firebaseDb, firebaseAuth, firebaseBucket, d
     subject: env.ELECTION_RESULTS_JOB_SUBJECT,
     email: env.ELECTION_RESULTS_JOB_EMAIL,
   });
-  function mount(app) { mountResultsApi(app, { service, authorize, workerAuthorization, photos }); }
-  return { service, mount };
+  function mount(app) { mountResultsApi(app, { service, statusService, authorize, workerAuthorization, photos }); }
+  return { service, statusService, mount };
 }
 
-function mountResultsApi(app, { service, authorize, workerAuthorization, photos }) {
+function mountResultsApi(app, { service, statusService = service, authorize, workerAuthorization, photos }) {
   const noStore = (_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); };
   const handle = (callback) => async (req, res) => {
     try { await callback(req, res); } catch (error) {
@@ -97,7 +103,7 @@ function mountResultsApi(app, { service, authorize, workerAuthorization, photos 
     return res.set('Content-Type', 'image/webp').set('X-Content-Type-Options', 'nosniff').send(bytes);
   }));
   app.get('/api/v1/management/election-results', noStore, authorize, handle(async (_req, res) =>
-    res.json(await service.monitor())));
+    res.json(await statusService.monitor())));
   app.post('/api/v1/management/election-results/:month/recover', noStore, authorize,
     requireSameOrigin, handle(async (req, res) =>
       res.json(await service.processMonth(req.params.month, { recovery: true }))));
