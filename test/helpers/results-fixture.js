@@ -9,6 +9,7 @@ class MemoryFirestore {
     this.docs = new Map();
     this.times = new Map();
     this.reads = [];
+    this.queries = [];
     this.writes = [];
     this.queue = Promise.resolve();
     this.projectId = 'fixture-project';
@@ -76,12 +77,13 @@ class MemoryQuery {
   constructor(db, path, opts = {}) { Object.assign(this, { db, path, opts }); }
   doc(id) { return new MemoryRef(this.db, `${this.path}/${id}`); }
   with(opts) { return new MemoryQuery(this.db, this.path, { ...this.opts, ...opts }); }
-  orderBy(_field, direction = 'asc') { return this.with({ direction }); }
+  orderBy(field, direction = 'asc') { return this.with({ orderBy: field, direction }); }
   startAfter(cursor) { return this.with({ cursor }); }
   limit(limit) { return this.with({ limit }); }
   select(...fields) { return this.with({ fields }); }
   async get() {
     this.db.reads.push(['query', this.path, this.opts.fields]);
+    this.db.queries.push({ path: this.path, ...this.opts });
     let keys = [...this.db.docs.keys()].filter((path) =>
       path.startsWith(`${this.path}/`) && !path.slice(this.path.length + 1).includes('/')).sort();
     if (this.opts.direction === 'desc') keys.reverse();

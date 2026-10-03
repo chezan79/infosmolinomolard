@@ -100,7 +100,14 @@ test('Preview enumerates existing months with field projections only, independen
   const r = runtime(f);
   const status = await r.statusService.monitor();
   assert.deepEqual(status.months.map(({ month, state }) => [month, state]),
-    [['2026-10', 'VOTING_OPEN'], ['2026-09', 'PUBLISHED']]);
+    [['2026-09', 'PUBLISHED'], ['2026-10', 'VOTING_OPEN']]);
+  const electionsQuery = f.db.queries.find(({ path: queryPath }) =>
+    queryPath === 'electionSites/molard/dataEnvironments/development/elections');
+  assert.ok(electionsQuery, 'the Preview status service should issue its elections list');
+  assert.deepEqual(electionsQuery.fields, META_FIELDS);
+  assert.equal(electionsQuery.limit, 60);
+  assert.equal(Object.hasOwn(electionsQuery, 'orderBy'), false,
+    'Preview must not add an explicit Firestore ordering that requires the unavailable composite index');
   assert.equal(status.months[1].held, false, 'production recovery hold is not a Preview metadata state');
   assert.equal(status.readOnly, true);
   assert.equal(status.enabled, false);
@@ -132,9 +139,10 @@ test('invalid election/status fields and read failures fail safely without expos
     state: 'arbitrary', reason: 'PRIVATE_NAME', publishedAt: { private: 'NEVER_EXPOSE' },
   });
   const status = await runtime(f).statusService.monitor();
-  assert.equal(status.months[0].state, 'RESULT_REQUIRES_VERIFICATION');
-  assert.equal(status.months[0].reason, 'STORAGE_UNAVAILABLE');
-  assert.equal(status.months[0].publishedAt, null);
+  const invalidMonth = status.months.find(({ month }) => month === f.month);
+  assert.equal(invalidMonth.state, 'RESULT_REQUIRES_VERIFICATION');
+  assert.equal(invalidMonth.reason, 'STORAGE_UNAVAILABLE');
+  assert.equal(invalidMonth.publishedAt, null);
   assertSafeReads(f);
   f.db.getAll = async () => { throw new Error('unavailable'); };
   const failed = await runtime(f).statusService.monitor();
@@ -222,6 +230,8 @@ test('Preview dashboard renders fixture month/heartbeat status and never offers 
     await call('Page.navigate', { url: `${base}/resultats-du-vote` });
     await waitFor(() => evaluate('document.querySelector("#dashboard") && !document.querySelector("#dashboard").hidden'));
     assert.equal(await evaluate('document.querySelectorAll(".month-row").length'), 2);
+    assert.deepEqual(await evaluate('[...document.querySelectorAll(".month-period")].map(node => node.textContent)'),
+      ['octobre 2026', 'septembre 2026'], 'the page should sort months newest-first for display');
     assert.equal(await evaluate('document.querySelector("#results-eyebrow").textContent'), 'Preview · Lecture seule');
     assert.equal(await evaluate('document.querySelector("#storage-state").textContent'), 'Disponible');
     assert.equal(await evaluate('[...document.querySelectorAll(".month-actions button")].every(b => b.disabled && b.textContent === "Indisponible en Preview")'), true);
