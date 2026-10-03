@@ -30,14 +30,19 @@
       <section class="card overview" aria-labelledby="overview-title">
         <div class="section-heading">
           <div>
-            <p class="eyebrow">Élection en cours de suivi</p>
-            <h2 id="overview-title">Collaborateur du mois</h2>
+            <p class="eyebrow">Périodes enregistrées</p>
+            <h2 id="overview-title">Suivi du vote</h2>
           </div>
-          <button id="refresh" class="button secondary" type="button">Actualiser</button>
+          <div class="overview-actions">
+            <label class="month-picker" for="month-select">Période
+              <select id="month-select" disabled></select>
+            </label>
+            <button id="refresh" class="button secondary" type="button">Actualiser</button>
+          </div>
         </div>
         <p id="refresh-status" class="refresh-status" role="status" aria-live="polite"></p>
         <div class="election-meta">
-          <p><span class="meta-label">Mois</span><strong id="month"></strong></p>
+          <p><span class="meta-label">Période</span><strong id="month"></strong></p>
           <p><span class="meta-label">Statut</span><strong id="election-status" class="state-badge"></strong></p>
           <p><span class="meta-label">Période de vote</span><strong id="window"></strong></p>
         </div>
@@ -46,8 +51,8 @@
       <section aria-labelledby="participation-title" class="monitoring-section">
         <h2 id="participation-title">Participation</h2>
         <div class="kpi-grid">
-          <div class="card kpi"><span>Électeurs</span><strong id="eligible"></strong></div>
-          <div class="card kpi"><span>Ont voté</span><strong id="voted"></strong></div>
+          <div class="card kpi"><span>Éligibles</span><strong id="eligible"></strong></div>
+          <div class="card kpi"><span>Participants</span><strong id="voted"></strong></div>
           <div class="card kpi"><span>Restent à voter</span><strong id="remaining"></strong></div>
           <div class="card kpi"><span>Participation</span><strong id="percentage"></strong></div>
         </div>
@@ -60,14 +65,14 @@
 
       <div class="detail-grid monitoring-section">
         <section class="card" aria-labelledby="health-title">
-          <p class="eyebrow">Vérification</p>
-          <h2 id="health-title">Contrôle du système</h2>
-          <p>Le nombre de participations est comparé au nombre de bulletins anonymes afin de vérifier le bon fonctionnement du système.</p>
+          <p class="eyebrow">Lecture seule</p>
+          <h2 id="health-title">Protection des données</h2>
+          <p>Ce suivi lit les métadonnées de l’élection et les enregistrements de participation. Aucun contenu de bulletin n’est consulté.</p>
           <dl class="health-counts">
             <div><dt>Participations enregistrées</dt><dd id="records"></dd></div>
-            <div><dt>Bulletins anonymes</dt><dd id="ballots"></dd></div>
+            <div><dt>Bulletins</dt><dd>Non consultés</dd></div>
           </dl>
-          <p class="health-state"><span>Cohérence</span><strong id="consistency"></strong></p>
+          <p class="health-state"><span>Éligibilité</span><strong id="consistency"></strong></p>
         </section>
         <section class="card results-card" aria-labelledby="results-title">
           <p class="eyebrow">Confidentialité</p>
@@ -79,6 +84,8 @@
       <section class="card monitoring-section voters-card" aria-labelledby="voters-title">
         <h2 id="voters-title">Participation des collaborateurs</h2>
         <p id="voter-unavailable" role="status" hidden>Le suivi individuel est momentanément indisponible. Les chiffres de participation restent accessibles.</p>
+        <p id="identity-coverage" class="identity-coverage" role="status" aria-live="polite"></p>
+        <p id="directory-note" class="directory-note">Les nombres d’éligibles et de participants proviennent de l’élection enregistrée. Les noms et services proviennent du snapshot de l’élection s’il existe, sinon de l’annuaire Preview actuel.</p>
         <div id="voter-controls" class="voter-controls">
           <div class="voter-filters" role="group" aria-label="Filtrer les collaborateurs">
             <button type="button" class="voter-filter" data-filter="all" aria-pressed="true" id="filter-all"></button>

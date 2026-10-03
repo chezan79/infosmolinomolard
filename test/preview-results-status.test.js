@@ -211,13 +211,14 @@ test('production monitoring and processing still require their original explicit
   assert.equal(db.writes.length, 0);
 });
 
-test('Preview launcher and current-month monitoring remain snapshot-only and unmodified', () => {
+test('Preview launcher stays snapshot-only and monitoring reads existing historical months without writes', () => {
   const config = fs.readFileSync(path.join(__dirname, '../.replit'), 'utf8');
   assert.match(config, /args = "env -u EMPLOYEE_DIRECTORY_SHEET_ID node server.js"/);
   const monitoring = fs.readFileSync(path.join(__dirname, '../election-engine/monitoring.js'), 'utf8');
   assert.match(monitoring, /electionWindow\(observedAt, timeZone\)/);
-  assert.match(monitoring, /\.doc\(window.monthKey\)/);
-  assert.doesNotMatch(monitoring, /req\.query\.month|req\.params\.month/);
+  assert.match(monitoring, /elections\.select\('monthKey'\)\.get\(\)/);
+  assert.match(monitoring, /req\.query\.month/);
+  assert.doesNotMatch(monitoring, /ensureElection|\.collection\(['"]ballots['"]\)|runTransaction|transaction\.set/);
 });
 
 test('Preview dashboard renders fixture month/heartbeat status and never offers an active recovery', async (t) => {

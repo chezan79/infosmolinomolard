@@ -12,20 +12,39 @@ const root = path.join(__dirname, '..');
 const html = fs.readFileSync(path.join(root, 'private-pages/suivi-du-vote.html'), 'utf8');
 const script = fs.readFileSync(path.join(root, 'suivi-du-vote.js'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'suivi-du-vote.css'), 'utf8');
-// Exact Phase 3 response observed in authenticated Preview; no Phase 4 field.
 const phase3 = {
   month: '2026-09',
+  availableMonths: ['2026-09'],
   status: 'OPEN',
   window: { opensAt: '2026-09-24T22:00:00.000Z', closesAt: '2026-09-30T22:00:00.000Z' },
   eligibleVoters: 49,
   participation: { count: 1, remaining: 48, percentage: 2.04 },
-  systemHealth: { participationRecords: 1, anonymousBallots: 1, consistency: 'OK' },
+  systemHealth: { participationRecords: 1, consistency: 'OK' },
+  individual: {
+    status: 'UNAVAILABLE', eligibleIdentitiesResolved: null, eligibleIdentitiesTotal: 49,
+    participantIdentitiesResolved: null, participantIdentitiesTotal: 1, voters: null,
+  },
 };
+function roster(voters, eligible, participants, {
+  status = 'AVAILABLE',
+  eligibleResolved = eligible,
+  participantResolved = participants,
+} = {}) {
+  return {
+    status,
+    eligibleIdentitiesResolved: eligibleResolved,
+    eligibleIdentitiesTotal: eligible,
+    participantIdentitiesResolved: participantResolved,
+    participantIdentitiesTotal: participants,
+    voters,
+  };
+}
 const sample = {
   ...phase3,
-  individual: { status: 'AVAILABLE', voters: Array.from({ length: 49 }, (_, index) => ({
+  individual: roster(Array.from({ length: 49 }, (_, index) => ({
     name: `Collaborateur ${index}`, department: 'Cuisine', hasVoted: index === 0,
-  })) },
+    identitySource: 'CURRENT_DIRECTORY',
+  })), 49, 1),
 };
 
 function element() {
@@ -73,7 +92,7 @@ async function settle() {
   await new Promise((resolve) => setImmediate(resolve));
 }
 
-test('exact Phase 3 Preview response keeps aggregates and sealed results, with only roster unavailable', async () => {
+test('unavailable named roster preserves stored aggregates and sealed results', async () => {
   const { nodes } = fixture(async () => response(phase3));
   await settle();
   assert.equal(nodes.dashboard.hidden, false);
@@ -81,10 +100,10 @@ test('exact Phase 3 Preview response keeps aggregates and sealed results, with o
   assert.equal(nodes['election-status'].textContent, 'Vote ouvert');
   for (const [id, expected] of Object.entries({
     eligible: '49', voted: '1', remaining: '48', percentage: '2,04 %',
-    records: '1', ballots: '1', consistency: 'Système cohérent',
+    records: '1', consistency: 'Dans la limite des éligibles',
     'progress-count': '1 / 49', 'progress-label': '2,04 %',
   })) assert.equal(nodes[id].textContent, expected, id);
-  assert.equal(nodes['results-state'].textContent, '🔒 Résultats masqués');
+  assert.equal(nodes['results-state'].textContent, 'Résultats masqués');
   assert.equal(nodes['voter-unavailable'].hidden, false);
   assert.equal(nodes['voter-controls'].hidden, true);
   assert.equal(nodes['voter-list'].children.length, 0);
@@ -107,13 +126,13 @@ test('aggregate fields drive month, window, four KPIs, accessible progress, cons
   assert.match(nodes.window.textContent, /25 septembre 2026 au 30 septembre 2026/);
   for (const [id, expected] of Object.entries({
     eligible: '49', voted: '1', remaining: '48', percentage: '2,04 %',
-    records: '1', ballots: '1', consistency: 'Système cohérent',
+    records: '1', consistency: 'Dans la limite des éligibles',
     'progress-count': '1 / 49', 'progress-label': '2,04 %',
   })) assert.equal(nodes[id].textContent, expected, id);
   assert.equal(nodes.progress.attributes['aria-valuenow'], '2.04');
   assert.match(nodes.progress.attributes['aria-valuetext'], /1 sur 49/);
   assert.equal(nodes['progress-fill'].style.width, '2.04%');
-  assert.equal(nodes['results-state'].textContent, '🔒 Résultats masqués');
+  assert.equal(nodes['results-state'].textContent, 'Résultats masqués');
   assert.deepEqual(requests.map(([url, options]) => [url, options.method, options.credentials, options.cache]),
     [['/api/v1/management/election-monitoring', 'GET', 'same-origin', 'no-store']]);
   const rendered = Object.values(nodes).map((node) => node.textContent).join(' ');
@@ -121,12 +140,12 @@ test('aggregate fields drive month, window, four KPIs, accessible progress, cons
     assert.equal((rendered + listText(nodes)).includes(privateValue), false, privateValue);
   }
   assert.equal(nodes['filter-all'].textContent, 'Tous (49)');
-  assert.match(listText(nodes), /Collaborateur 0 Cuisine A voté/);
+  assert.match(listText(nodes), /Collaborateur 0 Cuisine.*A voté/);
 });
 
 test('upcoming and closed states retain result secrecy and use API window, not hardcoded month', async () => {
-  for (const status of ['UPCOMING', 'CLOSED']) {
-    const data = { ...sample, month: '2026-12', status,
+  for (const status of ['UPCOMING', 'CLOSED_PENDING_RESULTS']) {
+    const data = { ...sample, month: '2026-12', availableMonths: ['2026-12'], status,
       window: { opensAt: '2026-12-24T23:00:00.000Z', closesAt: '2026-12-31T23:00:00.000Z' } };
     const { nodes } = fixture(async () => response(data));
     await settle();
@@ -140,13 +159,17 @@ test('upcoming and closed states retain result secrecy and use API window, not h
 });
 
 test('anomalies are explicit, including mismatched counts despite reported OK', async () => {
-  for (const health of [
-    { participationRecords: 1, anonymousBallots: 0, consistency: 'ANOMALY' },
-    { participationRecords: 1, anonymousBallots: 0, consistency: 'OK' },
+  const participationDisagreement = roster(
+    sample.individual.voters.map((voter) => ({ ...voter, hasVoted: false })),
+    49, 1, { status: 'PARTIAL', participantResolved: 0 },
+  );
+  for (const [health, individual] of [
+    [{ participationRecords: 1, consistency: 'ANOMALY' }, sample.individual],
+    [{ participationRecords: 1, consistency: 'OK' }, participationDisagreement],
   ]) {
-    const { nodes } = fixture(async () => response({ ...sample, systemHealth: health }));
+    const { nodes } = fixture(async () => response({ ...sample, systemHealth: health, individual }));
     await settle();
-    assert.equal(nodes.consistency.textContent, 'Anomalie détectée');
+    assert.equal(nodes.consistency.textContent, 'Dépasse le total éligible');
     assert.equal(nodes.consistency.className, 'anomaly');
   }
 });
@@ -160,7 +183,7 @@ test('individual-unavailable preserves aggregate KPIs and clears a previously vi
   nodes.refresh.click();
   assert.equal(nodes['voter-list'].children.length, 0);
   assert.equal(nodes['voter-controls'].hidden, true);
-  pending.shift()(response({ ...sample, individual: { status: 'UNAVAILABLE' } }));
+  pending.shift()(response({ ...sample, individual: phase3.individual }));
   await settle();
   assert.equal(nodes.dashboard.hidden, false);
   assert.equal(nodes['voter-unavailable'].hidden, false);
@@ -170,8 +193,8 @@ test('individual-unavailable preserves aggregate KPIs and clears a previously vi
   assert.equal(nodes['voter-controls'].hidden, true);
   assert.equal(nodes.voted.textContent, '1');
   assert.equal(nodes.remaining.textContent, '48');
-  assert.equal(nodes.consistency.textContent, 'Système cohérent');
-  assert.equal(nodes['results-state'].textContent, '🔒 Résultats masqués');
+  assert.equal(nodes.consistency.textContent, 'Dans la limite des éligibles');
+  assert.equal(nodes['results-state'].textContent, 'Résultats masqués');
   nodes.refresh.click();
   pending.shift()(response(sample));
   await settle();
@@ -181,11 +204,11 @@ test('individual-unavailable preserves aggregate KPIs and clears a previously vi
 
 test('incomplete or malformed roster falls back without concealing valid aggregates', async () => {
   for (const individual of [
-    { status: 'AVAILABLE', voters: sample.individual.voters.slice(1) },
-    { status: 'AVAILABLE', voters: sample.individual.voters.map((voter, index) =>
+    { ...sample.individual, voters: sample.individual.voters.slice(1) },
+    { ...sample.individual, voters: sample.individual.voters.map((voter, index) =>
       index === 0 ? { ...voter, hasVoted: 'true' } : voter) },
-    { status: 'UNAVAILABLE', voters: sample.individual.voters },
-    { status: 'AVAILABLE', voters: 'invalid' },
+    { ...sample.individual, status: 'UNAVAILABLE', voters: sample.individual.voters },
+    { ...sample.individual, voters: 'invalid' },
     null,
   ]) {
     const { nodes } = fixture(async () => response({ ...phase3, individual }));
@@ -221,8 +244,10 @@ test('loading, refresh, failure and retry never convert unknown data to zero or 
   assert.match(nodes['message-text'].textContent, /momentanément indisponibles/);
   assert.equal(nodes.retry.hidden, false);
   nodes.retry.click();
-  pending.shift()(response({ ...sample, participation: { count: 2, remaining: 47, percentage: 4.08 },
-    individual: { status: 'AVAILABLE', voters: sample.individual.voters.map((voter, index) => ({ ...voter, hasVoted: index < 2 })) } }));
+  pending.shift()(response({
+    ...sample, participation: { count: 2, remaining: 47, percentage: 4.08 },
+    individual: roster(sample.individual.voters.map((voter, index) => ({ ...voter, hasVoted: index < 2 })), 49, 2),
+  }));
   await settle();
   assert.equal(nodes.dashboard.hidden, false);
   assert.equal(nodes.voted.textContent, '2');
@@ -233,11 +258,11 @@ test('loading, refresh, failure and retry never convert unknown data to zero or 
 
 test('French sorting, accent-insensitive search and combined filters remain local', async () => {
   const data = { ...sample, eligibleVoters: 3, participation: { count: 1, remaining: 2, percentage: 33.33 },
-    individual: { status: 'AVAILABLE', voters: [
-      { name: 'Zoé', department: 'Service', hasVoted: false },
-      { name: 'Émile', department: 'Cuisine', hasVoted: true },
-      { name: 'Alice', department: 'Plonge', hasVoted: false },
-    ] } };
+    individual: roster([
+      { name: 'Zoé', department: 'Service', hasVoted: false, identitySource: 'CURRENT_DIRECTORY' },
+      { name: 'Émile', department: 'Cuisine', hasVoted: true, identitySource: 'CURRENT_DIRECTORY' },
+      { name: 'Alice', department: 'Plonge', hasVoted: false, identitySource: 'CURRENT_DIRECTORY' },
+    ], 3, 1) };
   const { nodes, requests } = fixture(async () => response(data));
   await settle();
   assert.deepEqual(nodes['voter-list'].children.map((item) => item.children[0].children[0].textContent),
@@ -250,18 +275,19 @@ test('French sorting, accent-insensitive search and combined filters remain loca
   assert.equal(nodes['voter-list'].children.length, 0);
   nodes['filter-voted'].click();
   assert.equal(nodes['voter-list'].children.length, 1);
-  assert.match(listText(nodes), /Émile Cuisine A voté/);
+  assert.match(listText(nodes), /Émile Cuisine.*A voté/);
   assert.equal(nodes['filter-all'].textContent, 'Tous (3)');
   assert.equal(nodes['filter-voted'].textContent, 'A voté (1)');
-  assert.equal(nodes['filter-pending'].textContent, 'À voter (2)');
+  assert.equal(nodes['filter-pending'].textContent, "N'a pas voté (2)");
   assert.equal(requests.length, 1);
 });
 
 test('malicious voter fields render as text, while extraneous private fields are ignored', async () => {
   const data = { ...sample, eligibleVoters: 1,
     participation: { count: 0, remaining: 1, percentage: 0 },
-    individual: { status: 'AVAILABLE', voters: [{ name: '<img src=x onerror=alert(1)>', department: 'Cuisine',
-      hasVoted: false, verifier: 'secret-verifier', employeeId: 'secret-employee', comments: 'secret-comment' }] } };
+    individual: roster([{ name: '<img src=x onerror=alert(1)>', department: 'Cuisine',
+      hasVoted: false, identitySource: 'CURRENT_DIRECTORY',
+      verifier: 'secret-verifier', employeeId: 'secret-employee', comments: 'secret-comment' }], 1, 0) };
   const { nodes } = fixture(async () => response(data));
   await settle();
   assert.equal(nodes['voter-list'].children[0].children[0].children[0].textContent, '<img src=x onerror=alert(1)>');
@@ -270,16 +296,18 @@ test('malicious voter fields render as text, while extraneous private fields are
 
 test('client flags identified participation disagreements even if server erroneously reports OK', async () => {
   const { nodes } = fixture(async () => response({ ...sample,
-    individual: { status: 'AVAILABLE', voters: sample.individual.voters.map((voter) => ({ ...voter, hasVoted: false })) } }));
+    individual: roster(sample.individual.voters.map((voter) => ({ ...voter, hasVoted: false })),
+      49, 1, { status: 'PARTIAL', participantResolved: 0 }) }));
   await settle();
-  assert.equal(nodes.consistency.textContent, 'Anomalie détectée');
+  assert.equal(nodes.consistency.textContent, 'Dépasse le total éligible');
 });
 
 test('missing election is distinct from unavailable and does not generate zero totals', async () => {
   const { nodes, requests } = fixture(async () => response({ error: 'ELECTION_NOT_FOUND' }, 404));
   await settle();
   assert.equal(nodes.dashboard.hidden, true);
-  assert.equal(nodes['message-text'].textContent, 'Aucune élection active trouvée pour cette période.');
+  assert.equal(nodes['message-text'].textContent,
+    'Aucune élection enregistrée pour cette période. Aucune nouvelle période n’a été créée.');
   assert.equal(nodes.retry.hidden, true);
   assert.equal(nodes.eligible.textContent, '');
   assert.equal(requests.length, 1);
@@ -336,7 +364,8 @@ test('page markup and CSS support mobile, tablet, keyboard and read-only navigat
   assert.match(css, /max-width:800px/);
   assert.match(css, /max-width:600px/);
   assert.match(css, /minmax\(0,1fr\)/);
-  assert.doesNotMatch(html + script, /firebase|firestore|\/api\/v1\/public\/election|<select|method:\s*'POST'/i);
+  assert.match(html, /<select id="month-select"/);
+  assert.doesNotMatch(html + script, /firebase|firestore|\/api\/v1\/public\/election|method:\s*'POST'/i);
   assert.equal((administration.match(/class="administration-card"/g) || []).length, 3);
 });
 
@@ -368,12 +397,12 @@ test('actual monitoring page routes deny direct access without the exact admin s
         headers: cookie ? { Cookie: `__session=${cookie}` } : {} });
       assert.equal(denied.status, 302);
       assert.equal(denied.headers.get('location'), redirect);
-      assert.doesNotMatch(await denied.text(), /Contrôle du système/);
+    assert.doesNotMatch(await denied.text(), /Protection des données/);
     }
     const authorized = await fetch(`${base}${route}`, { headers: { Cookie: '__session=admin' } });
     assert.equal(authorized.status, 200);
     assert.equal(authorized.headers.get('cache-control'), 'no-store');
-    assert.match(await authorized.text(), /Contrôle du système/);
+    assert.match(await authorized.text(), /Protection des données/);
   }
   for (const route of ['/private-pages/suivi-du-vote.html', '/public/../suivi-du-vote.html']) {
     const response = await fetch(`${base}${route}`, { redirect: 'manual' });

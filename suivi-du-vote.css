@@ -9,6 +9,10 @@
 .section-heading{display:flex;align-items:start;justify-content:space-between;gap:16px}
 .section-heading h2{margin:0}
 .section-heading .eyebrow{margin:0 0 6px}
+.overview-actions{display:flex;align-items:end;gap:12px}
+.month-picker{display:grid;gap:6px;font-weight:650}
+.month-picker select{font:inherit;min-width:190px;max-width:100%;border:1px solid var(--line);border-radius:8px;padding:10px;background:#fff;color:var(--ink)}
+.month-picker select:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .refresh-status{min-height:1.5em;color:var(--muted);margin:4px 0 8px}
 .election-meta{display:grid;grid-template-columns:1fr 1fr 1.5fr;gap:20px;border-top:1px solid var(--line);padding-top:18px}
 .election-meta p{margin:0;min-width:0}
@@ -47,6 +51,9 @@
 .voter-search{display:grid;gap:6px;font-weight:650;min-width:min(100%,260px)}
 .voter-search input{font:inherit;border:1px solid var(--line);border-radius:8px;padding:10px;max-width:100%;width:100%;box-sizing:border-box}
 #voter-summary{color:var(--muted)}
+.identity-coverage,.directory-note{color:var(--muted)}
+.identity-coverage{font-weight:700}
+.voter-source{font-size:.78rem}
 .voter-list{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .voter-list li{border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;justify-content:space-between;align-items:center;gap:12px;min-width:0}
 .voter-identity{min-width:0;overflow-wrap:anywhere}
@@ -55,6 +62,7 @@
 .voter-state{flex-shrink:0;font-weight:700;color:var(--muted)}
 .voter-state.voted{color:var(--ok)}
 @media(max-width:800px){.kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.detail-grid{grid-template-columns:1fr}}
-@media(max-width:600px){.masthead{align-items:start}.back-link{max-width:145px;text-align:right}.election-meta{grid-template-columns:1fr;gap:12px}.section-heading{flex-wrap:wrap}.section-heading .button{width:100%}.kpi{min-height:112px}.voter-list{grid-template-columns:1fr}.voter-search{width:100%}}
+@media(max-width:600px){.masthead{align-items:start}.back-link{max-width:145px;text-align:right}.election-meta{grid-template-columns:1fr;gap:12px}.section-heading{flex-wrap:wrap}.overview-actions{width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end}.month-picker select{min-width:0;width:100%;box-sizing:border-box}.overview-actions .button{width:auto}.kpi{min-height:112px}.voter-list{grid-template-columns:1fr}.voter-search{width:100%}}
+@media(max-width:380px){.overview-actions{grid-template-columns:1fr}.overview-actions .button{width:100%}}
 @media(max-width:360px){.kpi-grid{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){.progress-track span{transition:none}}

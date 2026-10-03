@@ -42,7 +42,7 @@ function fakeDb(records = {}) {
       return [{
         exists: Boolean(value),
         data: () => Object.fromEntries(options.fieldMask
-          .filter((key) => Object.hasOwn(value, key)).map((key) => [key, value[key]])),
+          .filter((key) => value && Object.hasOwn(value, key)).map((key) => [key, value[key]])),
       }];
     },
     runTransaction() { throw new Error('write attempted'); },
@@ -56,26 +56,45 @@ function fakeDb(records = {}) {
     return {
       path,
       collection(name) {
+        const collectionPath = `${path}/${name}`;
         return {
-          doc(id) { return document(`${path}/${name}/${id}`); },
-          count() {
+          doc(id) { return document(`${collectionPath}/${id}`); },
+          select(...fields) {
             return {
               async get() {
-                calls.push(['count', `${path}/${name}`]);
-                if (records.failCount) throw new Error('Count unavailable');
-                return { data: () => ({ count: records[`${path}/${name}`] ?? 0 }) };
+                if (fields.length) {
+                  calls.push(['query', collectionPath, fields]);
+                  if (records.failList) throw new Error('Election list unavailable');
+                  const prefix = `${collectionPath}/`;
+                  const docs = Object.entries(records).filter(([key, value]) => {
+                    const remainder = key.slice(prefix.length);
+                    return key.startsWith(prefix) && !remainder.includes('/') &&
+                      value && typeof value === 'object' && !Array.isArray(value);
+                  }).map(([key, value]) => ({
+                    id: key.slice(prefix.length),
+                    data: () => Object.fromEntries(fields
+                      .filter((field) => Object.hasOwn(value, field))
+                      .map((field) => [field, value[field]])),
+                  }));
+                  return { docs };
+                }
+                calls.push(['select', collectionPath]);
+                if (name !== 'participation') throw new Error('Unexpected identifier-only collection read');
+                if (records.failSelect) throw new Error('Participation unavailable');
+                return { docs: (records.participationIds || []).map((id) => ({
+                  id, data() { throw new Error('participation payload read'); },
+                })) };
               },
             };
           },
-          select() {
-            return { async get() {
-              calls.push(['select', `${path}/${name}`]);
-              if (name !== 'participation') throw new Error('individual ballot read');
-              if (records.failSelect) throw new Error('Participation unavailable');
-              return { docs: (records.participationIds || []).map((id) => ({
-                id, data() { throw new Error('participation payload read'); },
-              })) };
-            } };
+          count() {
+            return {
+              async get() {
+                calls.push(['count', collectionPath]);
+                if (records.failCount) throw new Error('Count unavailable');
+                return { data: () => ({ count: records[collectionPath] ?? 0 }) };
+              },
+            };
           },
         };
       },
@@ -89,18 +108,19 @@ function fakeDb(records = {}) {
   return db;
 }
 
-function electionPath(environment = 'development') {
-  return `electionSites/molard/dataEnvironments/${environment}/elections/${window.monthKey}`;
+function electionPath(environment = 'development', month = window.monthKey) {
+  return `electionSites/molard/dataEnvironments/${environment}/elections/${month}`;
 }
 
-function election(overrides = {}) {
+function election(overrides = {}, month = window.monthKey) {
+  const monthWindow = electionWindow(new Date(`${month}-15T12:00:00.000Z`), 'Europe/Zurich');
   return {
     siteId: 'molard',
     dataEnvironment: 'development',
-    monthKey: window.monthKey,
+    monthKey: month,
     timeZone: 'Europe/Zurich',
-    opensAt: window.opensAt,
-    closesAt: window.closesAt,
+    opensAt: monthWindow.opensAt,
+    closesAt: monthWindow.closesAt,
     eligibleVoterCount: 49,
     voters: Object.fromEntries(employees.map((employee) => [employee.employeeId, {
       employeeId: employee.employeeId, votingGroup: employee.votingGroup, verifier: 'private-verifier',
@@ -111,23 +131,22 @@ function election(overrides = {}) {
   };
 }
 
-function seededDb(participation = 0, ballots = 0, ids = Array.from({ length: participation }, (_, i) => `employee-${i}`)) {
+function seededDb(participation = 0, ids = Array.from({ length: participation }, (_, i) => `employee-${i}`)) {
   const path = electionPath();
   return fakeDb({
     [path]: election(),
     [`${path}/participation`]: participation,
-    [`${path}/ballots`]: ballots,
     participationIds: ids,
   });
 }
 
-async function appFixture(t, db = seededDb(), directory = directoryService) {
+async function appFixture(t, db = seededDb(), directory = directoryService, clock = now) {
   const app = express();
   mountElectionMonitoring(app, {
     env,
     firebaseDb: db,
     directoryService: directory,
-    now,
+    now: clock,
     firebaseAuth: {
       async verifySessionCookie(cookie) {
         if (cookie === 'admin') return { uid: 'admin-uid', siteId: 'molard' };
@@ -141,34 +160,54 @@ async function appFixture(t, db = seededDb(), directory = directoryService) {
   t.after(() => server.close());
   await new Promise((resolve) => server.once('listening', resolve));
   const url = `http://127.0.0.1:${server.address().port}/api/v1/management/election-monitoring`;
-  return { db, get: (cookie) => fetch(url, cookie ? { headers: { Cookie: `__session=${cookie}` } } : {}) };
+  return {
+    db,
+    get: (cookie, month) => {
+      const requestUrl = month === undefined ? url : `${url}?month=${encodeURIComponent(month)}`;
+      return fetch(requestUrl, cookie ? { headers: { Cookie: `__session=${cookie}` } } : {});
+    },
+  };
 }
 
 test('admin receives only the approved aggregates and no-store headers', async (t) => {
-  const { db, get } = await appFixture(t, seededDb(1, 1));
+  const { db, get } = await appFixture(t, seededDb(1));
   const response = await get('admin');
   assert.equal(response.status, 200);
   assert.equal(response.headers.get('cache-control'), 'no-store');
   const body = await response.json();
   assert.deepEqual({ ...body, individual: undefined }, {
     month: window.monthKey,
+    availableMonths: [window.monthKey],
     status: 'OPEN',
     window: { opensAt: window.opensAt, closesAt: window.closesAt },
     eligibleVoters: 49,
     participation: { count: 1, remaining: 48, percentage: 2.04 },
-    systemHealth: { participationRecords: 1, anonymousBallots: 1, consistency: 'OK' },
+    systemHealth: { participationRecords: 1, consistency: 'OK' },
     individual: undefined,
   });
   assert.equal(body.individual.status, 'AVAILABLE');
   assert.equal(body.individual.voters.length, 49);
-  assert.deepEqual(body.individual.voters[0], { name: 'Collaborateur 0', department: 'Cuisine', hasVoted: true });
-  assert.deepEqual(body.individual.voters[1], { name: 'Collaborateur 1', department: 'Cuisine', hasVoted: false });
-  assert.deepEqual(db.calls.map(([operation]) => operation), ['getAll', 'count', 'count', 'getAll', 'select']);
-  assert.deepEqual(db.calls[0][2].sort(), [
+  assert.deepEqual(body.individual, {
+    status: 'AVAILABLE',
+    eligibleIdentitiesResolved: 49,
+    eligibleIdentitiesTotal: 49,
+    participantIdentitiesResolved: 1,
+    participantIdentitiesTotal: 1,
+    voters: body.individual.voters,
+  });
+  assert.deepEqual(body.individual.voters[0], {
+    name: 'Collaborateur 0', department: 'Cuisine', hasVoted: true, identitySource: 'CURRENT_DIRECTORY',
+  });
+  assert.deepEqual(body.individual.voters[1], {
+    name: 'Collaborateur 1', department: 'Cuisine', hasVoted: false, identitySource: 'CURRENT_DIRECTORY',
+  });
+  assert.deepEqual(db.calls.map(([operation]) => operation), ['query', 'getAll', 'count', 'getAll', 'select']);
+  assert.deepEqual(db.calls[1][2].sort(), [
     'siteId', 'dataEnvironment', 'monthKey', 'timeZone',
     'opensAt', 'closesAt', 'eligibleVoterCount',
   ].sort());
   assert.deepEqual(db.calls[3][2], ['voters']);
+  assert.equal(db.calls.some(([, path]) => path.endsWith('/ballots')), false);
   for (const prohibited of ['private', 'verifier', 'grant', 'ballotId', 'comments', 'candidate',
     'results', 'ranking', 'salaireId', 'employee-0', 'private-verifier']) {
     assert.equal(JSON.stringify(body).toLowerCase().includes(prohibited.toLowerCase()), false, prohibited);
@@ -196,33 +235,85 @@ test('missing election is distinct from a real election with zero participation 
     assert.equal(response.status, 404);
     assert.deepEqual(await response.json(), { error: 'ELECTION_NOT_FOUND' });
   }
-  assert.deepEqual(empty.calls.map(([operation]) => operation), ['getAll', 'getAll', 'getAll']);
+  assert.deepEqual(empty.calls.map(([operation]) => operation), ['query', 'query', 'query']);
   const zero = await createElectionMonitoringService({
     db: seededDb(), directoryService, siteId: 'molard', dataEnvironment: 'development',
     timeZone: 'Europe/Zurich', now,
   }).read();
   assert.deepEqual(zero.participation, { count: 0, remaining: 49, percentage: 0 });
-  assert.deepEqual(zero.systemHealth, { participationRecords: 0, anonymousBallots: 0, consistency: 'OK' });
+  assert.deepEqual(zero.systemHealth, { participationRecords: 0, consistency: 'OK' });
 });
 
-test('independent aggregate counts signal anomalies without repair or result reads', async (t) => {
-  const db = seededDb(1, 0);
+test('historical months are selectable, existing-only, and default to the current month when present', async () => {
+  const septemberPath = electionPath('development', '2026-09');
+  const octoberPath = electionPath('development', '2026-10');
+  const db = fakeDb({
+    [septemberPath]: election({}, '2026-09'),
+    [`${septemberPath}/participation`]: 1,
+    [octoberPath]: election({}, '2026-10'),
+    [`${octoberPath}/participation`]: 1,
+    participationIds: ['employee-0'],
+  });
+  const service = createElectionMonitoringService({
+    db, directoryService, siteId: 'molard', dataEnvironment: 'development',
+    timeZone: 'Europe/Zurich', now: () => new Date('2026-10-03T12:00:00.000Z'),
+  });
+  const current = await service.read();
+  assert.equal(current.month, '2026-10');
+  assert.deepEqual(current.availableMonths, ['2026-10', '2026-09']);
+
+  const september = await service.read('2026-09');
+  assert.equal(september.status, 'CLOSED_PENDING_RESULTS');
+  assert.equal(september.eligibleVoters, 49);
+  assert.deepEqual(september.participation, { count: 1, remaining: 48, percentage: 2.04 });
+  assert.equal(september.individual.voters.length, 49);
+  assert.equal(september.individual.voters[0].name, 'Collaborateur 0');
+  await assert.rejects(service.read('2026-11'), (error) => error.code === 'ELECTION_NOT_FOUND');
+  assert.equal(db.calls.some(([, path]) => path.endsWith('/ballots')), false);
+});
+
+test('month keys must be strict YYYY-MM values before any Firestore reads', async () => {
+  for (const month of ['2026-9', '2026-13', '2026-00', '2026-09-extra']) {
+    const db = seededDb();
+    const service = createElectionMonitoringService({
+      db, directoryService, siteId: 'molard', dataEnvironment: 'development',
+      timeZone: 'Europe/Zurich', now,
+    });
+    await assert.rejects(service.read(month), (error) =>
+      error.code === 'INVALID_MONTH' && error.status === 400);
+    assert.equal(db.calls.length, 0);
+  }
+});
+
+test('the authenticated route returns a client error for an invalid month without reading Firestore', async (t) => {
+  const db = seededDb();
+  const { get } = await appFixture(t, db);
+  const response = await get('admin', '2026-13');
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), { error: 'INVALID_MONTH' });
+  assert.equal(db.calls.length, 0);
+});
+
+test('participation above eligibility signals an anomaly without reading ballots or results', async (t) => {
+  const db = seededDb(1);
+  db.records[electionPath()].eligibleVoterCount = 0;
+  db.records[electionPath()].voters = {};
   const { get } = await appFixture(t, db);
   for (let i = 0; i < 3; i += 1) {
     const response = await get('admin');
     assert.equal(response.status, 200);
     const body = await response.json();
     assert.deepEqual(body.systemHealth, {
-      participationRecords: 1, anonymousBallots: 0, consistency: 'ANOMALY',
+      participationRecords: 1, consistency: 'ANOMALY',
     });
   }
-  assert.equal(db.calls.length, 15);
+  assert.equal(db.calls.some(([, path]) => path.endsWith('/ballots')), false);
   assert.equal(db.calls.some(([, path]) => path.includes('resultInternals')), false);
 });
 
 test('equal counts above the eligible total are still an anomaly', async () => {
   for (const [eligible, count] of [[0, 1], [2, 3]]) {
-    const db = seededDb(count, count);
+    const db = seededDb(count, Array.from({ length: count }, (_, i) => `employee-${i}`));
     db.records[electionPath()].eligibleVoterCount = eligible;
     db.records[electionPath()].voters = Object.fromEntries(
       Object.entries(db.records[electionPath()].voters).slice(0, eligible));
@@ -238,7 +329,7 @@ test('equal counts above the eligible total are still an anomaly', async () => {
 test('the monitoring service fails closed for corrupted, mismatched, or unavailable data', async (t) => {
   const cases = [
     { siteId: 'other' }, { dataEnvironment: 'production' },
-    { monthKey: '2026-08' }, { timeZone: 'UTC' },
+    { timeZone: 'UTC' },
     { opensAt: '2026-09-24T00:00:00.000Z' },
     { eligibleVoterCount: -1 }, { eligibleVoterCount: '49' },
   ];
@@ -249,7 +340,7 @@ test('the monitoring service fails closed for corrupted, mismatched, or unavaila
       db, directoryService, siteId: 'molard', dataEnvironment: 'development', timeZone: 'Europe/Zurich', now,
     });
     await assert.rejects(service.read(), (error) => error.code === 'ELECTION_DATA_INVALID');
-    assert.equal(db.calls.length, 1);
+    assert.equal(db.calls.length, 2);
   }
   for (const flag of ['failRead', 'failCount']) {
     const db = seededDb();
@@ -277,12 +368,13 @@ test('development and production paths remain isolated', async () => {
   });
   const result = await productionReader.read();
   assert.equal(result.month, window.monthKey);
-  assert.equal(db.calls[0][1], electionPath('development'));
+  assert.equal(db.calls.find(([operation]) => operation === 'query')[1],
+    'electionSites/molard/dataEnvironments/development/elections');
   assert.equal(db.calls.find(([operation, path]) => operation === 'getAll' && path === production)?.[1], production);
 });
 
 test('missing binding or admin configuration fails closed without reading the election', async (t) => {
-  const db = seededDb(1, 1);
+  const db = seededDb(1);
   const service = createElectionMonitoringService({
     db, directoryService, siteId: 'molard', dataEnvironment: '', timeZone: 'Europe/Zurich', now,
   });
@@ -309,26 +401,31 @@ test('missing binding or admin configuration fails closed without reading the el
 test('zero eligible voters and upcoming windows are handled without ballot data', async () => {
   const path = electionPath();
   const db = fakeDb({ [path]: election({ eligibleVoterCount: 0, voters: {} }) });
-  const read = (at) => createElectionMonitoringService({
+  const read = (at, month) => createElectionMonitoringService({
     db, directoryService, siteId: 'molard', dataEnvironment: 'development',
     timeZone: 'Europe/Zurich', now: () => new Date(at),
-  }).read();
+  }).read(month);
   const open = await read('2026-09-26T12:00:00.000Z');
   assert.equal(open.participation.percentage, 0);
   assert.equal(open.status, 'OPEN');
   assert.equal((await read('2026-09-20T12:00:00.000Z')).status, 'UPCOMING');
-  // After the month rolls over, the canonical month becomes October; no September data is read.
-  await assert.rejects(read('2026-10-01T12:00:00.000Z'), (error) => error.code === 'ELECTION_NOT_FOUND');
+  // If October has not been initialized, the latest existing month remains readable.
+  assert.equal((await read('2026-10-01T12:00:00.000Z')).month, '2026-09');
+  await assert.rejects(read('2026-10-01T12:00:00.000Z', '2026-10'),
+    (error) => error.code === 'ELECTION_NOT_FOUND');
 });
 
 test('unknown participation identifiers do not fabricate names or change aggregate consistency', async () => {
-  for (const db of [seededDb(1, 1, []), seededDb(1, 1, ['unknown-id'])]) {
+  for (const db of [seededDb(1, []), seededDb(1, ['unknown-id'])]) {
     const result = await createElectionMonitoringService({
       db, directoryService, siteId: 'molard', dataEnvironment: 'development', timeZone: 'Europe/Zurich', now,
     }).read();
     assert.equal(result.systemHealth.consistency, 'OK');
-    assert.deepEqual(result.individual, { status: 'UNAVAILABLE' });
-    assert.deepEqual(db.calls.filter(([, path]) => path.endsWith('/ballots')).map(([op]) => op), ['count']);
+    assert.equal(result.individual.status, 'PARTIAL');
+    assert.equal(result.individual.eligibleIdentitiesResolved, 49);
+    assert.equal(result.individual.participantIdentitiesResolved, 0);
+    assert.equal(result.individual.voters.length, 49);
+    assert.equal(db.calls.some(([, path]) => path.endsWith('/ballots')), false);
   }
 });
 
@@ -345,24 +442,29 @@ test('missing, duplicate or changed directory names preserve aggregates without 
     const response = await get('admin');
     assert.equal(response.status, 200);
     const body = await response.json();
-    assert.deepEqual(body.individual, { status: 'UNAVAILABLE' });
+    assert.equal(body.individual.status, 'PARTIAL');
+    assert.equal(body.individual.voters.length, 49);
+    assert.ok(body.individual.voters.some((voter) => voter.identitySource === 'UNRESOLVED'));
+    assert.ok(body.individual.eligibleIdentitiesResolved < 49);
     assert.equal(body.systemHealth.consistency, 'OK');
     assert.deepEqual(body.participation, { count: 0, remaining: 49, percentage: 0 });
-    assert.equal(db.calls.filter(([op]) => op === 'count').length, 2);
+    assert.equal(db.calls.filter(([op]) => op === 'count').length, 1);
   }
 });
 
 test('optional voter or participation-ID read failure preserves current aggregate and no ballot payload reads', async (t) => {
   for (const flag of ['failVoterRead', 'failSelect']) {
-    const db = seededDb(1, 1);
+    const db = seededDb(1);
     db.records[flag] = true;
     const { get } = await appFixture(t, db);
     const response = await get('admin');
     assert.equal(response.status, 200);
     const body = await response.json();
     assert.deepEqual(body.participation, { count: 1, remaining: 48, percentage: 2.04 });
-    assert.deepEqual(body.systemHealth, { participationRecords: 1, anonymousBallots: 1, consistency: 'OK' });
-    assert.deepEqual(body.individual, { status: 'UNAVAILABLE' });
-    assert.equal(db.calls.some(([op, path]) => path.endsWith('/ballots') && op !== 'count'), false);
+    assert.deepEqual(body.systemHealth, { participationRecords: 1, consistency: 'OK' });
+    assert.equal(body.individual.status, 'UNAVAILABLE');
+    assert.equal(body.individual.eligibleIdentitiesResolved, null);
+    assert.equal(body.individual.participantIdentitiesResolved, null);
+    assert.equal(db.calls.some(([, path]) => path.endsWith('/ballots')), false);
   }
 });

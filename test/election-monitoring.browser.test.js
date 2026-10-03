@@ -39,16 +39,32 @@ test('protected Administration navigation and dashboard work in desktop and mobi
   mountAdministrationMonitoringPage(app, authorize, root);
   let reads = 0;
   let individualAvailable = true;
-  app.get('/api/v1/management/election-monitoring', authorize, (_req, res) => {
+  app.get('/api/v1/management/election-monitoring', authorize, (req, res) => {
     reads += 1;
+    const month = req.query.month || '2026-10';
+    const closed = month === '2026-09';
     res.json({
-      month: '2026-09', status: 'OPEN',
-      window: { opensAt: '2026-09-24T22:00:00.000Z', closesAt: '2026-09-30T22:00:00.000Z' },
+      month, availableMonths: ['2026-10', '2026-09'],
+      status: closed ? 'CLOSED_PENDING_RESULTS' : 'OPEN',
+      window: closed
+        ? { opensAt: '2026-09-24T22:00:00.000Z', closesAt: '2026-09-30T22:00:00.000Z' }
+        : { opensAt: '2026-10-24T22:00:00.000Z', closesAt: '2026-10-31T23:00:00.000Z' },
       eligibleVoters: 49, participation: { count: 1, remaining: 48, percentage: 2.04 },
-      systemHealth: { participationRecords: 1, anonymousBallots: 1, consistency: 'OK' },
-      ...(individualAvailable ? { individual: { status: 'AVAILABLE', voters: Array.from({ length: 49 }, (_, index) => ({
-        name: `Collaborateur ${index}`, department: 'Cuisine', hasVoted: index === 0,
-      })) } } : {}),
+      systemHealth: { participationRecords: 1, consistency: 'OK' },
+      individual: individualAvailable ? {
+        status: 'AVAILABLE',
+        eligibleIdentitiesResolved: 49,
+        eligibleIdentitiesTotal: 49,
+        participantIdentitiesResolved: 1,
+        participantIdentitiesTotal: 1,
+        voters: Array.from({ length: 49 }, (_, index) => ({
+          name: `Collaborateur ${index}`, department: 'Cuisine', hasVoted: index === 0,
+          identitySource: 'CURRENT_DIRECTORY',
+        })),
+      } : {
+        status: 'UNAVAILABLE', eligibleIdentitiesResolved: null, eligibleIdentitiesTotal: 49,
+        participantIdentitiesResolved: null, participantIdentitiesTotal: 1, voters: null,
+      },
       privateVote: 'NEVER_DISPLAY_THIS',
     });
   });
@@ -104,6 +120,13 @@ test('protected Administration navigation and dashboard work in desktop and mobi
     await evaluate('document.querySelector(".administration-card[href=\\"/suivi-du-vote\\"]").click()');
     await waitFor(() => evaluate('document.querySelector("#dashboard") && !document.querySelector("#dashboard").hidden'));
     assert.equal(await evaluate('document.querySelector("#eligible").textContent'), '49');
+    assert.equal(await evaluate('document.querySelector("#month").textContent'), 'octobre 2026');
+    await evaluate('document.querySelector("#month-select").value = "2026-09"; document.querySelector("#month-select").dispatchEvent(new Event("change", { bubbles: true }))');
+    await waitFor(() => evaluate('document.querySelector("#month").textContent === "septembre 2026"'));
+    assert.equal(await evaluate('document.querySelector("#election-status").textContent'), 'Vote clôturé');
+    assert.equal(await evaluate('document.querySelector("#results-state").textContent'), 'Résultats indisponibles');
+    await evaluate('document.querySelector("#month-select").value = "2026-10"; document.querySelector("#month-select").dispatchEvent(new Event("change", { bubbles: true }))');
+    await waitFor(() => evaluate('document.querySelector("#month").textContent === "octobre 2026"'));
     assert.equal(await evaluate('document.querySelectorAll("#voter-list li").length'), 49);
     assert.equal(await evaluate('document.querySelector("#filter-voted").textContent'), 'A voté (1)');
     await evaluate('document.querySelector("#filter-voted").click()');
@@ -112,15 +135,15 @@ test('protected Administration navigation and dashboard work in desktop and mobi
     assert.equal(await evaluate('document.querySelectorAll("#voter-list li").length'), 48);
     await evaluate('document.querySelector("#voter-search").value = "collaborateur 2"; document.querySelector("#voter-search").dispatchEvent(new Event("input"))');
     assert.equal(await evaluate('document.querySelectorAll("#voter-list li").length'), 11);
-    assert.equal(await evaluate('document.querySelector("#filter-pending").textContent'), 'À voter (48)');
-    assert.equal(await evaluate('document.querySelector("#consistency").textContent'), 'Système cohérent');
+    assert.equal(await evaluate('document.querySelector("#filter-pending").textContent'), "N'a pas voté (48)");
+    assert.equal(await evaluate('document.querySelector("#consistency").textContent'), 'Dans la limite des éligibles');
     individualAvailable = false;
     await evaluate('document.querySelector("#refresh").click()');
     await waitFor(() => evaluate('!document.querySelector("#refresh").disabled && !document.querySelector("#voter-unavailable").hidden'));
     assert.equal(await evaluate('document.querySelector("#voted").textContent'), '1');
     assert.equal(await evaluate('document.querySelector("#eligible").textContent'), '49');
     assert.equal(await evaluate('document.querySelector("#progress-count").textContent'), '1 / 49');
-    assert.equal(await evaluate('document.querySelector("#consistency").textContent'), 'Système cohérent');
+    assert.equal(await evaluate('document.querySelector("#consistency").textContent'), 'Dans la limite des éligibles');
     assert.equal(await evaluate('document.querySelector("#results-state").textContent.includes("Résultats masqués")'), true);
     assert.equal(await evaluate('document.querySelectorAll("#voter-list li").length'), 0);
     assert.equal(await evaluate('document.querySelector("#voter-controls").hidden'), true);
@@ -135,9 +158,9 @@ test('protected Administration navigation and dashboard work in desktop and mobi
     const screenshot = await call('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true });
     fs.writeFileSync(`/tmp/phase3-${label}.png`, Buffer.from(screenshot.result.data, 'base64'));
     await evaluate('document.querySelector("#refresh").click()');
-    await waitFor(() => reads >= (label === 'desktop' ? 4 : 8));
+    await waitFor(() => reads >= (label === 'desktop' ? 6 : 12));
   };
   await inspect(1280, 900, 'desktop');
   await inspect(390, 844, 'mobile');
-  assert.equal(reads, 8, 'one initial GET and three refresh GETs at each width');
+  assert.equal(reads, 12, 'period selection and refresh requests at each width');
 });

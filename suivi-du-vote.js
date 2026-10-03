@@ -3,7 +3,16 @@ const byId = (id) => document.getElementById(id);
 const number = new Intl.NumberFormat('fr-CH', { maximumFractionDigits: 2 });
 const monthFormatter = new Intl.DateTimeFormat('fr-CH', { month: 'long', year: 'numeric', timeZone: 'UTC' });
 const dayFormatter = new Intl.DateTimeFormat('fr-CH', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Zurich' });
-const statusLabels = { OPEN: 'Vote ouvert', UPCOMING: 'Vote à venir', CLOSED: 'Vote clôturé' };
+const statusLabels = {
+  OPEN: 'Vote ouvert',
+  UPCOMING: 'Vote à venir',
+  CLOSED_PENDING_RESULTS: 'Vote clôturé',
+};
+const identitySources = {
+  ELECTION_SNAPSHOT: 'Identité de l’élection',
+  CURRENT_DIRECTORY: 'Annuaire Preview actuel',
+  UNRESOLVED: 'Identité non résolue',
+};
 let inFlight = false;
 let voters = [];
 let filter = 'all';
@@ -14,6 +23,10 @@ function validCount(value) {
   return Number.isSafeInteger(value) && value >= 0;
 }
 
+function validMonth(value) {
+  return typeof value === 'string' && /^\d{4}-(0[1-9]|1[0-2])$/.test(value);
+}
+
 function dateValue(value) {
   if (typeof value !== 'string' || !/^\d{4}-\d\d-\d\dT/.test(value)) return null;
   const date = new Date(value);
@@ -21,8 +34,11 @@ function dateValue(value) {
 }
 
 function approved(data) {
-  if (!data || typeof data !== 'object' || !/^\d{4}-(0[1-9]|1[0-2])$/.test(data.month) ||
-      !Object.hasOwn(statusLabels, data.status) ||
+  if (!data || typeof data !== 'object' || !validMonth(data.month) ||
+      !Object.hasOwn(statusLabels, data.status) || !Array.isArray(data.availableMonths) ||
+      !data.availableMonths.length ||
+      data.availableMonths.some((month) => !validMonth(month)) ||
+      !new Set(data.availableMonths).has(data.month) ||
       !data.window || !data.participation || !data.systemHealth) return null;
   const opens = dateValue(data.window.opensAt);
   const closes = dateValue(data.window.closesAt);
@@ -31,16 +47,28 @@ function approved(data) {
       !validCount(data.participation.remaining) ||
       !Number.isFinite(data.participation.percentage) || data.participation.percentage < 0 ||
       !validCount(data.systemHealth.participationRecords) ||
-      !validCount(data.systemHealth.anonymousBallots) ||
       !['OK', 'ANOMALY'].includes(data.systemHealth.consistency)) return null;
   const individual = data.individual;
-  const validRoster = individual && typeof individual === 'object' &&
-    individual.status === 'AVAILABLE' && Array.isArray(individual.voters) &&
+  const resolvedCount = (value, total) => value === null || (validCount(value) && value <= total);
+  const validCoverage = individual && typeof individual === 'object' &&
+    ['AVAILABLE', 'PARTIAL', 'UNAVAILABLE'].includes(individual.status) &&
+    resolvedCount(individual.eligibleIdentitiesResolved, data.eligibleVoters) &&
+    individual.eligibleIdentitiesTotal === data.eligibleVoters &&
+    resolvedCount(individual.participantIdentitiesResolved, data.participation.count) &&
+    individual.participantIdentitiesTotal === data.participation.count;
+  const validRoster = individual?.status !== 'UNAVAILABLE' && Array.isArray(individual?.voters) &&
     individual.voters.length === data.eligibleVoters &&
     individual.voters.every((voter) => voter && typeof voter.name === 'string' &&
       voter.name.trim() && typeof voter.department === 'string' && voter.department.trim() &&
-      typeof voter.hasVoted === 'boolean');
+      typeof voter.hasVoted === 'boolean' && Object.hasOwn(identitySources, voter.identitySource));
+  const validUnavailable = individual?.status === 'UNAVAILABLE' && individual.voters === null;
+  const validAvailable = validCoverage && (validUnavailable ||
+    (validRoster && (individual.status !== 'AVAILABLE' ||
+      (individual.eligibleIdentitiesResolved === data.eligibleVoters &&
+       individual.participantIdentitiesResolved === data.participation.count))));
+  const showRoster = Boolean(validAvailable && !validUnavailable);
   return {
+    availableMonths: [...new Set(data.availableMonths)].sort((a, b) => b.localeCompare(a)),
     month: data.month,
     status: data.status,
     opens, closes,
@@ -49,10 +77,12 @@ function approved(data) {
     remaining: data.participation.remaining,
     percentage: data.participation.percentage,
     records: data.systemHealth.participationRecords,
-    ballots: data.systemHealth.anonymousBallots,
     consistency: data.systemHealth.consistency,
-    voters: validRoster
-      ? individual.voters.map(({ name, department, hasVoted }) => ({ name, department, hasVoted }))
+    eligibleIdentitiesResolved: validAvailable ? individual.eligibleIdentitiesResolved : null,
+    participantIdentitiesResolved: validAvailable ? individual.participantIdentitiesResolved : null,
+    voters: showRoster
+      ? individual.voters.map(({ name, department, hasVoted, identitySource }) =>
+        ({ name, department, hasVoted, identitySource }))
       : null,
   };
 }
@@ -62,7 +92,7 @@ function renderVoters() {
   for (const [id, label, count, value] of [
     ['filter-all', 'Tous', voters.length, 'all'],
     ['filter-voted', 'A voté', voted, 'voted'],
-    ['filter-pending', 'À voter', voters.length - voted, 'pending'],
+    ['filter-pending', "N'a pas voté", voters.length - voted, 'pending'],
   ]) {
     byId(id).textContent = `${label} (${number.format(count)})`;
     byId(id).setAttribute('aria-pressed', String(filter === value));
@@ -81,7 +111,10 @@ function renderVoters() {
     name.textContent = voter.name;
     const department = document.createElement('span');
     department.textContent = voter.department;
-    identity.append(name, department);
+    const source = document.createElement('span');
+    source.className = 'voter-source';
+    source.textContent = identitySources[voter.identitySource];
+    identity.append(name, department, source);
     const status = document.createElement('span');
     status.className = `voter-state${voter.hasVoted ? ' voted' : ''}`;
     status.textContent = voter.hasVoted ? 'A voté' : 'À voter';
@@ -96,8 +129,9 @@ function clearDashboard() {
   byId('voter-list').replaceChildren();
   byId('voter-controls').hidden = true;
   byId('voter-unavailable').hidden = true;
+  byId('identity-coverage').textContent = '';
   for (const id of ['month', 'election-status', 'window', 'eligible', 'voted', 'remaining',
-    'percentage', 'progress-count', 'progress-label', 'records', 'ballots', 'consistency',
+    'percentage', 'progress-count', 'progress-label', 'records', 'consistency',
     'results-state', 'results-explanation', 'voter-summary',
     'filter-all', 'filter-voted', 'filter-pending']) byId(id).textContent = '';
   byId('progress').removeAttribute('aria-valuenow');
@@ -116,8 +150,21 @@ function showMessage(text, retry = false) {
 
 function render(data) {
   voters = data.voters ? data.voters.sort((a, b) => collator.compare(a.name, b.name)) : [];
+  const selector = byId('month-select');
+  selector.replaceChildren(...data.availableMonths.map((month) => {
+    const [year, monthNumber] = month.split('-').map(Number);
+    const option = document.createElement('option');
+    option.value = month;
+    option.textContent = monthFormatter.format(new Date(Date.UTC(year, monthNumber - 1, 1)));
+    return option;
+  }));
+  selector.value = data.month;
+  selector.disabled = false;
   byId('voter-controls').hidden = !data.voters;
   byId('voter-unavailable').hidden = Boolean(data.voters);
+  byId('identity-coverage').textContent = data.eligibleIdentitiesResolved === null
+    ? 'Résolution des identités indisponible; le total officiel des éligibles et des participations est conservé.'
+    : `Identités résolues : ${number.format(data.eligibleIdentitiesResolved)} / ${number.format(data.eligible)} éligibles · ${number.format(data.participantIdentitiesResolved ?? 0)} / ${number.format(data.voted)} participants`;
   if (data.voters) renderVoters();
   else {
     byId('voter-list').replaceChildren();
@@ -139,14 +186,13 @@ function render(data) {
   byId('progress').setAttribute('aria-valuetext', `${number.format(data.percentage)} % — ${number.format(data.voted)} sur ${number.format(data.eligible)} électeurs`);
   byId('progress-fill').style.width = `${Math.min(data.percentage, 100)}%`;
   byId('records').textContent = number.format(data.records);
-  byId('ballots').textContent = number.format(data.ballots);
-  const coherent = data.consistency === 'OK' && data.records === data.ballots &&
-    (!data.voters || data.records === voters.filter((voter) => voter.hasVoted).length) &&
-    data.records <= data.eligible;
-  byId('consistency').textContent = coherent ? 'Système cohérent' : 'Anomalie détectée';
+  const coherent = data.consistency === 'OK' && data.records <= data.eligible &&
+    (!data.voters || data.records === voters.filter((voter) => voter.hasVoted).length);
+  byId('consistency').textContent = coherent ? 'Dans la limite des éligibles' : 'Dépasse le total éligible';
   byId('consistency').className = coherent ? '' : 'anomaly';
-  byId('results-state').textContent = data.status === 'CLOSED' ? 'Résultats indisponibles' : '🔒 Résultats masqués';
-  byId('results-explanation').textContent = data.status === 'CLOSED'
+  const closed = data.status === 'CLOSED_PENDING_RESULTS';
+  byId('results-state').textContent = closed ? 'Résultats indisponibles' : 'Résultats masqués';
+  byId('results-explanation').textContent = closed
     ? 'Le suivi du vote ne fournit pas encore les résultats définitifs.'
     : data.status === 'UPCOMING'
       ? 'Les résultats resteront masqués jusqu’à la clôture du vote.'
@@ -156,7 +202,7 @@ function render(data) {
   byId('dashboard').hidden = false;
 }
 
-async function load() {
+async function load(requestedMonth = byId('month-select').value) {
   if (inFlight) return;
   inFlight = true;
   const wasVisible = !byId('dashboard').hidden;
@@ -167,6 +213,7 @@ async function load() {
   byId('voter-unavailable').hidden = false;
   byId('voter-summary').textContent = '';
   byId('refresh').disabled = true;
+  byId('month-select').disabled = true;
   byId('retry').disabled = true;
   if (wasVisible) {
     byId('dashboard').setAttribute('aria-busy', 'true');
@@ -176,7 +223,8 @@ async function load() {
     byId('loading').hidden = false;
   }
   try {
-    const response = await fetch(endpoint, { method: 'GET', credentials: 'same-origin', cache: 'no-store' });
+    const url = requestedMonth ? `${endpoint}?month=${encodeURIComponent(requestedMonth)}` : endpoint;
+    const response = await fetch(url, { method: 'GET', credentials: 'same-origin', cache: 'no-store' });
     if (response.status === 401) {
       clearDashboard();
       location.replace('/gestion-photos-login.html?error=session');
@@ -190,13 +238,17 @@ async function load() {
     if (response.status === 404) {
       const body = await response.json();
       if (body?.error === 'ELECTION_NOT_FOUND') {
-        showMessage('Aucune élection active trouvée pour cette période.');
+        showMessage('Aucune élection enregistrée pour cette période. Aucune nouvelle période n’a été créée.');
         return;
       }
     }
+    if (response.status === 400) {
+      showMessage('La période sélectionnée n’est pas valide.');
+      return;
+    }
     if (!response.ok) throw new Error('MONITORING_UNAVAILABLE');
     const data = approved(await response.json());
-    if (!data) throw new Error('INVALID_MONITORING_RESPONSE');
+    if (!data || (requestedMonth && data.month !== requestedMonth)) throw new Error('INVALID_MONITORING_RESPONSE');
     render(data);
   } catch {
     showMessage('Les données de suivi du vote sont momentanément indisponibles.', true);
@@ -205,12 +257,14 @@ async function load() {
     byId('refresh-status').textContent = '';
     byId('refresh').disabled = false;
     byId('retry').disabled = false;
+    byId('month-select').disabled = !byId('dashboard').hidden ? false : !byId('month-select').children.length;
     inFlight = false;
   }
 }
 
-byId('refresh').addEventListener('click', load);
-byId('retry').addEventListener('click', load);
+byId('refresh').addEventListener('click', () => load());
+byId('month-select').addEventListener('change', (event) => load(event.target.value));
+byId('retry').addEventListener('click', () => load());
 for (const id of ['filter-all', 'filter-voted', 'filter-pending']) {
   byId(id).addEventListener('click', () => {
     filter = { 'filter-all': 'all', 'filter-voted': 'voted', 'filter-pending': 'pending' }[id];
