@@ -36,15 +36,27 @@ Repository: `chezan79/infosmolinomolard`
 
 ### Workspace Git authentication
 
-Git HTTPS authentication is configured without placing a credential in the repository or its Git configuration:
+Git HTTPS authentication is restored by `scripts/post-merge.sh`, which invokes
+`scripts/setup-github-credential-helper.sh`, without placing a credential in
+the repository or Git configuration:
 
-- The repository-scoped GitHub token is stored only in the Replit Secret named `GIT_URL`.
-- A user-level helper at `~/.local/bin/git-credential-replit-github` reads that secret at runtime and is mode `0700`.
-- The helper command is configured in the user-level Git configuration only for `https://github.com`.
+- The repository-scoped GitHub credential is stored only in the Replit Secret named `GIT_URL`.
+- The tracked helper source is `scripts/git-credential-replit-github`; post-merge setup installs it at `~/.local/bin/git-credential-replit-github` with mode `0700`.
+- The helper reads `GIT_URL` at request time and returns credentials only for `get` requests using `https://github.com`. It does not persist credentials for Git's `store` or `erase` operations.
+- Setup configures the active user-level Git config (including `GIT_CONFIG_GLOBAL` when Replit provides it) and the standard home config when those differ. The only stored values are a host-specific empty reset and the helper command under `credential.https://github.com.helper`; no token or credential URL is written to Git configuration.
 - The tracked repository and project files contain no token or private key.
 - `origin` remains the clean URL `https://github.com/chezan79/infosmolinomolard`.
 
-An authenticated `git ls-remote --symref origin HEAD refs/heads/main` succeeded on 2026-09-22. The exact protected push command below also succeeded with `--dry-run`, confirming write authorization and the explicit lease without changing the remote.
+An authenticated read check succeeded after restoring the helper on 2026-10-04.
+It used `http.proactiveAuth=basic` with a username-only GitHub HTTPS URL so Git
+requested credentials before contacting the repository; the trace confirmed the
+installed helper ran. Command output was discarded, and no credential values
+were displayed. `origin` itself remains unchanged and contains no credentials.
+
+An earlier authenticated `git ls-remote --symref origin HEAD refs/heads/main`
+succeeded on 2026-09-22. The exact protected push command below also succeeded
+with `--dry-run`, confirming write authorization and the explicit lease without
+changing the remote.
 
 At Task #44 preflight:
 
