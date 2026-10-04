@@ -3,64 +3,104 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Découvrez les collaborateurs distingués ce mois-ci chez Molino Molard.">
-  <title>Collaborateurs du mois · Molino Molard</title>
-  <link rel="stylesheet" href="/collaborateurs-du-mois.css">
+  <meta name="description" content="Félicitations aux collaborateurs du mois de septembre 2026 chez Molino Molard.">
+  <meta name="theme-color" content="#f8f3ea">
+  <title>Les Gagnants · Molino Molard · Septembre 2026</title>
+  <link rel="stylesheet" href="/resultats_collaborateurs-du-mois.css">
 </head>
-<body>
-  <main class="public-shell">
+<body class="winners-page">
+  <main class="page-shell">
     <header class="masthead">
-      <a class="brand" href="/" aria-label="Molino Molard, accueil">
+      <a class="brand" href="/" aria-label="Molino Molard, retour à l’accueil">
         <span class="brand-mark" aria-hidden="true">M</span>
-        <span class="brand-copy"><strong>Molino Molard</strong><small>Maison &amp; équipe</small></span>
+        <span class="brand-copy">
+          <strong>Molino Molard</strong>
+          <small>Maison &amp; équipe</small>
+        </span>
       </a>
-      <a class="header-link" href="/collaborateur-du-mois">Espace de vote <span aria-hidden="true">↗</span></a>
+      <a class="header-link" href="/collaborateur-du-mois">
+        Espace de vote <span aria-hidden="true">↗</span>
+      </a>
     </header>
 
     <section class="intro" aria-labelledby="page-title">
-      <p class="eyebrow"><span class="eyebrow-line"></span> Collaborateurs du mois</p>
-      <h1 id="page-title">Celles et ceux<br><em>qui font la maison.</em></h1>
-      <p class="intro-copy">Chaque mois, nous mettons à l’honneur l’énergie et le savoir-faire qui font vivre Molino Molard.</p>
-      <div class="intro-rule">
-        <h2 id="month-label" class="month-heading">Résultats du dernier mois publié</h2>
-        <span class="rule-mark" aria-hidden="true"></span>
+      <p class="eyebrow"><span class="eyebrow-line" aria-hidden="true"></span>LES TALENTS DE MOLINO MOLARD</p>
+      <h1 id="page-title">
+        <span class="title-first-line"><span aria-hidden="true">🏆</span> Les Gagnants :</span>
+        <span class="title-second-line">Collaborateurs du mois</span>
+      </h1>
+      <p class="intro-copy">Bravo à nos deux collaborateurs pour leur engagement, leur professionnalisme et leur contribution exceptionnelle !</p>
+      <div class="month-wrap">
+        <span class="month-flourish" aria-hidden="true">✦</span>
+        <h2 class="month-heading">SEPTEMBRE 2026</h2>
+        <span class="month-flourish" aria-hidden="true">✦</span>
       </div>
     </section>
 
-    <section id="results-region" class="results-region" aria-live="polite" aria-busy="true">
-      <div id="loading-panel" class="loading-panel" role="status">
-        <span class="visually-hidden">Chargement des distinctions…</span>
-        <div class="skeleton-grid" aria-hidden="true">
-          <div class="skeleton-category"><span class="skeleton skeleton-heading"></span><span class="skeleton skeleton-photo"></span><span class="skeleton skeleton-copy"></span></div>
-          <div class="skeleton-category"><span class="skeleton skeleton-heading"></span><span class="skeleton skeleton-photo"></span><span class="skeleton skeleton-copy"></span></div>
+    <section class="winner-grid" aria-label="Collaborateurs distingués en septembre 2026">
+      <article class="winner-card winner-card--cuisine" aria-labelledby="cuisine-title">
+        <header class="card-heading">
+          <span class="category-icon" aria-hidden="true">👨‍🍳</span>
+          <h2 id="cuisine-title">Cuisine</h2>
+          <span class="category-rule" aria-hidden="true"></span>
+          <span class="category-star" aria-hidden="true">✦</span>
+        </header>
+        <figure class="portrait-frame portrait-frame--andrea">
+          <img
+            class="portrait"
+            src="/assets/collaborateurs-du-mois/septembre-2026-andrea-filogamo.jpg"
+            alt="Filogamo Andrea, collaborateur du mois en cuisine"
+            width="1170"
+            height="1496"
+            fetchpriority="high"
+          >
+          <span class="portrait-caption" aria-hidden="true">Molino · Genève</span>
+        </figure>
+        <div class="winner-copy">
+          <p class="winner-label">Collaborateur du mois</p>
+          <h3 class="winner-name">Filogamo Andrea</h3>
+          <p class="winner-role">Chef de partie</p>
         </div>
-      </div>
-      <div id="message-panel" class="message-panel" role="status" hidden>
-        <p class="eyebrow">Actualité de la maison</p>
-        <h2 id="message-title"></h2>
-        <p id="message-copy"></p>
-        <button id="retry-button" class="button button-dark" type="button" hidden>Réessayer</button>
-      </div>
-      <div id="results-content" hidden>
-        <div class="winner-grid">
-          <section class="winner-category" aria-labelledby="cuisine-title">
-            <div class="category-heading"><h2 id="cuisine-title">Cuisine</h2></div>
-            <div id="cuisine-winners" class="winner-list"></div>
-          </section>
-          <section class="winner-category" aria-labelledby="service-title">
-            <div class="category-heading"><h2 id="service-title">Service</h2></div>
-            <div id="service-winners" class="winner-list"></div>
-          </section>
+      </article>
+
+      <article class="winner-card winner-card--service" aria-labelledby="service-title">
+        <header class="card-heading">
+          <span class="category-icon" aria-hidden="true">🍴</span>
+          <h2 id="service-title">Service</h2>
+          <span class="category-rule" aria-hidden="true"></span>
+          <span class="category-star" aria-hidden="true">✦</span>
+        </header>
+        <figure class="portrait-frame portrait-frame--axel">
+          <img
+            class="portrait"
+            src="/assets/collaborateurs-du-mois/septembre-2026-axel-cocco.jpg"
+            alt="Cocco Axel Jean-Claude San, collaborateur du mois au service"
+            width="4284"
+            height="5712"
+            loading="lazy"
+          >
+          <span class="portrait-caption" aria-hidden="true">Molino · Genève</span>
+        </figure>
+        <div class="winner-copy">
+          <p class="winner-label">Collaborateur du mois</p>
+          <h3 class="winner-name">Cocco Axel Jean-Claude San</h3>
+          <p class="winner-role">Commis de rang</p>
         </div>
-      </div>
+      </article>
     </section>
 
-    <section class="closing" aria-label="Découvrir Molino Molard">
-      <p>Une maison, des métiers, une même attention.</p>
-      <a href="/">Retour à l’accueil <span aria-hidden="true">↗</span></a>
+    <section class="closing" aria-labelledby="closing-title">
+      <span class="closing-ornament" aria-hidden="true">✦</span>
+      <p class="closing-kicker">Une belle reconnaissance</p>
+      <h2 id="closing-title">Félicitations à nos collaborateurs du mois !</h2>
+      <p class="closing-copy">Merci pour votre engagement quotidien et votre contribution<br class="desktop-break"> à l’esprit de Molino Molard.</p>
+      <a class="return-link" href="/"><span aria-hidden="true">←</span> Retour à l’accueil</a>
     </section>
-    <footer class="site-footer"><span>Molino Molard · Genève</span><a href="/collaborateur-du-mois">Participer au vote</a></footer>
+
+    <footer class="site-footer">
+      <span>Molino Molard · Genève</span>
+      <span>Les talents de la maison</span>
+    </footer>
   </main>
-  <script src="/collaborateurs-du-mois.js"></script>
 </body>
 </html>

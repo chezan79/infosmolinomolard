@@ -1,0 +1,554 @@
+:root {
+  color-scheme: light;
+  --ink: #302821;
+  --muted: #766b60;
+  --paper: #f8f3ea;
+  --panel: #fffdf9;
+  --line: #e8ddcd;
+  --terracotta: #b74b2d;
+  --terracotta-dark: #8f3824;
+  --gold: #bd9551;
+  --gold-light: #efe2c9;
+  --service-accent: #526a61;
+  --focus: #235f68;
+  --shadow: 0 20px 54px rgb(69 48 29 / 9%);
+  font-family: "DM Sans", "Avenir Next", Avenir, system-ui, sans-serif;
+  color: var(--ink);
+  background: var(--paper);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  background: var(--paper);
+}
+
+body.winners-page {
+  position: relative;
+  min-height: 100vh;
+  margin: 0;
+  overflow-x: hidden;
+  background:
+    radial-gradient(ellipse at 9% 2%, rgb(224 189 143 / 28%), transparent 34rem),
+    radial-gradient(ellipse at 96% 52%, rgb(221 210 183 / 20%), transparent 27rem),
+    var(--paper);
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.winners-page::before {
+  position: absolute;
+  top: 0;
+  right: max(0px, calc((100vw - 1350px) / 2));
+  width: 1px;
+  height: 100%;
+  background: linear-gradient(transparent, rgb(189 149 81 / 20%) 20%, rgb(189 149 81 / 20%) 78%, transparent);
+  content: "";
+  pointer-events: none;
+}
+
+.winners-page a {
+  color: inherit;
+}
+
+.winners-page :focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 4px;
+}
+
+.page-shell {
+  position: relative;
+  width: min(100% - 48px, 1120px);
+  margin: 0 auto;
+  padding: 24px 0 25px;
+}
+
+.masthead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 0 0 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+}
+
+.brand-mark {
+  display: grid;
+  width: 43px;
+  height: 43px;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 36%);
+  border-radius: 50%;
+  color: #fffaf0;
+  background: var(--terracotta);
+  box-shadow: 0 4px 12px rgb(143 56 36 / 17%);
+  font: 23px/1 Georgia, "Times New Roman", serif;
+}
+
+.brand-copy {
+  line-height: 1.2;
+}
+
+.brand-copy strong,
+.brand-copy small {
+  display: block;
+}
+
+.brand-copy strong {
+  font-size: 12px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.brand-copy small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.header-link {
+  color: var(--terracotta-dark) !important;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: color .18s ease;
+}
+
+.header-link:hover,
+.return-link:hover {
+  color: var(--ink) !important;
+}
+
+.header-link span {
+  padding-left: 4px;
+}
+
+.intro {
+  max-width: 850px;
+  margin: 0 auto;
+  padding: clamp(48px, 7vw, 76px) 0 33px;
+  text-align: center;
+}
+
+.eyebrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 11px;
+  margin: 0 0 17px;
+  color: var(--terracotta-dark);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .19em;
+  line-height: 1.5;
+}
+
+.eyebrow-line {
+  width: 30px;
+  height: 1px;
+  background: var(--gold);
+}
+
+.intro h1,
+.card-heading h2,
+.closing h2 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 500;
+}
+
+.intro h1 {
+  margin: 0;
+  font-size: clamp(2.5rem, 6.3vw, 5rem);
+  letter-spacing: -.055em;
+  line-height: 1.04;
+}
+
+.title-first-line,
+.title-second-line {
+  display: block;
+}
+
+.title-first-line {
+  color: var(--terracotta-dark);
+}
+
+.title-first-line > span {
+  display: inline-block;
+  margin-right: .1em;
+  font-family: system-ui, sans-serif;
+  font-size: .7em;
+  vertical-align: .08em;
+}
+
+.title-second-line {
+  margin-top: 3px;
+  color: var(--ink);
+  font-size: .74em;
+  letter-spacing: -.04em;
+}
+
+.intro-copy {
+  max-width: 610px;
+  margin: 20px auto 0;
+  color: var(--muted);
+  font-size: clamp(15px, 2vw, 18px);
+}
+
+.month-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 29px;
+  padding: 10px 21px;
+  border: 1px solid rgb(189 149 81 / 44%);
+  border-radius: 999px;
+  color: var(--terracotta-dark);
+  background: linear-gradient(105deg, rgb(255 253 249 / 78%), rgb(239 226 201 / 64%), rgb(255 253 249 / 78%));
+  box-shadow: 0 6px 18px rgb(93 70 37 / 5%);
+}
+
+.month-heading {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: .19em;
+  line-height: 1.4;
+}
+
+.month-flourish {
+  color: var(--gold);
+  font-size: 13px;
+}
+
+.winner-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(16px, 2.5vw, 26px);
+}
+
+.winner-card {
+  min-width: 0;
+  padding: clamp(18px, 3vw, 29px);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: rgb(255 253 249 / 91%);
+  box-shadow: var(--shadow);
+  animation: card-reveal .5s cubic-bezier(.2, .7, .2, 1) both;
+}
+
+.winner-card--service {
+  animation-delay: .08s;
+}
+
+.winner-card--cuisine {
+  --card-accent: var(--terracotta);
+  --card-soft: #f4e5d7;
+}
+
+.winner-card--service {
+  --card-accent: var(--service-accent);
+  --card-soft: #e5ebe5;
+}
+
+.card-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 1px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.category-icon {
+  font-size: 19px;
+  line-height: 1;
+}
+
+.card-heading h2 {
+  margin: 0;
+  color: var(--card-accent);
+  font-size: clamp(1.65rem, 3vw, 2.25rem);
+  letter-spacing: -.035em;
+  text-transform: uppercase;
+}
+
+.category-rule {
+  height: 1px;
+  flex: 1;
+  margin-left: 2px;
+  background: linear-gradient(90deg, var(--gold), transparent);
+}
+
+.category-star {
+  color: var(--gold);
+  font-size: 13px;
+}
+
+.portrait-frame {
+  position: relative;
+  aspect-ratio: 1.1 / 1;
+  margin: 18px 0 0;
+  overflow: hidden;
+  border: 1px solid rgb(189 149 81 / 26%);
+  border-radius: 17px;
+  background: var(--card-soft);
+}
+
+.portrait {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.portrait-frame--andrea .portrait {
+  object-position: 49% 38%;
+}
+
+.portrait-frame--axel .portrait {
+  object-position: 53% 35%;
+}
+
+.portrait-caption {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  padding: 5px 9px;
+  border: 1px solid rgb(255 255 255 / 42%);
+  border-radius: 999px;
+  color: #fffdf8;
+  background: rgb(48 40 33 / 52%);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  backdrop-filter: blur(5px);
+}
+
+.winner-copy {
+  padding: 17px 2px 3px;
+}
+
+.winner-label {
+  margin: 0 0 5px;
+  color: var(--card-accent);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+}
+
+.winner-name {
+  overflow-wrap: anywhere;
+  margin: 0;
+  font-size: clamp(23px, 2.6vw, 31px);
+  font-weight: 700;
+  letter-spacing: -.035em;
+  line-height: 1.16;
+}
+
+.winner-role {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.closing {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  margin: 45px auto 0;
+  padding: 30px 15px 26px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+
+.closing-ornament {
+  color: var(--gold);
+  font-size: 17px;
+}
+
+.closing-kicker {
+  margin: 6px 0 8px;
+  color: var(--terracotta-dark);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+
+.closing h2 {
+  margin: 0;
+  font-size: clamp(1.75rem, 4vw, 2.55rem);
+  letter-spacing: -.035em;
+  line-height: 1.2;
+}
+
+.closing-copy {
+  margin: 11px 0 19px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.return-link {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 19px;
+  border: 1px solid rgb(183 75 45 / 32%);
+  border-radius: 999px;
+  color: var(--terracotta-dark) !important;
+  background: rgb(255 253 249 / 78%);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background-color .18s ease, border-color .18s ease, color .18s ease, transform .18s ease;
+}
+
+.return-link:hover {
+  border-color: var(--terracotta-dark);
+  background: #fffdf9;
+  transform: translateY(-1px);
+}
+
+.return-link span {
+  font-size: 17px;
+  line-height: 1;
+}
+
+.site-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding-top: 17px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11px;
+}
+
+@keyframes card-reveal {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 680px) {
+  .page-shell {
+    width: min(100% - 30px, 520px);
+    padding-top: 16px;
+  }
+
+  .intro {
+    padding-top: 52px;
+  }
+
+  .intro h1 {
+    font-size: clamp(2.2rem, 9vw, 3.6rem);
+  }
+
+  .title-second-line {
+    font-size: .7em;
+  }
+
+  .intro-copy {
+    max-width: 43ch;
+    margin-top: 17px;
+  }
+
+  .month-wrap {
+    margin-top: 23px;
+  }
+
+  .winner-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .winner-card {
+    padding: 19px;
+  }
+
+  .portrait-frame {
+    aspect-ratio: 1.05 / 1;
+  }
+
+  .winner-name {
+    font-size: clamp(24px, 6.4vw, 30px);
+  }
+
+  .closing {
+    margin-top: 31px;
+    padding-top: 25px;
+  }
+
+  .desktop-break {
+    display: none;
+  }
+}
+
+@media (max-width: 380px) {
+  .masthead {
+    gap: 10px;
+  }
+
+  .brand {
+    gap: 8px;
+  }
+
+  .brand-mark {
+    width: 39px;
+    height: 39px;
+  }
+
+  .header-link {
+    font-size: 11px;
+  }
+
+  .eyebrow {
+    font-size: 9px;
+    letter-spacing: .14em;
+  }
+
+  .eyebrow-line {
+    width: 20px;
+  }
+
+  .month-wrap {
+    gap: 11px;
+    padding: 9px 15px;
+  }
+
+  .month-heading {
+    font-size: 12px;
+  }
+
+  .winner-card {
+    padding: 15px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
