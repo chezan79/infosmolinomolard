@@ -253,16 +253,16 @@ function render(data) {
   document.getElementById('month-count').textContent = `${sorted.length} ${sorted.length === 1 ? 'période' : 'périodes'}`;
   monthsEmpty.hidden = sorted.length !== 0;
   for (const item of sorted) monthsList.append(renderMonth(item, recoveryAllowed, data.readOnly));
-  void loadRankings(sorted.filter((item) => item.state !== 'VOTING_OPEN' && item.state !== 'VOTING_UPCOMING').map((item) => item.month));
+
 }
 
-async function loadRankings(months) {
+async function loadRankings(month) {
   const grid = document.getElementById('vote-rankings-grid');
   const status = document.getElementById('vote-rankings-status');
   grid.hidden = true;
   grid.replaceChildren();
-  const month = months.includes('2026-09') ? '2026-09' : months[0];
-  if (!month) { status.textContent = 'Aucune période clôturée disponible.'; return; }
+  if (!validMonth(month)) { status.textContent = 'Période invalide.'; return; }
+  status.textContent = 'Chargement du classement…';
   try {
     const response = await fetch(`/api/v1/management/election-rankings?month=${encodeURIComponent(month)}`,
       { credentials: 'same-origin', cache: 'no-store' });
@@ -377,6 +377,12 @@ async function recover(month) {
     await loadResults();
   }
 }
+
+document.getElementById('vote-rankings-refresh').addEventListener('click', () =>
+  loadRankings(document.getElementById('vote-rankings-month').value));
+document.getElementById('vote-rankings-month').addEventListener('change', () =>
+  loadRankings(document.getElementById('vote-rankings-month').value));
+void loadRankings(document.getElementById('vote-rankings-month').value);
 
 refreshButton.addEventListener('click', async () => {
   refreshStatus.textContent = 'Actualisation en cours…';
