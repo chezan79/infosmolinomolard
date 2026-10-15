@@ -24,7 +24,7 @@ function publicRootFile(reqPath) {
   }
   const normalized = path.posix.normalize(`/${decoded}`).replace(/^\/+/, '');
   if (!normalized || normalized.includes('/')) return null;
-  if (['administration.html', 'gestion-photos-collaborateurs.html', 'suivi-du-vote.html', 'election-results.html'].includes(normalized)) return null;
+  if (['administration.html', 'gestion-photos-collaborateurs.html', 'suivi-du-vote.html', 'election-results.html', 'election-history.html', 'historique-des-votations.html'].includes(normalized)) return null;
   const extension = path.extname(normalized).toLowerCase();
   return PUBLIC_ROOT_EXTENSIONS.has(extension) || PUBLIC_ROOT_SCRIPTS.has(normalized)
     ? normalized

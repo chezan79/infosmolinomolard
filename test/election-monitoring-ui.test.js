@@ -366,7 +366,8 @@ test('page markup and CSS support mobile, tablet, keyboard and read-only navigat
   assert.match(css, /minmax\(0,1fr\)/);
   assert.match(html, /<select id="month-select"/);
   assert.doesNotMatch(html + script, /firebase|firestore|\/api\/v1\/public\/election|method:\s*'POST'/i);
-  assert.equal((administration.match(/class="administration-card"/g) || []).length, 3);
+  assert.equal((administration.match(/class="administration-card"/g) || []).length, 4);
+  assert.match(administration, /href="\/historique-des-votations"/);
 });
 
 test('actual monitoring page routes deny direct access without the exact admin session before static serving', async (t) => {

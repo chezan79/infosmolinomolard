@@ -1,0 +1,11 @@
+.history-toolbar{align-items:end;margin-bottom:22px}
+#winners .card{min-height:140px}
+#winners h3{font-family:Georgia,serif;font-size:1.5rem;margin:0 0 14px}
+.history-winner{margin:8px 0}
+.history-winner strong,.history-winner span{display:block;overflow-wrap:anywhere}
+.history-winner strong{font-size:1.15rem}
+.history-winner span,.history-privacy,#roster-state,#results-state{color:var(--muted)}
+.history-privacy{font-size:.85rem;line-height:1.6;margin-top:24px}
+#consistency{color:var(--danger);font-weight:700}
+#voter-list{margin-top:18px}
+@media(max-width:600px){.history-toolbar{flex-wrap:nowrap}.history-toolbar .month-picker{min-width:0;flex:1}}

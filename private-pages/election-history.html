@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Historique des votations · Molino Molard</title>
+  <link rel="stylesheet" href="/gestion-photos-collaborateurs.css">
+  <link rel="stylesheet" href="/suivi-du-vote.css">
+  <link rel="stylesheet" href="/private-pages/election-history-admin.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="masthead">
+      <a class="brand" href="/administration"><span class="brand-mark" aria-hidden="true">M</span><span><strong>Molino Molard</strong><small>Administration</small></span></a>
+      <a class="back-link" href="/administration">← Retour à l’administration</a>
+    </header>
+    <section class="hero monitoring-hero">
+      <p class="eyebrow">Consultation privée · Lecture seule</p>
+      <h1>Historique des votations</h1>
+      <p>Les distinctions définitives et la participation enregistrée, période par période.</p>
+    </section>
+    <section class="card section-heading history-toolbar">
+      <label class="month-picker" for="month-select">Période
+        <select id="month-select" disabled></select>
+      </label>
+      <button id="refresh" class="button secondary" type="button">Actualiser</button>
+    </section>
+    <p id="loading" class="card notice" role="status">Chargement de l’historique…</p>
+    <p id="message" class="card notice" role="status" hidden></p>
+    <div id="dashboard" hidden>
+      <section class="monitoring-section" aria-labelledby="results-title">
+        <h2 id="results-title">Distinctions définitives</h2>
+        <p id="results-state" role="status"></p>
+        <div id="winners" class="detail-grid"></div>
+      </section>
+      <section class="monitoring-section" aria-labelledby="participation-title">
+        <h2 id="participation-title">Participation enregistrée</h2>
+        <div class="kpi-grid">
+          <div class="card kpi"><span>Éligibles</span><strong id="eligible"></strong></div>
+          <div class="card kpi"><span>A voté</span><strong id="submitted"></strong></div>
+          <div class="card kpi"><span>N’a pas voté</span><strong id="not-submitted"></strong></div>
+          <div class="card kpi"><span>Participation</span><strong id="percentage"></strong></div>
+        </div>
+        <p id="consistency" role="status"></p>
+      </section>
+      <section class="card monitoring-section" aria-labelledby="roster-title">
+        <h2 id="roster-title">Participation des collaborateurs</h2>
+        <p id="roster-state" role="status"></p>
+        <ul id="voter-list" class="voter-list"></ul>
+      </section>
+      <p class="history-privacy">Les noms ne sont affichés que si le roster historique complet est vérifiable dans l’élection. Aucun nom n’est reconstruit à partir de l’annuaire actuel. Les participations ne sont jamais reliées aux bulletins ni aux candidats choisis. Aucun bulletin, commentaire ou horaire individuel n’est consulté.</p>
+    </div>
+  </main>
+  <script type="module" src="/private-pages/election-history-admin.js"></script>
+</body>
+</html>

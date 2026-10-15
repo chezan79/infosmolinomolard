@@ -31,8 +31,8 @@ function resolveHistoricalRoster(election, participationDocs, submitted) {
   const voters = election.voters;
   const eligible = election.eligibleVoterCount;
   if (!voters || typeof voters !== 'object' || Array.isArray(voters) ||
-      Object.keys(voters).length !== eligible || !Array.isArray(participationDocs) ||
-      participationDocs.length !== submitted) return unavailableRoster();
+      Object.keys(voters).length !== eligible || !Array.isArray(participationDocs)) return unavailableRoster();
+  if (participationDocs.length !== submitted) return unavailableRoster('INCONSISTENT');
 
   const participatingIds = participationDocs.map((doc) => doc.id);
   const participating = new Set(participatingIds);
@@ -100,12 +100,8 @@ function createElectionHistoryService({ db, binding, now = () => new Date() }) {
       let submitted;
       let participationDocs = null;
       try {
-        const [countSnapshot, identifiersSnapshot] = await Promise.all([
-          electionRef.collection('participation').count().get(),
-          electionRef.collection('participation').select().get(),
-        ]);
+        const countSnapshot = await electionRef.collection('participation').count().get();
         submitted = countSnapshot.data().count;
-        participationDocs = identifiersSnapshot.docs;
       } catch {
         throw new HistoryError('HISTORY_UNAVAILABLE');
       }
@@ -113,6 +109,9 @@ function createElectionHistoryService({ db, binding, now = () => new Date() }) {
         throw new HistoryError('HISTORY_UNAVAILABLE');
       }
 
+      try {
+        participationDocs = (await electionRef.collection('participation').select().get()).docs;
+      } catch { /* Counts remain useful when the historical roster cannot be read. */ }
       let individual = resolveHistoricalRoster(election, participationDocs, submitted);
       if (submitted > election.eligibleVoterCount) individual = unavailableRoster('INCONSISTENT');
       const result = await this.readPublishedResults(electionRef, month);
@@ -121,7 +120,7 @@ function createElectionHistoryService({ db, binding, now = () => new Date() }) {
       return {
         availableMonths,
         month,
-        electionStatus: submitted > eligible ? 'INCONSISTENT' : 'AVAILABLE',
+        electionStatus: submitted > eligible || individual.status === 'INCONSISTENT' ? 'INCONSISTENT' : 'AVAILABLE',
         participation: {
           eligible,
           submitted,

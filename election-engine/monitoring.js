@@ -27,7 +27,7 @@ function validCount(value) {
   return Number.isSafeInteger(value) && value >= 0;
 }
 
-async function resolveIndividuals(db, ref, directoryService, siteId, eligible, submitted) {
+async function resolveIndividuals(db, ref, directoryService, siteId, eligible, submitted, allowCurrentDirectory = true) {
   const unavailable = {
     status: 'UNAVAILABLE',
     eligibleIdentitiesResolved: null,
@@ -43,7 +43,9 @@ async function resolveIndividuals(db, ref, directoryService, siteId, eligible, s
         Object.keys(entries).length !== eligible) return unavailable;
 
     let directory = null;
-    try { directory = directoryService?.getElectionSnapshot(); } catch { /* Snapshot names are optional. */ }
+    try {
+      if (allowCurrentDirectory) directory = directoryService?.getElectionSnapshot();
+    } catch { /* Snapshot names are optional. */ }
     const employees = new Map();
     const duplicates = new Set();
     if (directory?.siteId === siteId && Array.isArray(directory.employees)) {
@@ -177,7 +179,8 @@ function createElectionMonitoringService({ db, directoryService, siteId, dataEnv
         throw new MonitoringError('MONITORING_UNAVAILABLE');
       }
       const eligible = election.eligibleVoterCount;
-      const individual = await resolveIndividuals(db, ref, directoryService, siteId, eligible, submitted);
+      const individual = await resolveIndividuals(db, ref, directoryService, siteId, eligible, submitted,
+        month === currentWindow.monthKey);
       return {
         month,
         availableMonths,

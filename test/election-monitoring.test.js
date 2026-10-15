@@ -267,7 +267,8 @@ test('historical months are selectable, existing-only, and default to the curren
   assert.equal(september.eligibleVoters, 49);
   assert.deepEqual(september.participation, { count: 1, remaining: 48, percentage: 2.04 });
   assert.equal(september.individual.voters.length, 49);
-  assert.equal(september.individual.voters[0].name, 'Collaborateur 0');
+  assert.equal(september.individual.voters[0].identitySource, 'UNRESOLVED');
+  assert.equal(september.individual.voters.some((voter) => voter.identitySource === 'CURRENT_DIRECTORY'), false);
   await assert.rejects(service.read('2026-11'), (error) => error.code === 'ELECTION_NOT_FOUND');
   assert.equal(db.calls.some(([, path]) => path.endsWith('/ballots')), false);
 });

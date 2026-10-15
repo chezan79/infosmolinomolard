@@ -8,7 +8,7 @@ const { mountFirebaseClientConfig } = require('./firebase-client-config-route');
 const { createDirectoryRuntime } = require('./employee-directory');
 const { createElectionRuntime } = require('./election-engine');
 const { mountElectionMonitoring } = require('./election-engine/monitoring');
-const { mountAdministrationMonitoringPage } = require('./administration-monitoring-page');
+const { mountAdministrationMonitoringPage, mountAdministrationHistoryPage } = require('./administration-monitoring-page');
 const { createResultsRuntime } = require('./election-engine/results-runtime');
 const { validateProductionConfig } = require('./production-config');
 
@@ -84,19 +84,7 @@ for (const file of ['election-results-admin.js', 'election-results-admin.css']) 
   app.get(`/private-pages/${file}`, employeeDirectory.authorizeAdministrationPage, (_req, res) =>
     res.sendFile(path.join(__dirname, 'private-pages', file)));
 }
-for (const file of ['election-history-admin.js', 'election-history-admin.css']) {
-  app.get(`/private-pages/${file}`, employeeDirectory.authorizeAdministrationPage, (_req, res) =>
-    res.sendFile(path.join(__dirname, 'private-pages', file)));
-}
-
-app.get(
-  ['/historique-des-votations', '/historique-des-votations.html'],
-  employeeDirectory.authorizeAdministrationPage,
-  (_req, res) => {
-    res.set('Cache-Control', 'no-store');
-    res.sendFile(path.join(__dirname, 'private-pages', 'election-history.html'));
-  },
-);
+mountAdministrationHistoryPage(app, employeeDirectory.authorizeAdministrationPage, __dirname);
 
 app.get(
   ['/administration', '/administration.html'],
