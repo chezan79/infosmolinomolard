@@ -180,6 +180,10 @@ test('production-pruned install starts and serves the Railway route contract', {
     timeout: 90000,
   });
   assert.equal(install.status, 0, install.stderr || install.stdout);
+  const dependencyTree = spawnSync('npm', ['ls', '--omit=dev', '--all', '--json'], {
+    cwd: temporaryRoot, encoding: 'utf8', timeout: 30000,
+  });
+  assert.equal(dependencyTree.status, 0, dependencyTree.stderr || dependencyTree.stdout);
 
   for (const packageName of ['exceljs', 'express', 'firebase-admin', 'google-auth-library', 'sharp']) {
     assert.doesNotThrow(() => require.resolve(packageName, { paths: [temporaryRoot] }));

@@ -21,7 +21,7 @@ importers:
         specifier: ^10.9.1
         version: 10.9.1
       sharp:
-        specifier: ^0.35.4
+        specifier: ^0.35.5
         version: 0.35.5
     devDependencies:
       '@firebase/rules-unit-testing':

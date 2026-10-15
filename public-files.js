@@ -45,4 +45,11 @@ function mountPublicFiles(app, rootDirectory) {
   });
 }
 
-module.exports = { mountPublicFiles, publicRootFile };
+function mountPublicWinnersRoute(app) {
+  // Keep the approved September announcement intact; old links must not point
+  // at the removed dynamic HTML document.
+  app.get('/collaborateurs-du-mois', (_req, res) =>
+    res.set('Cache-Control', 'no-store').redirect(302, '/resultats_collaborateurs-du-mois.html'));
+}
+
+module.exports = { mountPublicFiles, publicRootFile, mountPublicWinnersRoute };

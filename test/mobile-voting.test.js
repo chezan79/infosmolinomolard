@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
+const vm = require('node:vm');
 
 const root = path.join(__dirname, '..');
 const html = fs.readFileSync(path.join(root, 'collaborateur-du-mois.html'), 'utf8');
@@ -96,4 +97,19 @@ test('homepage permanently links to voting with localized public navigation copy
     assert.ok((homepage + homepageNavigation).includes(label), `missing ${label}`);
   }
   assert.doesNotMatch(homepageNavigation, /Date|firebase|auth|election|fetch|Salaire-ID/i);
+});
+
+test('homepage vote and recognition labels support French, Italian, English and a safe fallback', () => {
+  for (const [locale, vote, winners] of [
+    ['fr-CH', 'Collaborateur du mois', 'Collaborateurs distingués'],
+    ['it-CH', 'Collaboratore del mese', 'Collaboratori del mese'],
+    ['en-GB', 'Employee of the Month', 'Monthly recognition'],
+    ['de-CH', 'Collaborateur du mois', 'Collaborateurs distingués'],
+  ]) {
+    const labels = ['employeeOfTheMonth', 'monthlyWinners'].map((key) => ({ dataset: { i18n: key }, textContent: '' }));
+    vm.runInNewContext(homepageNavigation, {
+      navigator: { language: locale }, document: { querySelectorAll: () => labels },
+    });
+    assert.deepEqual(labels.map((element) => element.textContent), [vote, winners]);
+  }
 });

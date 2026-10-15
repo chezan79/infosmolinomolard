@@ -1,7 +1,7 @@
 
 const express = require('express');
 const path = require('path');
-const { mountPublicFiles } = require('./public-files');
+const { mountPublicFiles, mountPublicWinnersRoute } = require('./public-files');
 const { createPlanningWorkbook, safeFilename } = require('./planning-export');
 const { initializeFirebase, getAuth } = require('./firebase-server-config');
 const { mountFirebaseClientConfig } = require('./firebase-client-config-route');
@@ -71,10 +71,7 @@ const resultsRuntime = createResultsRuntime({
 });
 resultsRuntime.mount(app);
 
-app.get('/collaborateurs-du-mois', (_req, res) => {
-  res.set('Cache-Control', 'no-store');
-  res.sendFile(path.join(__dirname, 'collaborateurs-du-mois.html'));
-});
+mountPublicWinnersRoute(app);
 app.get(['/resultats-du-vote', '/election-results.html'],
   employeeDirectory.authorizeAdministrationPage, (_req, res) => {
     res.set('Cache-Control', 'no-store');

@@ -18,7 +18,7 @@
     "express": "^4.22.3",
     "firebase-admin": "^13.10.0",
     "google-auth-library": "^10.9.1",
-    "sharp": "^0.35.4"
+    "sharp": "^0.35.5"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^5.0.2",
@@ -26,6 +26,9 @@
     "ws": "^8.21.3"
   },
   "overrides": {
+    "express": {
+      "proxy-addr": "2.0.8"
+    },
     "form-data": "2.5.6",
     "google-gax": {
       "@grpc/grpc-js": "1.14.5"
