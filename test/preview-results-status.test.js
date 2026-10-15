@@ -198,8 +198,9 @@ test('production monitoring and processing still require their original explicit
   }
   assert.equal(db.reads.length, 0);
   assert.equal(db.writes.length, 0);
+  db.projectId = 'infosmolinomoard';
   const r = createResultsRuntime({ env: { ...production,
-    ELECTION_RESULTS_PROJECT_ID: 'fixture-project', ELECTION_RESULTS_DATABASE_ID: '(default)',
+    ELECTION_RESULTS_PROJECT_ID: 'infosmolinomoard', ELECTION_RESULTS_DATABASE_ID: '(default)',
     ELECTION_RESULTS_ENABLED: 'true', ELECTION_RESULTS_AUTOMATION_ENABLED: 'true',
   }, firebaseDb: db });
   assert.equal(r.statusService, r.service);

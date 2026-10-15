@@ -80,7 +80,7 @@ app.get(['/resultats-du-vote', '/election-results.html'],
     res.set('Cache-Control', 'no-store');
     res.sendFile(path.join(__dirname, 'private-pages', 'election-results.html'));
   });
-for (const file of ['election-results-admin.js', 'election-results-admin.css']) {
+for (const file of ['election-results-admin.js', 'election-results-admin.css', 'runtime-diagnostic-admin.js']) {
   app.get(`/private-pages/${file}`, employeeDirectory.authorizeAdministrationPage, (_req, res) =>
     res.sendFile(path.join(__dirname, 'private-pages', file)));
 }

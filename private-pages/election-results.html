@@ -21,6 +21,14 @@
       <p id="results-intro">Suivez l’état des périodes et de la publication mensuelle. Les personnes distinguées ne sont pas modifiables depuis cet écran.</p>
     </section>
 
+    <section class="card monitoring-section" aria-labelledby="runtime-diagnostic-title">
+      <h2 id="runtime-diagnostic-title">Vérification du Firebase officiel</h2>
+      <p>Contrôle privé du client Admin de ce serveur. Aucun vote n’est consulté. Cette vérification ne teste ni les droits Firestore ni l’intégrité des votes.</p>
+      <p id="runtime-diagnostic-status" role="status">Vérification non lancée.</p>
+      <dl id="runtime-diagnostic-checks" class="health-counts"></dl>
+      <button id="runtime-diagnostic-refresh" class="button secondary" type="button" disabled>Vérifier la configuration runtime</button>
+    </section>
+
     <div id="loading" class="card notice result-notice" role="status">
       <span class="skeleton-line"></span><span class="skeleton-line short"></span>
     </div>
@@ -64,5 +72,6 @@
     </div>
   </main>
   <script type="module" src="/private-pages/election-results-admin.js"></script>
+  <script type="module" src="/private-pages/runtime-diagnostic-admin.js"></script>
 </body>
 </html>

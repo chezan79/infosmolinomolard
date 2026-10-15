@@ -135,7 +135,10 @@ test('binding pins actual project/database/site/environment and rejects emulator
     { EMPLOYEE_DIRECTORY_SITE_ID: 'other' }, { ELECTION_DATA_ENVIRONMENT: 'production' },
     { NODE_ENV: 'production' }, { ELECTION_TIME_ZONE: 'UTC' }, { FIRESTORE_EMULATOR_HOST: 'fixture' },
   ]) assert.equal(resultsBinding({ ...env, ...extra }, db).verified, false);
-  assert.equal(resultsBinding({ ...env, NODE_ENV: 'production', ELECTION_DATA_ENVIRONMENT: 'production' }, db).verified, true);
+  assert.equal(resultsBinding({ ...env, NODE_ENV: 'production', ELECTION_DATA_ENVIRONMENT: 'production' }, db).verified, false);
+  db.projectId = 'infosmolinomoard';
+  assert.equal(resultsBinding({ ...env, ELECTION_RESULTS_PROJECT_ID: 'infosmolinomoard',
+    NODE_ENV: 'production', ELECTION_DATA_ENVIRONMENT: 'production' }, db).verified, true);
   assert.equal(resultsBinding({}, db).verified, false);
 });
 

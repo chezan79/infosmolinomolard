@@ -6,6 +6,7 @@ const { WinnerPhotos } = require('./results-photos');
 const { ResultError } = require('./results-contract');
 const { previewResultsBinding, PreviewResultsStatus } = require('./preview-results-status');
 const { createElectionHistoryService, HistoryError } = require('./history-service');
+const { inspectOfficialRuntime } = require('./runtime-diagnostic');
 
 function resultsBinding(env, firebaseDb) {
   const binding = {
@@ -20,13 +21,16 @@ function resultsBinding(env, firebaseDb) {
     actualProject = firebaseDb?.projectId || '';
     actualDatabase = firebaseDb?.databaseId || '';
   } catch { /* Fail closed before the Admin client has a verified project identity. */ }
-  const verified = Boolean(firebaseDb && binding.projectId && binding.projectId === actualProject &&
+  let verified = Boolean(firebaseDb && binding.projectId && binding.projectId === actualProject &&
     binding.databaseId === '(default)' && binding.databaseId === actualDatabase &&
     binding.siteId === 'molard' && env.ELECTION_TIME_ZONE === 'Europe/Zurich' &&
     ['development', 'production'].includes(binding.environment) &&
     (env.NODE_ENV !== 'production' || binding.environment === 'production') &&
     (binding.environment !== 'production' || env.NODE_ENV === 'production') &&
-    !env.FIRESTORE_EMULATOR_HOST && !env.FIREBASE_AUTH_EMULATOR_HOST);
+    !env.FIRESTORE_EMULATOR_HOST && !env.FIREBASE_AUTH_EMULATOR_HOST && !env.FIREBASE_STORAGE_EMULATOR_HOST);
+  if (env.NODE_ENV === 'production' || binding.environment === 'production') {
+    verified = inspectOfficialRuntime(env, firebaseDb).status === 'VERIFIED';
+  }
   return { binding, verified };
 }
 
@@ -56,8 +60,8 @@ function createWorkerAuthorization({ audience, subject, email, verifier = new OA
 
 function createResultsRuntime({ env, firebaseDb, firebaseAuth, firebaseBucket, directoryPhotos, now }) {
   const { binding, verified } = resultsBinding(env, firebaseDb);
-  const preview = env.NODE_ENV !== 'production';
-  const enabled = !preview && verified && env.ELECTION_RESULTS_ENABLED === 'true';
+  const preview = env.NODE_ENV !== 'production' && env.ELECTION_DATA_ENVIRONMENT === 'development';
+  const enabled = env.NODE_ENV === 'production' && verified && env.ELECTION_RESULTS_ENABLED === 'true';
   const automationEnabled = enabled && env.NODE_ENV === 'production' &&
     env.ELECTION_RESULTS_AUTOMATION_ENABLED === 'true';
   const store = !preview && verified ? new FirestoreResultsStore(firebaseDb, binding) : null;
@@ -85,11 +89,25 @@ function createResultsRuntime({ env, firebaseDb, firebaseAuth, firebaseBucket, d
     subject: env.ELECTION_RESULTS_JOB_SUBJECT,
     email: env.ELECTION_RESULTS_JOB_EMAIL,
   });
-  function mount(app) { mountResultsApi(app, { service, statusService, historyService, authorize, workerAuthorization, photos }); }
-  return { service, statusService, historyService, mount };
+  const diagnose = () => inspectOfficialRuntime(env, firebaseDb);
+  const resultAccess = (req, res, next) => {
+    const officialContext = Boolean(env.RAILWAY_SERVICE_ID || env.RAILWAY_ENVIRONMENT_ID ||
+      env.RAILWAY_PROJECT_ID || req.hostname === 'infosmolinomolard-production.up.railway.app');
+    const permitted = preview && !officialContext
+      ? env.NODE_ENV !== 'production' && previewResultsBinding(env, firebaseDb).verified
+      : diagnose().status === 'VERIFIED';
+    if (!permitted) return res.status(503).json({ code: 'RESULTS_BINDING_UNVERIFIED' });
+    return next();
+  };
+  function mount(app) {
+    mountResultsApi(app, { service, statusService, historyService, authorize,
+      workerAuthorization, photos, diagnose, resultAccess });
+  }
+  return { service, statusService, historyService, diagnose, mount };
 }
 
-function mountResultsApi(app, { service, statusService = service, historyService, authorize, workerAuthorization, photos }) {
+function mountResultsApi(app, { service, statusService = service, historyService, authorize,
+  workerAuthorization, photos, diagnose, resultAccess = (_req, _res, next) => next() }) {
   const noStore = (_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); };
   const handle = (callback) => async (req, res) => {
     try { await callback(req, res); } catch (error) {
@@ -98,26 +116,30 @@ function mountResultsApi(app, { service, statusService = service, historyService
         .json({ code: known ? error.code : 'RESULTS_UNAVAILABLE' });
     }
   };
-  app.get('/api/v1/public/election-results/latest', noStore, handle(async (_req, res) => {
+  if (diagnose) {
+    app.get('/api/v1/management/election-runtime-diagnostic', noStore, authorize, (_req, res) =>
+      res.json(diagnose()));
+  }
+  app.get('/api/v1/public/election-results/latest', noStore, resultAccess, handle(async (_req, res) => {
     const result = await service.latest();
     return result ? res.json(result) : res.status(404).json({ code: 'NO_PUBLISHED_RESULT' });
   }));
-  app.get('/api/v1/public/winner-photos/:key', noStore, handle(async (req, res) => {
+  app.get('/api/v1/public/winner-photos/:key', noStore, resultAccess, handle(async (req, res) => {
     service.assertEnabled();
     const bytes = photos ? await photos.read(req.params.key, service.now()) : null;
     if (!bytes) return res.status(404).end();
     return res.set('Content-Type', 'image/webp').set('X-Content-Type-Options', 'nosniff').send(bytes);
   }));
-  app.get('/api/v1/management/election-results', noStore, authorize, handle(async (_req, res) =>
+  app.get('/api/v1/management/election-results', noStore, authorize, resultAccess, handle(async (_req, res) =>
     res.json(await statusService.monitor())));
   if (historyService) {
-    app.get('/api/v1/management/election-history', noStore, authorize, handle(async (req, res) =>
+    app.get('/api/v1/management/election-history', noStore, authorize, resultAccess, handle(async (req, res) =>
       res.json(await historyService.read(req.query.month))));
   }
   app.post('/api/v1/management/election-results/:month/recover', noStore, authorize,
-    requireSameOrigin, handle(async (req, res) =>
+    requireSameOrigin, resultAccess, handle(async (req, res) =>
       res.json(await service.processMonth(req.params.month, { recovery: true }))));
-  app.post('/api/v1/internal/election-results/run', noStore, workerAuthorization,
+  app.post('/api/v1/internal/election-results/run', noStore, workerAuthorization, resultAccess,
     handle(async (_req, res) => res.json(await service.run())));
 }
 
