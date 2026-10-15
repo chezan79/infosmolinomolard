@@ -136,6 +136,26 @@ function mountResultsApi(app, { service, statusService = service, historyService
     app.get('/api/v1/management/election-history', noStore, authorize, resultAccess, handle(async (req, res) =>
       res.json(await historyService.read(req.query.month))));
   }
+  // Read-only, administrator-only scrutiny. Never publishes, finalizes or exposes ballots.
+  app.get('/api/v1/management/election-rankings', noStore, authorize, resultAccess,
+    handle(async (req, res) => {
+      const month = req.query.month;
+      if (typeof month !== 'string' || !/^\\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+        throw new ResultError('INVALID_MONTH', false, 400);
+      }
+      if (!service.store) throw new ResultError('RESULTS_UNAVAILABLE', true, 503);
+      const proof = await service.store.validate(month, service.now());
+      const categories = Object.fromEntries(['CUISINE', 'SERVICE'].map((category) => {
+        const summary = proof.results[category];
+        const ranking = Object.entries(summary.counts).map(([employeeId, votes]) => {
+          const candidate = proof.election.candidates[employeeId];
+          return { name: candidate.displayName.trim(), role: candidate.jobTitle || '', votes,
+            winner: summary.winnerEmployeeIds.includes(employeeId) };
+        }).sort((a, b) => b.votes - a.votes || a.name.localeCompare(b.name, 'fr'));
+        return [category, { ranking, highestCount: summary.highestCount }];
+      }));
+      return res.json({ month, status: 'VERIFIED_READ_ONLY', categories });
+    }));
   app.post('/api/v1/management/election-results/:month/recover', noStore, authorize,
     requireSameOrigin, resultAccess, handle(async (req, res) =>
       res.json(await service.processMonth(req.params.month, { recovery: true }))));
