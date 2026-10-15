@@ -58,7 +58,7 @@ function approved(data) {
     individual.participantIdentitiesTotal === data.participation.count;
   const validRoster = individual?.status !== 'UNAVAILABLE' && Array.isArray(individual?.voters) &&
     individual.voters.length === data.eligibleVoters &&
-    individual.voters.every((voter) => voter && typeof voter.name === 'string' &&
+    individual.voters.every((voter) => voter && typeof voter.employeeId === 'string' && voter.employeeId.trim() && typeof voter.name === 'string' &&
       voter.name.trim() && typeof voter.department === 'string' && voter.department.trim() &&
       typeof voter.hasVoted === 'boolean' && Object.hasOwn(identitySources, voter.identitySource));
   const validUnavailable = individual?.status === 'UNAVAILABLE' && individual.voters === null;
@@ -81,8 +81,8 @@ function approved(data) {
     eligibleIdentitiesResolved: validAvailable ? individual.eligibleIdentitiesResolved : null,
     participantIdentitiesResolved: validAvailable ? individual.participantIdentitiesResolved : null,
     voters: showRoster
-      ? individual.voters.map(({ name, department, hasVoted, identitySource }) =>
-        ({ name, department, hasVoted, identitySource }))
+      ? individual.voters.map(({ employeeId, name, department, hasVoted, identitySource }) =>
+        ({ employeeId, name, department, hasVoted, identitySource }))
       : null,
   };
 }
@@ -109,12 +109,14 @@ function renderVoters() {
     identity.className = 'voter-identity';
     const name = document.createElement('strong');
     name.textContent = voter.name;
+    const code = document.createElement('span');
+    code.textContent = `Code : ${voter.employeeId}`;
     const department = document.createElement('span');
     department.textContent = voter.department;
     const source = document.createElement('span');
     source.className = 'voter-source';
     source.textContent = identitySources[voter.identitySource];
-    identity.append(name, department, source);
+    identity.append(name, code, department, source);
     const status = document.createElement('span');
     status.className = `voter-state${voter.hasVoted ? ' voted' : ''}`;
     status.textContent = voter.hasVoted ? 'A voté' : 'À voter';
