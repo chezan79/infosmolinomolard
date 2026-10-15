@@ -258,6 +258,43 @@ async function loadPublishedResults(month) {
   }
 }
 
+// Verified anonymous totals; individual voter choices never leave the server.
+async function loadVerifiedRankings(month) {
+  const state = byId('results-state');
+  const explanation = byId('results-explanation');
+  const current = () => byId('month-select').value === month && !byId('dashboard').hidden;
+  try {
+    const response = await fetch(`/api/v1/management/election-rankings?month=${encodeURIComponent(month)}`, {
+      credentials: 'same-origin', cache: 'no-store',
+    });
+    if (!current()) return;
+    if (response.status === 401 || response.status === 403) {
+      clearDashboard();
+      location.replace(`/gestion-photos-login.html?error=${response.status === 403 ? 'access' : 'session'}`);
+      return;
+    }
+    if (!response.ok) throw new Error('RANKINGS_UNAVAILABLE');
+    const data = await response.json();
+    if (!data || data.month !== month || data.status !== 'VERIFIED_READ_ONLY') throw new Error('INVALID_RANKINGS');
+    const lines = [];
+    for (const [category, label] of [['CUISINE', 'Cuisine'], ['SERVICE', 'Service']]) {
+      const rows = data.categories?.[category]?.ranking;
+      if (!Array.isArray(rows) || rows.some((row) => !row || typeof row.name !== 'string' ||
+          !row.name.trim() || !Number.isSafeInteger(row.votes) || row.votes < 0 ||
+          typeof row.winner !== 'boolean')) throw new Error('INVALID_RANKINGS');
+      lines.push(`${label} : ${rows.length ? rows.map((row, index) =>
+        `${index + 1}. ${row.name} — ${row.votes} voix${row.winner ? ' (premier)' : ''}`).join(' · ') : 'Aucun vote'}`);
+    }
+    if (!current()) return;
+    state.textContent = 'Classement des votes vérifiés';
+    explanation.textContent = lines.join(' | ');
+  } catch {
+    if (!current()) return;
+    state.textContent = 'Classement indisponible';
+    explanation.textContent = 'Le décompte ne peut pas être vérifié. Aucune voix estimée n’est affichée.';
+  }
+}
+
 async function load(requestedMonth = byId('month-select').value) {
   if (inFlight) return;
   inFlight = true;
@@ -306,7 +343,7 @@ async function load(requestedMonth = byId('month-select').value) {
     const data = approved(await response.json());
     if (!data || (requestedMonth && data.month !== requestedMonth)) throw new Error('INVALID_MONITORING_RESPONSE');
     render(data);
-    if (data.status === 'CLOSED_PENDING_RESULTS') await loadPublishedResults(data.month);
+    if (data.status === 'CLOSED_PENDING_RESULTS') await loadVerifiedRankings(data.month);
   } catch {
     showMessage('Les données de suivi du vote sont momentanément indisponibles.', true);
   } finally {
