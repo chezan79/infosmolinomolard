@@ -5,6 +5,7 @@ const { ElectionResultsService } = require('./results-service');
 const { WinnerPhotos } = require('./results-photos');
 const { ResultError } = require('./results-contract');
 const { previewResultsBinding, PreviewResultsStatus } = require('./preview-results-status');
+const { createElectionHistoryService, HistoryError } = require('./history-service');
 
 function resultsBinding(env, firebaseDb) {
   const binding = {
@@ -69,6 +70,11 @@ function createResultsRuntime({ env, firebaseDb, firebaseAuth, firebaseBucket, d
   const statusService = preview ? new PreviewResultsStatus({
     db: previewBinding.verified ? firebaseDb : null, binding: previewBinding.binding, now,
   }) : service;
+  const historyService = createElectionHistoryService({
+    db: preview ? (previewBinding.verified ? firebaseDb : null) : (verified ? firebaseDb : null),
+    binding: preview ? previewBinding.binding : binding,
+    now,
+  });
   const siteId = env.EMPLOYEE_DIRECTORY_SITE_ID || '';
   const administratorUid = String(env.MOLARD_ADMIN_FIREBASE_UID || '').trim();
   const authorize = firebaseAuth && siteId && administratorUid
@@ -79,15 +85,15 @@ function createResultsRuntime({ env, firebaseDb, firebaseAuth, firebaseBucket, d
     subject: env.ELECTION_RESULTS_JOB_SUBJECT,
     email: env.ELECTION_RESULTS_JOB_EMAIL,
   });
-  function mount(app) { mountResultsApi(app, { service, statusService, authorize, workerAuthorization, photos }); }
-  return { service, statusService, mount };
+  function mount(app) { mountResultsApi(app, { service, statusService, historyService, authorize, workerAuthorization, photos }); }
+  return { service, statusService, historyService, mount };
 }
 
-function mountResultsApi(app, { service, statusService = service, authorize, workerAuthorization, photos }) {
+function mountResultsApi(app, { service, statusService = service, historyService, authorize, workerAuthorization, photos }) {
   const noStore = (_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); };
   const handle = (callback) => async (req, res) => {
     try { await callback(req, res); } catch (error) {
-      const known = error instanceof ResultError;
+      const known = error instanceof ResultError || error instanceof HistoryError;
       res.status(known ? error.status : 503)
         .json({ code: known ? error.code : 'RESULTS_UNAVAILABLE' });
     }
@@ -104,6 +110,10 @@ function mountResultsApi(app, { service, statusService = service, authorize, wor
   }));
   app.get('/api/v1/management/election-results', noStore, authorize, handle(async (_req, res) =>
     res.json(await statusService.monitor())));
+  if (historyService) {
+    app.get('/api/v1/management/election-history', noStore, authorize, handle(async (req, res) =>
+      res.json(await historyService.read(req.query.month))));
+  }
   app.post('/api/v1/management/election-results/:month/recover', noStore, authorize,
     requireSameOrigin, handle(async (req, res) =>
       res.json(await service.processMonth(req.params.month, { recovery: true }))));
