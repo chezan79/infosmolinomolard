@@ -48,8 +48,9 @@ async function resolveIndividuals(db, ref, directoryService, siteId, eligible, s
     } catch { /* Snapshot names are optional. */ }
     const employees = new Map();
     const duplicates = new Set();
-    if (directory?.siteId === siteId && Array.isArray(directory.employees) &&
-        directory.sourceGeneration === snapshot.data()?.sourceGeneration) {
+    // Employee IDs are stable. A later directory refresh must not hide a valid
+    // unique ID-to-name match; the UI labels these as CURRENT_DIRECTORY.
+    if (directory?.siteId === siteId && Array.isArray(directory.employees)) {
       for (const employee of directory.employees) {
         if (!employee || employee.siteId !== siteId || typeof employee.employeeId !== 'string') continue;
         if (employees.has(employee.employeeId)) duplicates.add(employee.employeeId);
