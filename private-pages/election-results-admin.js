@@ -253,6 +253,49 @@ function render(data) {
   document.getElementById('month-count').textContent = `${sorted.length} ${sorted.length === 1 ? 'période' : 'périodes'}`;
   monthsEmpty.hidden = sorted.length !== 0;
   for (const item of sorted) monthsList.append(renderMonth(item, recoveryAllowed, data.readOnly));
+  void loadRankings(sorted.filter((item) => item.state !== 'VOTING_OPEN' && item.state !== 'VOTING_UPCOMING').map((item) => item.month));
+}
+
+async function loadRankings(months) {
+  const grid = document.getElementById('vote-rankings-grid');
+  const status = document.getElementById('vote-rankings-status');
+  grid.hidden = true;
+  grid.replaceChildren();
+  const month = months.includes('2026-09') ? '2026-09' : months[0];
+  if (!month) { status.textContent = 'Aucune période clôturée disponible.'; return; }
+  try {
+    const response = await fetch(`/api/v1/management/election-rankings?month=${encodeURIComponent(month)}`,
+      { credentials: 'same-origin', cache: 'no-store' });
+    if (response.status === 401 || response.status === 403) { window.location.assign(LOGIN_PATH); return; }
+    if (!response.ok) throw new Error('RANKINGS_UNAVAILABLE');
+    const data = await response.json();
+    if (data.month !== month || data.status !== 'VERIFIED_READ_ONLY') throw new Error('RANKINGS_INVALID');
+    for (const [category, label] of [['CUISINE', 'Cuisine · Pizzeria · Plonge'], ['SERVICE', 'Service']]) {
+      const rows = data.categories?.[category]?.ranking;
+      if (!Array.isArray(rows) || rows.some((r) => !r || typeof r.name !== 'string' ||
+          !Number.isSafeInteger(r.votes) || r.votes < 0)) throw new Error('RANKINGS_INVALID');
+      const sorted = [...rows].sort((a,b) => b.votes-a.votes || a.name.localeCompare(b.name, 'fr'));
+      const column = document.createElement('section'); column.className = 'vote-rankings-column';
+      const heading = document.createElement('h3'); heading.textContent = label; column.append(heading);
+      const top = sorted.filter((r) => r.votes > 0 && r.votes === sorted[0]?.votes);
+      if (top.length) {
+        const leader = document.createElement('div'); leader.className = 'vote-rankings-leader';
+        leader.textContent = `🏆 Première place : ${top.map((r) => r.name).join(' · ')} — ${top[0].votes} voix`;
+        column.append(leader);
+      }
+      const list = document.createElement('ol'); list.className = 'vote-rankings-list';
+      for (const r of sorted) {
+        const item = document.createElement('li');
+        item.textContent = `${r.name}${r.employeeId ? ` (${r.employeeId})` : ''} — ${r.votes} voix`;
+        list.append(item);
+      }
+      column.append(list); grid.append(column);
+    }
+    status.textContent = `Classement vérifié — ${formatMonth(month)}`;
+    grid.hidden = false;
+  } catch {
+    status.textContent = 'Classement indisponible : le décompte ne peut pas être vérifié.';
+  }
 }
 
 async function loadResults() {
