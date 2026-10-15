@@ -278,18 +278,49 @@ async function loadVerifiedRankings(month) {
     if (!response.ok) throw new Error('RANKINGS_UNAVAILABLE');
     const data = await response.json();
     if (!data || data.month !== month || data.status !== 'VERIFIED_READ_ONLY') throw new Error('INVALID_RANKINGS');
-    const lines = [];
-    for (const [category, label] of [['CUISINE', 'Cuisine'], ['SERVICE', 'Service']]) {
+    const groups = [];
+    for (const [category, label] of [['CUISINE', 'Cuisine · Pizzeria · Plonge'], ['SERVICE', 'Service']]) {
       const rows = data.categories?.[category]?.ranking;
       if (!Array.isArray(rows) || rows.some((row) => !row || typeof row.name !== 'string' ||
           !row.name.trim() || !Number.isSafeInteger(row.votes) || row.votes < 0 ||
           typeof row.winner !== 'boolean')) throw new Error('INVALID_RANKINGS');
-      lines.push(`${label} : ${rows.length ? rows.map((row, index) =>
-        `${index + 1}. ${row.name} — ${row.votes} voix${row.winner ? ' (premier)' : ''}`).join(' · ') : 'Aucun vote'}`);
+      groups.push({ label, rows: [...rows].sort((a, b) => b.votes - a.votes || collator.compare(a.name, b.name)) });
     }
     if (!current()) return;
-    state.textContent = 'Classement des votes vérifiés';
-    explanation.textContent = lines.join(' | ');
+    state.textContent = 'Classement des votes';
+    const grid = document.createElement('div');
+    grid.style.display = 'grid';
+    grid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))';
+    grid.style.gap = '1.5rem';
+    for (const group of groups) {
+      const column = document.createElement('section');
+      column.style.minWidth = '0';
+      const heading = document.createElement('h3');
+      heading.textContent = group.label;
+      heading.style.margin = '0 0 1rem';
+      column.append(heading);
+      const top = group.rows.filter((row) => row.votes > 0 && row.votes === group.rows[0]?.votes);
+      if (top.length) {
+        const leaders = document.createElement('div');
+        leaders.style.fontWeight = '700';
+        leaders.style.marginBottom = '1rem';
+        leaders.textContent = `🏆 Première place : ${top.map((row) => row.name).join(' · ')} — ${top[0].votes} voix`;
+        column.append(leaders);
+      }
+      const list = document.createElement('ol');
+      list.style.paddingLeft = '1.5rem';
+      list.style.margin = '0';
+      for (const row of group.rows) {
+        const item = document.createElement('li');
+        item.style.padding = '0.35rem 0';
+        if (row.votes > 0 && row.votes === group.rows[0]?.votes) item.style.fontWeight = '700';
+        item.textContent = `${row.name}${row.employeeId ? ` (${row.employeeId})` : ''} — ${row.votes} voix`;
+        list.append(item);
+      }
+      column.append(list);
+      grid.append(column);
+    }
+    explanation.replaceChildren(grid);
   } catch {
     if (!current()) return;
     state.textContent = 'Classement indisponible';
