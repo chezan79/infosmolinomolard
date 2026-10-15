@@ -140,7 +140,7 @@ function mountResultsApi(app, { service, statusService = service, historyService
   app.get('/api/v1/management/election-rankings', noStore, authorize, resultAccess,
     handle(async (req, res) => {
       const month = req.query.month;
-      if (typeof month !== 'string' || !/^\\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+      if (typeof month !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
         throw new ResultError('INVALID_MONTH', false, 400);
       }
       if (!service.store) throw new ResultError('RESULTS_UNAVAILABLE', true, 503);
@@ -149,7 +149,7 @@ function mountResultsApi(app, { service, statusService = service, historyService
         const summary = proof.results[category];
         const ranking = Object.entries(summary.counts).map(([employeeId, votes]) => {
           const candidate = proof.election.candidates[employeeId];
-          return { name: candidate.displayName.trim(), role: candidate.jobTitle || '', votes,
+          return { employeeId, name: candidate.displayName.trim(), role: candidate.jobTitle || '', votes,
             winner: summary.winnerEmployeeIds.includes(employeeId) };
         }).sort((a, b) => b.votes - a.votes || a.name.localeCompare(b.name, 'fr'));
         return [category, { ranking, highestCount: summary.highestCount }];
