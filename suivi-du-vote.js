@@ -191,15 +191,71 @@ function render(data) {
   byId('consistency').textContent = coherent ? 'Dans la limite des éligibles' : 'Dépasse le total éligible';
   byId('consistency').className = coherent ? '' : 'anomaly';
   const closed = data.status === 'CLOSED_PENDING_RESULTS';
-  byId('results-state').textContent = closed ? 'Résultats indisponibles' : 'Résultats masqués';
+  byId('results-state').textContent = closed ? 'Vérification des résultats…' : 'Résultats masqués';
   byId('results-explanation').textContent = closed
-    ? 'Le suivi du vote ne fournit pas encore les résultats définitifs.'
+    ? 'Consultation des résultats officiels publiés…'
     : data.status === 'UPCOMING'
       ? 'Les résultats resteront masqués jusqu’à la clôture du vote.'
       : 'Les résultats seront disponibles après la clôture du vote.';
   byId('loading').hidden = true;
   byId('message').hidden = true;
   byId('dashboard').hidden = false;
+}
+
+// The monitoring endpoint never reads ballot choices. Only the protected,
+// verified history endpoint may provide published winner names.
+async function loadPublishedResults(month) {
+  const state = byId('results-state');
+  const explanation = byId('results-explanation');
+  const current = () => byId('month-select').value === month && !byId('dashboard').hidden;
+  try {
+    const response = await fetch(`/api/v1/management/election-history?month=${encodeURIComponent(month)}`, {
+      method: 'GET', credentials: 'same-origin', cache: 'no-store',
+    });
+    if (!current()) return;
+    if (response.status === 401 || response.status === 403) {
+      clearDashboard();
+      location.replace(`/gestion-photos-login.html?error=${response.status === 403 ? 'access' : 'session'}`);
+      return;
+    }
+    if (!response.ok) throw new Error('HISTORY_UNAVAILABLE');
+    const history = await response.json();
+    if (!current()) return;
+    if (!history || history.month !== month || !history.results ||
+        !['PUBLISHED', 'NOT_PUBLISHED', 'UNVERIFIABLE'].includes(history.results.status)) {
+      throw new Error('INVALID_HISTORY');
+    }
+    if (history.results.status === 'NOT_PUBLISHED') {
+      state.textContent = 'Résultats non publiés';
+      explanation.textContent = 'Le vote est clôturé, mais aucun résultat définitif n’a encore été publié pour cette période.';
+      return;
+    }
+    if (history.results.status === 'UNVERIFIABLE') {
+      state.textContent = 'Résultats non vérifiables';
+      explanation.textContent = 'La publication enregistrée ne peut pas être vérifiée. Aucun gagnant n’est affiché.';
+      return;
+    }
+    const labels = [['CUISINE', 'Cuisine'], ['SERVICE', 'Service']];
+    const summaries = [];
+    for (const [key, label] of labels) {
+      const category = history.results.categories?.[key];
+      if (!category || !Array.isArray(category.winners) ||
+          category.outcome !== (category.winners.length ? 'WINNERS' : 'NO_WINNER') ||
+          category.winners.some((winner) => !winner || typeof winner.name !== 'string' ||
+            !winner.name.trim() || typeof winner.role !== 'string')) {
+        throw new Error('INVALID_PUBLICATION');
+      }
+      summaries.push(`${label} : ${category.winners.length
+        ? category.winners.map((winner) => `${winner.name} (${winner.role})`).join(' · ')
+        : 'Aucun gagnant'}`);
+    }
+    state.textContent = 'Résultats définitifs publiés';
+    explanation.textContent = summaries.join(' — ');
+  } catch {
+    if (!current()) return;
+    state.textContent = 'Résultats momentanément indisponibles';
+    explanation.textContent = 'Impossible de vérifier les résultats officiels pour cette période. Réessayez avec « Actualiser ».';
+  }
 }
 
 async function load(requestedMonth = byId('month-select').value) {
@@ -250,6 +306,7 @@ async function load(requestedMonth = byId('month-select').value) {
     const data = approved(await response.json());
     if (!data || (requestedMonth && data.month !== requestedMonth)) throw new Error('INVALID_MONITORING_RESPONSE');
     render(data);
+    if (data.status === 'CLOSED_PENDING_RESULTS') await loadPublishedResults(data.month);
   } catch {
     showMessage('Les données de suivi du vote sont momentanément indisponibles.', true);
   } finally {
