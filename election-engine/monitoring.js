@@ -11,7 +11,7 @@ class MonitoringError extends Error {
 
 const ELECTION_FIELDS = [
   'siteId', 'dataEnvironment', 'monthKey', 'timeZone',
-  'opensAt', 'closesAt', 'eligibleVoterCount',
+  'opensAt', 'closesAt', 'eligibleVoterCount', 'sourceGeneration',
 ];
 const VOTER_GROUPS = new Set(['CUISINE', 'SERVICE']);
 const DEPARTMENTS = {
@@ -37,7 +37,7 @@ async function resolveIndividuals(db, ref, directoryService, siteId, eligible, s
     voters: null,
   };
   try {
-    const [snapshot] = await db.getAll(ref, { fieldMask: ['voters'] });
+    const [snapshot] = await db.getAll(ref, { fieldMask: ['voters', 'sourceGeneration'] });
     const entries = snapshot.data()?.voters;
     if (!entries || typeof entries !== 'object' || Array.isArray(entries) ||
         Object.keys(entries).length !== eligible) return unavailable;
@@ -48,7 +48,8 @@ async function resolveIndividuals(db, ref, directoryService, siteId, eligible, s
     } catch { /* Snapshot names are optional. */ }
     const employees = new Map();
     const duplicates = new Set();
-    if (directory?.siteId === siteId && Array.isArray(directory.employees)) {
+    if (directory?.siteId === siteId && Array.isArray(directory.employees) &&
+        directory.sourceGeneration === snapshot.data()?.sourceGeneration) {
       for (const employee of directory.employees) {
         if (!employee || employee.siteId !== siteId || typeof employee.employeeId !== 'string') continue;
         if (employees.has(employee.employeeId)) duplicates.add(employee.employeeId);
@@ -112,11 +113,11 @@ async function resolveIndividuals(db, ref, directoryService, siteId, eligible, s
     let unresolvedOrdinal = 0;
     const voters = rows.map((row) => {
       if (row.name) {
-        return { name: row.name, department: row.department, hasVoted: row.hasVoted,
-          identitySource: row.identitySource };
+        return { employeeId: row.employeeId, name: row.name, department: row.department,
+          hasVoted: row.hasVoted, identitySource: row.identitySource };
       }
       unresolvedOrdinal += 1;
-      return { name: `Identité non résolue ${unresolvedOrdinal}`, department: 'Non disponible',
+      return { employeeId: row.employeeId, name: `Identité non résolue ${unresolvedOrdinal}`, department: 'Non disponible',
         hasVoted: row.hasVoted, identitySource: 'UNRESOLVED' };
     });
     const participantIdentitiesResolved = [...ids].filter((id) => resolvableIds.has(id)).length;
@@ -180,7 +181,7 @@ function createElectionMonitoringService({ db, directoryService, siteId, dataEnv
       }
       const eligible = election.eligibleVoterCount;
       const individual = await resolveIndividuals(db, ref, directoryService, siteId, eligible, submitted,
-        month === currentWindow.monthKey);
+        true);
       return {
         month,
         availableMonths,
