@@ -5,7 +5,7 @@ const path = require('node:path');
 const { browserSession, waitFor } = require('./helpers/browser-session');
 const { mountPublicFiles } = require('../public-files');
 
-test('September winners page is static, responsive, and independent from election results', async (t) => {
+test('October and preserved September winners are static, responsive, and independent from election results', async (t) => {
   const app = express();
   const root = path.join(__dirname, '..');
   let latestResultsRequests = 0;
@@ -22,24 +22,36 @@ test('September winners page is static, responsive, and independent from electio
   t.after(() => server.close());
   const base = `http://127.0.0.1:${server.address().port}`;
   const { call, evaluate, errors } = await browserSession(t);
+  async function loadPortraitsByScrolling() {
+    // With two archived months, lazy portraits can be well below the viewport.
+    // Exercise real scrolling instead of assuming all six load on first paint.
+    for (let index = 0; index < 6; index += 1) {
+      await evaluate(`document.querySelectorAll(".portrait")[${index}].scrollIntoView({block: "center"})`);
+      await waitFor(() => evaluate(`(() => {
+        const image = document.querySelectorAll(".portrait")[${index}];
+        return image.complete && image.naturalWidth > 0;
+      })()`));
+    }
+    await evaluate('window.scrollTo(0, 0)');
+  }
 
   await call('Page.navigate', { url: `${base}/resultats_collaborateurs-du-mois.html` });
-  await waitFor(() => evaluate('document.readyState === "complete" && document.querySelectorAll(".portrait").length === 2'));
-  await waitFor(() => evaluate('[...document.querySelectorAll(".portrait")].every(image => image.complete && image.naturalWidth > 0)'));
+  await waitFor(() => evaluate('document.readyState === "complete" && document.querySelectorAll(".portrait").length === 6'));
+  await loadPortraitsByScrolling();
 
   assert.deepEqual(await evaluate(`({
     label: document.querySelector(".eyebrow").textContent.trim(),
     title: document.querySelector("h1").innerText.replace(/\\s+/g, " ").trim(),
-    subtitle: document.querySelector(".intro-copy").textContent.replace(/\\s+/g, " ").trim(),
-    month: document.querySelector(".month-heading").textContent,
-    categories: [...document.querySelectorAll(".card-heading h2")].map(node => node.textContent),
-    names: [...document.querySelectorAll(".winner-name")].map(node => node.textContent),
-    roles: [...document.querySelectorAll(".winner-role")].map(node => node.textContent),
+    subtitle: document.querySelector(".september-copy").textContent.replace(/\\s+/g, " ").trim(),
+    month: document.querySelector(".month-wrap--september .month-heading").textContent,
+    categories: [...document.querySelectorAll(".winner-grid:not(.winner-grid--october) .card-heading h2")].map(node => node.textContent),
+    names: [...document.querySelectorAll(".winner-grid:not(.winner-grid--october) .winner-name")].map(node => node.textContent),
+    roles: [...document.querySelectorAll(".winner-grid:not(.winner-grid--october) .winner-role")].map(node => node.textContent),
     closing: document.querySelector("#closing-title").textContent,
     closingCopy: document.querySelector(".closing-copy").textContent.replace(/\\s+/g, " ").trim(),
     returnLink: document.querySelector(".return-link").textContent.replace(/\\s+/g, " ").trim(),
     returnTarget: document.querySelector(".return-link").getAttribute("href"),
-    images: [...document.querySelectorAll(".portrait")].map(image => ({
+    images: [...document.querySelectorAll(".winner-grid:not(.winner-grid--october) .portrait")].map(image => ({
       src: new URL(image.src).pathname,
       alt: image.alt,
       fit: getComputedStyle(image).objectFit,
@@ -113,13 +125,32 @@ test('September winners page is static, responsive, and independent from electio
       mobile: width < 600,
     });
     await call('Page.navigate', { url: `${base}/resultats_collaborateurs-du-mois.html` });
-    await waitFor(() => evaluate('document.querySelectorAll(".portrait").length === 2 && [...document.querySelectorAll(".portrait")].every(image => image.complete && image.naturalWidth > 0)'));
+    await waitFor(() => evaluate('document.readyState === "complete" && document.querySelectorAll(".portrait").length === 6'));
+    await loadPortraitsByScrolling();
     assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'), true, `no horizontal overflow at ${width}px`);
-    assert.equal(await evaluate('document.querySelectorAll(".winner-card").length === 2 && document.querySelector(".winner-grid").getBoundingClientRect().width > 0'), true);
+    assert.equal(await evaluate('document.querySelectorAll(".winner-card").length === 6 && document.querySelector(".winner-grid").getBoundingClientRect().width > 0'), true);
     assert.equal(await evaluate(`(() => {
-      const [cuisine, service] = [...document.querySelectorAll(".winner-card")].map(card => card.getBoundingClientRect());
+      const [cuisine, service] = [...document.querySelectorAll(".winner-grid:not(.winner-grid--october) .winner-card")].map(card => card.getBoundingClientRect());
       return ${width} > 680 ? Math.abs(cuisine.left - service.left) > 1 : Math.abs(cuisine.top - service.top) > 1;
     })()`), true, `winner card layout at ${width}px`);
+    assert.deepEqual(await evaluate(`({
+      names: [...document.querySelectorAll(".winner-grid--october .winner-name")].map(n => n.textContent),
+      roles: [...document.querySelectorAll(".winner-grid--october .winner-role")].map(n => n.textContent),
+      month: document.querySelector(".month-heading").textContent,
+      photosKeepProportions: [...document.querySelectorAll(".winner-grid--october .portrait")].every(image => {
+        const rect = image.getBoundingClientRect();
+        return Math.abs(rect.width / rect.height - image.naturalWidth / image.naturalHeight) < 0.002
+          && Math.abs(image.parentElement.getBoundingClientRect().height - rect.height) < 3;
+      }),
+      septemberBelowOctober: document.querySelector(".month-wrap--september").getBoundingClientRect().top
+        >= document.querySelector(".winner-grid--october").getBoundingClientRect().bottom
+    })`), {
+      names: ['Vizzi Angelo', 'Masbernard Loïc', 'Duarte Alexander', 'Benchennouf Fares'],
+      roles: ['Sous-chef', 'Chef de partie', 'Barman', 'Chef de brigade'],
+      month: 'OCTOBRE 2026',
+      photosKeepProportions: true,
+      septemberBelowOctober: true,
+    });
   }
 
   await new Promise((resolve) => setTimeout(resolve, 100));

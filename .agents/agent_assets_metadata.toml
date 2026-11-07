@@ -14,3 +14,45 @@ mtime_ms = 1790919990122
 storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:11915a0a-8e99-421a-b5ef-3353a9053a73/a73a4586-3428-47fa-8e54-d5de6fe93f71/5c2ebbf5-4434-4ac0-bb22-b6674fb73692"
 storage_version_token = "1790920036385438"
 content_type = "text/html"
+
+[[outputs]]
+id = "8Irjvf8uKkJUfmhdV_SvJ"
+uri = "file://screenshots/preview-read-only-admin-login.jpg"
+type = "image"
+title = "Preview Replit — accesso Administration protetto"
+description = "Schermata reale della preview in sola lettura. Senza sessione del titolare viene mostrato il login; la pagina amministrativa autenticata non è stata ispezionata."
+logical_id = "c7fe149d-5e9b-4e48-8fd5-c4471275e493"
+content_hash = "sha256:349b58442c5113ba01cff2e22708641c5dec723a8757e533b48d3261ead9d50b"
+size = 33862
+mtime_ms = 1792068374240
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:11915a0a-8e99-421a-b5ef-3353a9053a73/c7fe149d-5e9b-4e48-8fd5-c4471275e493/aa112130-e524-4ef5-b6fb-228d122de68a"
+storage_version_token = "1792068679404570"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "Jt6ZE29oZMr-RORh-Cinq"
+uri = "file://screenshots/preview-septembre-2026-login-check.jpg"
+type = "image"
+title = "Test browser reale — accesso fermato al login"
+description = "Preview Replit, /suivi-du-vote. Il browser non autenticato mostra Connexion Administration; nessun accesso ai risultati di settembre 2026."
+logical_id = "aff84519-6c02-4988-b797-9fcef31b6e1f"
+content_hash = "sha256:349b58442c5113ba01cff2e22708641c5dec723a8757e533b48d3261ead9d50b"
+size = 33862
+mtime_ms = 1792082707099
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:11915a0a-8e99-421a-b5ef-3353a9053a73/aff84519-6c02-4988-b797-9fcef31b6e1f/92eaf949-e1b2-4f50-b369-ef609c6425dc"
+storage_version_token = "1792082716980064"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "pwX6mzWDQftcaxomq2qRt"
+uri = "file://screenshots/octobre-septembre-2026-desktop.jpg"
+type = "image"
+title = "Collaborateurs du mois — ottobre sopra settembre"
+description = "Screenshot reale della Preview Replit: quattro vincitori di ottobre con foto originali complete e settembre conservato sotto. Nessuna pubblicazione o push."
+logical_id = "391ab8ef-0c0e-480f-8d48-c49808d8e55d"
+content_hash = "sha256:b3a979f7736b302aaa3870d5d3986e020e1aeb5f682810deefc603b40f1c7e1c"
+size = 526790
+mtime_ms = 1794037223479
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:11915a0a-8e99-421a-b5ef-3353a9053a73/391ab8ef-0c0e-480f-8d48-c49808d8e55d/f87a824e-793a-4e57-ac9b-d1fd16a52f2c"
+storage_version_token = "1794037282391005"
+content_type = "image/jpeg"

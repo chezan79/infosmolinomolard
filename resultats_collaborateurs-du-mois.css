@@ -323,6 +323,39 @@ body.winners-page {
   object-position: 53% 35%;
 }
 
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+.month-wrap--september {
+  display: flex;
+  width: fit-content;
+  margin: 47px auto 23px;
+}
+
+.september-copy {
+  margin: 0 auto 24px;
+  text-align: center;
+}
+
+.winner-grid--october .portrait-frame {
+  aspect-ratio: auto;
+  overflow: visible;
+}
+
+.winner-grid--october .portrait {
+  width: 100%;
+  height: auto;
+  border-radius: 16px;
+  object-fit: initial;
+}
+
 .portrait-caption {
   position: absolute;
   right: 12px;
