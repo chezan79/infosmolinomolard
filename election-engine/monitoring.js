@@ -182,7 +182,7 @@ function createElectionMonitoringService({ db, directoryService, siteId, dataEnv
       }
       const eligible = election.eligibleVoterCount;
       const individual = await resolveIndividuals(db, ref, directoryService, siteId, eligible, submitted,
-        true);
+        month === currentWindow.monthKey);
       return {
         month,
         availableMonths,
