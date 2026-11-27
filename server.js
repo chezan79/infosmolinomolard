@@ -8,6 +8,7 @@ const { mountFirebaseClientConfig } = require('./firebase-client-config-route');
 const { createDirectoryRuntime } = require('./employee-directory');
 const { createElectionRuntime } = require('./election-engine');
 const { mountElectionMonitoring } = require('./election-engine/monitoring');
+const { mountVoterAmendment } = require('./election-engine/voter-amendment');
 const { mountAdministrationMonitoringPage, mountAdministrationHistoryPage } = require('./administration-monitoring-page');
 const { createResultsRuntime } = require('./election-engine/results-runtime');
 const { validateProductionConfig } = require('./production-config');
@@ -65,6 +66,7 @@ electionRuntime.mount(app);
 app.use(express.json());
 employeeDirectory.mount(app);
 mountElectionMonitoring(app, { env: process.env, firebaseDb, firebaseAuth, directoryService: employeeDirectory.service });
+mountVoterAmendment(app, { env: process.env, firebaseDb, firebaseAuth, directoryService: employeeDirectory.service });
 mountFirebaseClientConfig(app, process.env);
 const resultsRuntime = createResultsRuntime({
   env: process.env, firebaseDb, firebaseAuth, firebaseBucket, directoryPhotos: employeeDirectory.photos,
