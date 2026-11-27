@@ -42,7 +42,7 @@ function roster(voters, eligible, participants, {
 const sample = {
   ...phase3,
   individual: roster(Array.from({ length: 49 }, (_, index) => ({
-    name: `Collaborateur ${index}`, department: 'Cuisine', hasVoted: index === 0,
+    employeeId: `MOL-${index+1}`, name: `Collaborateur ${index}`, department: 'Cuisine', hasVoted: index === 0,
     identitySource: 'CURRENT_DIRECTORY',
   })), 49, 1),
 };
@@ -140,7 +140,7 @@ test('aggregate fields drive month, window, four KPIs, accessible progress, cons
     assert.equal((rendered + listText(nodes)).includes(privateValue), false, privateValue);
   }
   assert.equal(nodes['filter-all'].textContent, 'Tous (49)');
-  assert.match(listText(nodes), /Collaborateur 0 Cuisine.*A voté/);
+  assert.match(listText(nodes), /Collaborateur 0.*Cuisine.*A voté/);
 });
 
 test('upcoming and closed states retain result secrecy and use API window, not hardcoded month', async () => {
@@ -153,7 +153,7 @@ test('upcoming and closed states retain result secrecy and use API window, not h
     assert.match(nodes.window.textContent, /25 décembre 2026 au 31 décembre 2026/);
     assert.equal(nodes['election-status'].textContent, status === 'UPCOMING' ? 'Vote à venir' : 'Vote clôturé');
     assert.match(nodes['results-explanation'].textContent,
-      status === 'UPCOMING' ? /masqués jusqu’à la clôture/ : /ne fournit pas encore les résultats définitifs/);
+      status === 'UPCOMING' ? /masqués jusqu’à la clôture/ : /Le décompte ne peut pas être vérifié/);
     assert.equal(nodes.dashboard.hidden, false);
   }
 });
@@ -259,9 +259,9 @@ test('loading, refresh, failure and retry never convert unknown data to zero or 
 test('French sorting, accent-insensitive search and combined filters remain local', async () => {
   const data = { ...sample, eligibleVoters: 3, participation: { count: 1, remaining: 2, percentage: 33.33 },
     individual: roster([
-      { name: 'Zoé', department: 'Service', hasVoted: false, identitySource: 'CURRENT_DIRECTORY' },
-      { name: 'Émile', department: 'Cuisine', hasVoted: true, identitySource: 'CURRENT_DIRECTORY' },
-      { name: 'Alice', department: 'Plonge', hasVoted: false, identitySource: 'CURRENT_DIRECTORY' },
+      { employeeId: 'MOL-1', name: 'Zoé', department: 'Service', hasVoted: false, identitySource: 'CURRENT_DIRECTORY' },
+      { employeeId: 'MOL-2', name: 'Émile', department: 'Cuisine', hasVoted: true, identitySource: 'CURRENT_DIRECTORY' },
+      { employeeId: 'MOL-3', name: 'Alice', department: 'Plonge', hasVoted: false, identitySource: 'CURRENT_DIRECTORY' },
     ], 3, 1) };
   const { nodes, requests } = fixture(async () => response(data));
   await settle();
@@ -275,7 +275,7 @@ test('French sorting, accent-insensitive search and combined filters remain loca
   assert.equal(nodes['voter-list'].children.length, 0);
   nodes['filter-voted'].click();
   assert.equal(nodes['voter-list'].children.length, 1);
-  assert.match(listText(nodes), /Émile Cuisine.*A voté/);
+  assert.match(listText(nodes), /Émile.*Cuisine.*A voté/);
   assert.equal(nodes['filter-all'].textContent, 'Tous (3)');
   assert.equal(nodes['filter-voted'].textContent, 'A voté (1)');
   assert.equal(nodes['filter-pending'].textContent, "N'a pas voté (2)");
@@ -287,7 +287,7 @@ test('malicious voter fields render as text, while extraneous private fields are
     participation: { count: 0, remaining: 1, percentage: 0 },
     individual: roster([{ name: '<img src=x onerror=alert(1)>', department: 'Cuisine',
       hasVoted: false, identitySource: 'CURRENT_DIRECTORY',
-      verifier: 'secret-verifier', employeeId: 'secret-employee', comments: 'secret-comment' }], 1, 0) };
+      verifier: 'secret-verifier', employeeId: 'MOL-1', comments: 'secret-comment' }], 1, 0) };
   const { nodes } = fixture(async () => response(data));
   await settle();
   assert.equal(nodes['voter-list'].children[0].children[0].children[0].textContent, '<img src=x onerror=alert(1)>');
