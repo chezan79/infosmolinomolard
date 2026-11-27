@@ -261,7 +261,9 @@ async function loadRankings(month) {
   const status = document.getElementById('vote-rankings-status');
   grid.hidden = true;
   grid.replaceChildren();
-  if (!validMonth(month)) { status.textContent = 'Période invalide.'; return; }
+  if (!validMonth(month)) { status.textContent = 'Aucune période disponible.'; return; }
+  const option = document.getElementById('vote-rankings-month').selectedOptions[0];
+  if (option?.dataset.sealed === 'true') { status.textContent = 'Les résultats restent confidentiels jusqu’à la clôture du vote.'; return; }
   status.textContent = 'Chargement du classement…';
   try {
     const response = await fetch(`/api/v1/management/election-rankings?month=${encodeURIComponent(month)}`,
@@ -382,7 +384,39 @@ document.getElementById('vote-rankings-refresh').addEventListener('click', () =>
   loadRankings(document.getElementById('vote-rankings-month').value));
 document.getElementById('vote-rankings-month').addEventListener('change', () =>
   loadRankings(document.getElementById('vote-rankings-month').value));
-void loadRankings(document.getElementById('vote-rankings-month').value);
+async function loadRankingPeriods() {
+  const selector = document.getElementById('vote-rankings-month');
+  const status = document.getElementById('vote-rankings-status');
+  const previous = selector.value;
+  selector.disabled = true;
+  document.getElementById('vote-rankings-grid').hidden = true;
+  try {
+    const response = await fetch('/api/v1/management/election-monitoring', { credentials: 'same-origin', cache: 'no-store' });
+    if (response.status === 401 || response.status === 403) { window.location.assign(LOGIN_PATH); return; }
+    if (!response.ok) throw new Error('MONTHS_UNAVAILABLE');
+    const data = await response.json();
+    if (!Array.isArray(data.availableMonths) || !data.availableMonths.every(validMonth) ||
+        !validMonth(data.month) || !data.availableMonths.includes(data.month)) throw new Error('MONTHS_INVALID');
+    const months = [...new Set(data.availableMonths)].sort((a,b) => b.localeCompare(a));
+    selector.replaceChildren(...months.map(month => {
+      const option = document.createElement('option');
+      option.value = month;
+      option.textContent = formatMonth(month);
+      if (month === data.month && data.status !== 'CLOSED_PENDING_RESULTS' || month > data.month) {
+        option.dataset.sealed = 'true';
+        option.textContent += ' — résultats scellés';
+      }
+      return option;
+    }));
+    if (months.includes(previous)) selector.value = previous;
+    selector.disabled = !months.length;
+    await loadRankings(selector.value);
+  } catch {
+    selector.replaceChildren();
+    status.textContent = 'Impossible de charger les périodes. Actualisez la page.';
+  }
+}
+void loadRankingPeriods();
 
 refreshButton.addEventListener('click', async () => {
   refreshStatus.textContent = 'Actualisation en cours…';

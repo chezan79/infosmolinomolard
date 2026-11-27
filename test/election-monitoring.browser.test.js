@@ -58,7 +58,7 @@ test('protected Administration navigation and dashboard work in desktop and mobi
         participantIdentitiesResolved: 1,
         participantIdentitiesTotal: 1,
         voters: Array.from({ length: 49 }, (_, index) => ({
-          name: `Collaborateur ${index}`, department: 'Cuisine', hasVoted: index === 0,
+          employeeId: `MOL-${index+1}`, name: `Collaborateur ${index}`, department: 'Cuisine', hasVoted: index === 0,
           identitySource: 'CURRENT_DIRECTORY',
         })),
       } : {
@@ -124,7 +124,7 @@ test('protected Administration navigation and dashboard work in desktop and mobi
     await evaluate('document.querySelector("#month-select").value = "2026-09"; document.querySelector("#month-select").dispatchEvent(new Event("change", { bubbles: true }))');
     await waitFor(() => evaluate('document.querySelector("#month").textContent === "septembre 2026"'));
     assert.equal(await evaluate('document.querySelector("#election-status").textContent'), 'Vote clôturé');
-    assert.equal(await evaluate('document.querySelector("#results-state").textContent'), 'Résultats indisponibles');
+    assert.equal(await evaluate('document.querySelector("#results-state").textContent'), 'Classement indisponible');
     await evaluate('document.querySelector("#month-select").value = "2026-10"; document.querySelector("#month-select").dispatchEvent(new Event("change", { bubbles: true }))');
     await waitFor(() => evaluate('document.querySelector("#month").textContent === "octobre 2026"'));
     assert.equal(await evaluate('document.querySelectorAll("#voter-list li").length'), 49);

@@ -196,20 +196,20 @@ test('admin receives only the approved aggregates and no-store headers', async (
     voters: body.individual.voters,
   });
   assert.deepEqual(body.individual.voters[0], {
-    name: 'Collaborateur 0', department: 'Cuisine', hasVoted: true, identitySource: 'CURRENT_DIRECTORY',
+    employeeId: 'employee-0', name: 'Collaborateur 0', department: 'Cuisine', hasVoted: true, identitySource: 'CURRENT_DIRECTORY',
   });
   assert.deepEqual(body.individual.voters[1], {
-    name: 'Collaborateur 1', department: 'Cuisine', hasVoted: false, identitySource: 'CURRENT_DIRECTORY',
+    employeeId: 'employee-1', name: 'Collaborateur 1', department: 'Cuisine', hasVoted: false, identitySource: 'CURRENT_DIRECTORY',
   });
   assert.deepEqual(db.calls.map(([operation]) => operation), ['query', 'getAll', 'count', 'getAll', 'select']);
   assert.deepEqual(db.calls[1][2].sort(), [
     'siteId', 'dataEnvironment', 'monthKey', 'timeZone',
-    'opensAt', 'closesAt', 'eligibleVoterCount',
+    'opensAt', 'closesAt', 'eligibleVoterCount', 'sourceGeneration',
   ].sort());
-  assert.deepEqual(db.calls[3][2], ['voters']);
+  assert.deepEqual(db.calls[3][2], ['voters', 'sourceGeneration']);
   assert.equal(db.calls.some(([, path]) => path.endsWith('/ballots')), false);
   for (const prohibited of ['private', 'verifier', 'grant', 'ballotId', 'comments', 'candidate',
-    'results', 'ranking', 'salaireId', 'employee-0', 'private-verifier']) {
+    'results', 'ranking', 'salaireId', 'private-verifier']) {
     assert.equal(JSON.stringify(body).toLowerCase().includes(prohibited.toLowerCase()), false, prohibited);
   }
 });
